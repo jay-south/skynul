@@ -201,13 +201,21 @@ code {
   text-align: left;
   border: none;
   background: transparent;
-  color: var(--nb-danger);
+  color: var(--nb-text);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
 }
 
 .rbDropdownItem:hover {
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 90%);
+}
+
+.rbDropdownItem.danger {
+  color: var(--nb-danger);
+}
+
+.rbDropdownItem.danger:hover {
   background: color-mix(in srgb, var(--nb-danger), transparent 90%);
 }
 
@@ -911,6 +919,85 @@ code {
   color: var(--nb-muted);
   text-align: center;
   padding: 20px 10px;
+}
+
+.taskNewFormActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.btnSecondary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--nb-border);
+  background: transparent;
+  color: var(--nb-muted);
+  transition: all 120ms ease;
+}
+
+.btnSecondary:hover:not(:disabled) {
+  color: var(--nb-text);
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 60%);
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 92%);
+}
+
+.btnSecondary:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.savedPromptsList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.savedPromptItem {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 8px;
+  border: 1px solid var(--nb-border);
+  background: var(--nb-panel-2);
+  overflow: hidden;
+}
+
+.savedPromptText {
+  flex: 1;
+  text-align: left;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--nb-muted);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.savedPromptText:hover {
+  color: var(--nb-text);
+}
+
+.savedPromptDel {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  font-size: 14px;
+  border: none;
+  background: transparent;
+  color: var(--nb-muted);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.savedPromptDel:hover {
+  color: var(--nb-danger);
 }
 
 /* ── Task detail view ─────────────────────────────────────────────────── */
