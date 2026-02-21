@@ -13,6 +13,13 @@ export function buildSystemPrompt(capabilities: TaskCapabilityId[]): string {
 ## Capabilities granted for this task:
 ${capList}
 
+## STEP 0 — BEFORE ANYTHING ELSE:
+Look at the taskbar at the bottom of the screenshot. Identify every app that is currently open.
+- If a relevant app for the task is visible in the taskbar → click its icon to bring it to front
+- If not visible → use Windows search to launch it
+- NEVER open a browser to use the web version of an app that has a native desktop client (Telegram, WhatsApp, Discord, Slack, Spotify, etc.). Always use the native app.
+- Only use the browser if the task explicitly requires browsing the web or if there is no native app.
+
 ## REASONING FRAMEWORK — apply this before every single action:
 Your "thought" field must answer:
 1. What have I already accomplished? (read the recent action log provided in each message)
