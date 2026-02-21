@@ -110,10 +110,31 @@ export class TaskRunner {
         const dataUrl = `data:image/png;base64,${screenshotBase64}`
 
         // 2. Build message with screenshot
+        const stepIndex = this.task.steps.length
+        let turnText: string
+        if (stepIndex === 0) {
+          turnText = `Task: ${this.task.prompt}\n\nHere is the current screenshot:`
+        } else {
+          // Include a compact log of the last 8 actions so the model remembers what it already did
+          const recentSteps = this.task.steps.slice(-8)
+          const actionLog = recentSteps.map((s) => {
+            const a = s.action
+            let desc: string = a.type
+            if (a.type === 'click' || a.type === 'double_click') desc = `${a.type}(${a.x},${a.y})`
+            else if (a.type === 'type') desc = `type "${a.text.slice(0, 60)}${a.text.length > 60 ? '…' : ''}"`
+            else if (a.type === 'key') desc = `key ${a.combo}`
+            else if (a.type === 'scroll') desc = `scroll ${a.direction}`
+            else if (a.type === 'wait') desc = `wait ${a.ms}ms`
+            else if (a.type === 'launch') desc = `launch ${a.app}`
+            return `Step ${s.index + 1}: ${desc}${s.thought ? ` — ${s.thought.slice(0, 80)}` : ''}`
+          }).join('\n')
+          turnText = `Step ${stepIndex + 1}. Here is the current screenshot.\n\nRecent actions taken:\n${actionLog}\n\nDo NOT repeat actions that already succeeded. Continue with the next logical step.`
+        }
+
         const turnMessage: VisionMessage = {
           role: 'user',
           content: [
-            { type: 'input_text', text: this.task.steps.length === 0 ? `Task: ${this.task.prompt}\n\nHere is the current screenshot:` : 'Here is the current screenshot after the last action:' },
+            { type: 'input_text', text: turnText },
             { type: 'input_image', image_url: dataUrl }
           ]
         }
