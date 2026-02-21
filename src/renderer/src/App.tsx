@@ -455,18 +455,21 @@ function App(): React.JSX.Element {
 
     const rec = new SR()
     rec.lang = 'es-AR'
-    rec.interimResults = false
-    rec.continuous = false
+    rec.interimResults = true  // show text as you speak
+    rec.continuous = true      // keep recording until manually stopped
+
+    const baseText = draft.trim()
 
     rec.onstart = (): void => setIsRecording(true)
     rec.onend = (): void => setIsRecording(false)
     rec.onerror = (): void => setIsRecording(false)
     rec.onresult = (e: SpeechRecognitionEvent): void => {
+      // Accumulate all results (final + interim) as live transcript
       const transcript = Array.from(e.results)
         .map((r) => r[0].transcript)
         .join(' ')
         .trim()
-      if (transcript) setDraft((prev) => (prev ? `${prev} ${transcript}` : transcript))
+      setDraft(baseText ? `${baseText} ${transcript}` : transcript)
     }
 
     recognitionRef.current = rec

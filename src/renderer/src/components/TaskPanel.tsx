@@ -109,6 +109,38 @@ export function TaskPanel(props: {
   )
   const [savedPrompts, setSavedPrompts] = useState<SavedPrompt[]>(loadSavedPrompts)
   const [savedFeedback, setSavedFeedback] = useState(false)
+  const [isRecording, setIsRecording] = useState(false)
+  const recognitionRef = useRef<InstanceType<typeof SpeechRecognition> | null>(null)
+
+  const toggleMic = (): void => {
+    if (isRecording) {
+      recognitionRef.current?.stop()
+      return
+    }
+    const SR = window.SpeechRecognition ?? window.webkitSpeechRecognition
+    if (!SR) return
+
+    const rec = new SR()
+    rec.lang = 'es-AR'
+    rec.interimResults = true
+    rec.continuous = true
+
+    const base = prompt.trim()
+
+    rec.onstart = (): void => setIsRecording(true)
+    rec.onend = (): void => setIsRecording(false)
+    rec.onerror = (): void => setIsRecording(false)
+    rec.onresult = (e: SpeechRecognitionEvent): void => {
+      const transcript = Array.from(e.results)
+        .map((r) => r[0].transcript)
+        .join(' ')
+        .trim()
+      setPrompt(base ? `${base} ${transcript}` : transcript)
+    }
+
+    recognitionRef.current = rec
+    rec.start()
+  }
 
   const closeMenu = useCallback(() => {
     setMenuOpenId(null)
@@ -208,6 +240,22 @@ export function TaskPanel(props: {
             ))}
           </div>
           <div className="taskNewFormActions">
+            <button
+              className={`micBtn${isRecording ? ' recording' : ''}`}
+              onClick={toggleMic}
+              aria-label={isRecording ? 'Stop recording' : 'Voice input'}
+              title={isRecording ? 'Stop recording' : 'Voice input'}
+            >
+              {isRecording ? (
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+                  <rect x="6" y="6" width="12" height="12" rx="2" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+                  <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4Zm6.5 9a.5.5 0 0 1 .5.5 7 7 0 0 1-6.5 6.97V19h2a.5.5 0 0 1 0 1h-5a.5.5 0 0 1 0-1h2v-1.53A7 7 0 0 1 5 10.5a.5.5 0 0 1 1 0 6 6 0 0 0 12 0 .5.5 0 0 1 .5-.5Z" />
+                </svg>
+              )}
+            </button>
             <button
               className="btnSecondary"
               onClick={() => savePromptText(prompt)}
