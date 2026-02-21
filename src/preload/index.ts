@@ -103,6 +103,8 @@ const netbot = {
     ipcRenderer.invoke(IPC.taskGet, { taskId }),
   taskList: (): Promise<TaskListResponse> =>
     ipcRenderer.invoke(IPC.taskList),
+  taskDelete: (taskId: string): Promise<boolean> =>
+    ipcRenderer.invoke(IPC.taskDelete, { taskId }),
   onTaskUpdate: (cb: (task: Task) => void): (() => void) => {
     const handler = (_evt: unknown, payload: TaskUpdateEvent): void => cb(payload.task)
     ipcRenderer.on('netbot:task:update', handler)

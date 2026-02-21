@@ -27,7 +27,8 @@ export const IPC = {
   taskPause: 'netbot:task:pause',
   taskResume: 'netbot:task:resume',
   taskGet: 'netbot:task:get',
-  taskList: 'netbot:task:list'
+  taskList: 'netbot:task:list',
+  taskDelete: 'netbot:task:delete'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]

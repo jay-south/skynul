@@ -411,13 +411,23 @@ Write-Host '${MARKER}'
 
   /**
    * Capture a screenshot of the primary display.
-   * If maxWidth/maxHeight given, resize on the Windows side before reading.
-   * Returns the raw PNG buffer.
+   * If maxWidth/maxHeight given, the image is resized before sending to the model,
+   * but we also return the scale factors so click coordinates can be mapped back
+   * to native screen coordinates.
    */
-  async captureScreen(opts?: { maxWidth?: number; maxHeight?: number }): Promise<Buffer> {
+  async captureScreen(opts?: { maxWidth?: number; maxHeight?: number }): Promise<{
+    buffer: Buffer
+    scaleX: number
+    scaleY: number
+    nativeWidth: number
+    nativeHeight: number
+  }> {
     const id = randomBytes(8).toString('hex')
     const winTmp = tmpdir().startsWith('/tmp') ? 'C:\\Temp' : tmpdir()
     const winPath = `${winTmp}\\netbot_ss_${id}.png`
+    // Write native dims to a sidecar file so we know the original resolution
+    const dimsPath = `${winTmp}\\netbot_dims_${id}.txt`
+    const wslDimsPath = dimsPath.replace(/^C:\\/, '/mnt/c/').replace(/\\/g, '/')
 
     await this.exec(
       `if (!(Test-Path 'C:\\Temp')) { New-Item -ItemType Directory -Path 'C:\\Temp' | Out-Null }`,
@@ -434,6 +444,7 @@ $g = [System.Drawing.Graphics]::FromImage($bmp)
 $g.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
 $g.Dispose()
 $sw = $bounds.Width; $sh = $bounds.Height
+[System.IO.File]::WriteAllText('${dimsPath}', "$sw,$sh")
 $tw = ${mw}; $th = ${mh}
 $ratio = [Math]::Min($tw / $sw, $th / $sh)
 if ($ratio -lt 1) {
@@ -452,16 +463,33 @@ $bmp.Dispose()`
       if (!result.ok) throw new Error(result.error ?? 'Screenshot failed')
     } else {
       const result = await this.exec(
-        `[NetbotInput]::CaptureScreen('${winPath}') | Out-Null`,
+        `$b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds; [System.IO.File]::WriteAllText('${dimsPath}', "$($b.Width),$($b.Height)"); [NetbotInput]::CaptureScreen('${winPath}') | Out-Null`,
         SCREENSHOT_TIMEOUT
       )
       if (!result.ok) throw new Error(result.error ?? 'Screenshot failed')
     }
 
     const wslPath = winPath.replace(/^C:\\/, '/mnt/c/').replace(/\\/g, '/')
-    const buf = await readFile(wslPath)
+    const [buf, dimsRaw] = await Promise.all([
+      readFile(wslPath),
+      readFile(wslDimsPath, 'utf8').catch(() => '')
+    ])
     void unlink(wslPath).catch(() => {})
-    return buf
+    void unlink(wslDimsPath).catch(() => {})
+
+    // Parse native dims and compute scale factors
+    const parts = dimsRaw.trim().split(',')
+    const nativeWidth = parseInt(parts[0] ?? '0', 10) || 0
+    const nativeHeight = parseInt(parts[1] ?? '0', 10) || 0
+
+    // Get actual image dimensions from the PNG header (bytes 16-24)
+    const scaledWidth = buf.readUInt32BE(16)
+    const scaledHeight = buf.readUInt32BE(20)
+
+    const scaleX = nativeWidth > 0 && scaledWidth > 0 ? nativeWidth / scaledWidth : 1
+    const scaleY = nativeHeight > 0 && scaledHeight > 0 ? nativeHeight / scaledHeight : 1
+
+    return { buffer: buf, scaleX, scaleY, nativeWidth, nativeHeight }
   }
 
   async click(x: number, y: number, button: 'left' | 'right' | 'middle' = 'left'): Promise<void> {

@@ -42,6 +42,7 @@ declare global {
       taskResume: (taskId: string) => Promise<Task>
       taskGet: (taskId: string) => Promise<Task>
       taskList: () => Promise<TaskListResponse>
+      taskDelete: (taskId: string) => Promise<boolean>
       onTaskUpdate: (cb: (task: Task) => void) => () => void
     }
   }

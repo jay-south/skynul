@@ -18,7 +18,7 @@ type ModelResponse = {
 export function parseModelResponse(raw: string): ModelResponse {
   const trimmed = raw.trim()
 
-  // Try direct JSON parse first
+  // Try direct JSON parse first (single clean object)
   try {
     return validateResponse(JSON.parse(trimmed))
   } catch {
@@ -35,18 +35,60 @@ export function parseModelResponse(raw: string): ModelResponse {
     }
   }
 
-  // Try finding JSON object in the text (first { to last })
-  const firstBrace = trimmed.indexOf('{')
-  const lastBrace = trimmed.lastIndexOf('}')
-  if (firstBrace !== -1 && lastBrace > firstBrace) {
+  // Extract the FIRST complete JSON object using brace balancing.
+  // This handles cases where the model returns multiple JSONs concatenated.
+  const firstJson = extractFirstJson(trimmed)
+  if (firstJson) {
     try {
-      return validateResponse(JSON.parse(trimmed.slice(firstBrace, lastBrace + 1)))
+      return validateResponse(JSON.parse(firstJson))
     } catch {
       // continue
     }
   }
 
   throw new Error(`Could not parse model response as JSON action: ${trimmed.slice(0, 200)}`)
+}
+
+/**
+ * Extract the first complete JSON object from a string using brace balancing.
+ * Handles strings and escaped characters correctly.
+ */
+function extractFirstJson(text: string): string | null {
+  const start = text.indexOf('{')
+  if (start === -1) return null
+
+  let depth = 0
+  let inString = false
+  let escape = false
+
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i]
+
+    if (escape) {
+      escape = false
+      continue
+    }
+
+    if (ch === '\\' && inString) {
+      escape = true
+      continue
+    }
+
+    if (ch === '"') {
+      inString = !inString
+      continue
+    }
+
+    if (inString) continue
+
+    if (ch === '{') depth++
+    else if (ch === '}') {
+      depth--
+      if (depth === 0) return text.slice(start, i + 1)
+    }
+  }
+
+  return null
 }
 
 const VALID_ACTION_TYPES = new Set([

@@ -345,4 +345,9 @@ export function registerIpcHandlers(opts: {
   ipcMain.handle(IPC.taskList, async () => {
     return { tasks: tm.list() }
   })
+
+  ipcMain.handle(IPC.taskDelete, async (_evt, req: { taskId: string }) => {
+    tm.delete(req.taskId)
+    return true
+  })
 }
