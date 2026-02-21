@@ -16,17 +16,8 @@ import { WindowsBridge } from './windows-bridge'
 import { buildSystemPrompt } from './system-prompt'
 import { parseModelResponse } from './action-parser'
 import { openaiVisionRespond } from '../providers/openai-vision'
-import { codexVisionRespond } from '../providers/codex-vision'
+import { codexVisionRespond, type VisionMessage } from '../providers/codex-vision'
 import { getSecret } from '../secret-store'
-
-type VisionMessage = {
-  role: 'user' | 'assistant' | 'system'
-  content: Array<
-    | { type: 'input_text'; text: string }
-    | { type: 'input_image'; image_url: string }
-    | { type: 'output_text'; text: string }
-  >
-}
 
 export type TaskRunnerCallbacks = {
   onUpdate: (task: Task) => void
@@ -104,8 +95,13 @@ export class TaskRunner {
         }
 
         let screenshotBuf: Buffer
+        let scaleX = 1
+        let scaleY = 1
         try {
-          screenshotBuf = await this.bridge.captureScreen({ maxWidth: 1280, maxHeight: 720 })
+          const shot = await this.bridge.captureScreen({ maxWidth: 900, maxHeight: 506 })
+          screenshotBuf = shot.buffer
+          scaleX = shot.scaleX
+          scaleY = shot.scaleY
         } catch (e) {
           return this.finish('failed', `Screenshot failed: ${e instanceof Error ? e.message : String(e)}`)
         }
@@ -174,7 +170,7 @@ export class TaskRunner {
         }
 
         try {
-          await this.executeAction(action)
+          await this.executeAction(action, scaleX, scaleY)
         } catch (e) {
           step.error = e instanceof Error ? e.message : String(e)
         }
@@ -183,7 +179,7 @@ export class TaskRunner {
         this.pushUpdate()
 
         // Small delay between actions to let the UI update
-        await this.sleep(500)
+        await this.sleep(200)
       } catch (e) {
         if (this.aborted) break
         return this.finish('failed', `Agent loop error: ${e instanceof Error ? e.message : String(e)}`)
@@ -205,7 +201,7 @@ export class TaskRunner {
     messages: VisionMessage[]
   ): Promise<string> {
     if (this.opts.provider === 'chatgpt') {
-      return codexVisionRespond({ systemPrompt, messages })
+      return codexVisionRespond({ systemPrompt, messages, sessionId: this.task.id })
     }
 
     // OpenAI direct API
@@ -257,15 +253,19 @@ export class TaskRunner {
     return null
   }
 
-  private async executeAction(action: TaskAction): Promise<void> {
+  private async executeAction(action: TaskAction, scaleX: number, scaleY: number): Promise<void> {
     if (!this.bridge) throw new Error('Bridge not available')
+
+    // Helper: map model coords (screenshot space) → native screen coords
+    const sx = (x: number) => Math.round(x * scaleX)
+    const sy = (y: number) => Math.round(y * scaleY)
 
     switch (action.type) {
       case 'click':
-        await this.bridge.click(action.x, action.y, action.button ?? 'left')
+        await this.bridge.click(sx(action.x), sy(action.y), action.button ?? 'left')
         break
       case 'double_click':
-        await this.bridge.doubleClick(action.x, action.y)
+        await this.bridge.doubleClick(sx(action.x), sy(action.y))
         break
       case 'type':
         await this.bridge.type(action.text)
@@ -275,11 +275,11 @@ export class TaskRunner {
         break
       case 'scroll': {
         const clicks = action.direction === 'up' ? (action.amount ?? 3) : -(action.amount ?? 3)
-        await this.bridge.scroll(action.x, action.y, clicks)
+        await this.bridge.scroll(sx(action.x), sy(action.y), clicks)
         break
       }
       case 'move':
-        await this.bridge.moveMouse(action.x, action.y)
+        await this.bridge.moveMouse(sx(action.x), sy(action.y))
         break
       case 'launch':
         await this.bridge.launchApp(action.app)
