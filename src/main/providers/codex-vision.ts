@@ -1,7 +1,6 @@
 /**
  * Codex vision provider — sends screenshots + text through the ChatGPT Pro
- * endpoint using OAuth tokens. Mirrors codexRespond() but supports image
- * content parts for the computer-use agent.
+ * endpoint using OAuth tokens, following the same format as Clawdbot/OpenClaw.
  */
 
 import { loadTokens, saveTokens } from './codex'
@@ -10,14 +9,39 @@ const ISSUER = 'https://auth.openai.com'
 const CLIENT_ID = 'app_EMoamEEZ73f0CkXaXp7hrann'
 const CODEX_API_ENDPOINT = 'https://chatgpt.com/backend-api/codex/responses'
 
-type ContentPart =
-  | { type: 'input_text'; text: string }
-  | { type: 'input_image'; image_url: string }
-  | { type: 'output_text'; text: string }
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-type VisionMessage = {
-  role: 'user' | 'assistant' | 'system'
-  content: ContentPart[]
+type UserContentPart =
+  | { type: 'input_text'; text: string }
+  | { type: 'input_image'; detail: 'auto' | 'low' | 'high'; image_url: string }
+
+type AssistantContentPart =
+  | { type: 'output_text'; text: string; annotations?: unknown[] }
+
+// User/system messages use role+content format
+type UserMessage = {
+  role: 'user' | 'system'
+  content: UserContentPart[]
+}
+
+// Assistant messages use the Responses API item format (type: "message")
+type AssistantMessage = {
+  type: 'message'
+  role: 'assistant'
+  content: AssistantContentPart[]
+  status: 'completed'
+  id: string
+}
+
+type InputItem = UserMessage | AssistantMessage
+
+export type VisionMessage = {
+  role: 'user' | 'assistant'
+  content: Array<
+    | { type: 'input_text'; text: string }
+    | { type: 'input_image'; image_url: string }
+    | { type: 'output_text'; text: string }
+  >
 }
 
 interface StoredTokens {
@@ -32,6 +56,8 @@ interface TokenResponse {
   refresh_token: string
   expires_in?: number
 }
+
+// ─── Token refresh ─────────────────────────────────────────────────────────
 
 async function refreshStoredTokens(stored: StoredTokens): Promise<StoredTokens> {
   const response = await fetch(`${ISSUER}/oauth/token`, {
@@ -56,9 +82,94 @@ async function refreshStoredTokens(stored: StoredTokens): Promise<StoredTokens> 
   }
 }
 
+// ─── Message conversion ────────────────────────────────────────────────────
+
+let _msgCounter = 0
+
+/**
+ * Convert our internal VisionMessage[] to the flat input array
+ * the Responses API expects. Key rules from Clawdbot:
+ * - System prompt goes in `instructions` field ONLY (not in input)
+ * - User messages: { role, content: [{ type: "input_text"|"input_image" }] }
+ * - Assistant messages: { type: "message", role: "assistant", status: "completed", content: [{ type: "output_text" }] }
+ * - Images: must include `detail: "auto"`
+ */
+function convertMessages(messages: VisionMessage[]): InputItem[] {
+  return messages.map((msg) => {
+    if (msg.role === 'user') {
+      return {
+        role: 'user',
+        content: msg.content.map((part) => {
+          if (part.type === 'input_image') {
+            return { type: 'input_image' as const, detail: 'auto' as const, image_url: part.image_url }
+          }
+          return { type: 'input_text' as const, text: part.text }
+        })
+      } as UserMessage
+    }
+
+    // Assistant message — Responses API item format
+    return {
+      type: 'message',
+      role: 'assistant',
+      status: 'completed',
+      id: `msg_netbot_${++_msgCounter}`,
+      content: msg.content
+        .filter((p) => p.type === 'output_text' || p.type === 'input_text')
+        .map((p) => ({
+          type: 'output_text' as const,
+          text: p.type === 'output_text' ? p.text : (p as { type: 'input_text'; text: string }).text,
+          annotations: []
+        }))
+    } as AssistantMessage
+  })
+}
+
+// ─── SSE parser (Clawdbot style: split on \n\n) ────────────────────────────
+
+async function* parseSSE(response: Response): AsyncGenerator<Record<string, unknown>> {
+  const reader = response.body!.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+
+    // SSE events are delimited by double newline
+    let idx = buffer.indexOf('\n\n')
+    while (idx !== -1) {
+      const chunk = buffer.slice(0, idx)
+      buffer = buffer.slice(idx + 2)
+
+      const dataLines = chunk
+        .split('\n')
+        .filter((l) => l.startsWith('data:'))
+        .map((l) => l.slice(5).trim())
+
+      if (dataLines.length > 0) {
+        const data = dataLines.join('\n').trim()
+        if (data && data !== '[DONE]') {
+          try {
+            yield JSON.parse(data) as Record<string, unknown>
+          } catch {
+            // ignore malformed SSE
+          }
+        }
+      }
+
+      idx = buffer.indexOf('\n\n')
+    }
+  }
+}
+
+// ─── Main export ───────────────────────────────────────────────────────────
+
 export async function codexVisionRespond(opts: {
   systemPrompt: string
   messages: VisionMessage[]
+  sessionId?: string
 }): Promise<string> {
   let tokens = await loadTokens()
   if (!tokens || !tokens.access) {
@@ -71,91 +182,68 @@ export async function codexVisionRespond(opts: {
     await saveTokens(tokens)
   }
 
-  // Build input: system prompt + conversation messages.
-  // Responses API requires: user/system → input_text, assistant → output_text
-  const input: VisionMessage[] = [
-    { role: 'system', content: [{ type: 'input_text', text: opts.systemPrompt }] },
-    ...opts.messages.slice(-20).map((msg) => {
-      if (msg.role === 'assistant') {
-        // Convert any input_text parts to output_text for assistant messages
-        return {
-          ...msg,
-          content: msg.content.map((part) => {
-            if (part.type === 'input_text') {
-              return { type: 'output_text' as const, text: part.text }
-            }
-            return part
-          })
-        }
-      }
-      return msg
-    })
-  ]
+  const input = convertMessages(opts.messages.slice(-20))
 
+  // Extract accountId from stored tokens
   const headers: Record<string, string> = {
     Authorization: `Bearer ${tokens.access}`,
     'Content-Type': 'application/json',
-    originator: 'netbot'
+    // Required header discovered from Clawdbot
+    'OpenAI-Beta': 'responses=experimental',
+    originator: 'pi',
+    accept: 'text/event-stream'
   }
   if (tokens.accountId) {
-    headers['ChatGPT-Account-Id'] = tokens.accountId
+    headers['chatgpt-account-id'] = tokens.accountId
+  }
+
+  const body: Record<string, unknown> = {
+    model: 'gpt-5.3-codex',
+    store: false,
+    stream: true,
+    // System prompt goes in `instructions`, NOT as a message in input
+    instructions: opts.systemPrompt,
+    input,
+    text: { verbosity: 'low' },
+    include: ['reasoning.encrypted_content'],
+    tool_choice: 'auto',
+    parallel_tool_calls: true,
+    reasoning: { effort: 'medium', summary: 'auto' }
+  }
+
+  if (opts.sessionId) {
+    body.prompt_cache_key = opts.sessionId
   }
 
   const res = await fetch(CODEX_API_ENDPOINT, {
     method: 'POST',
     headers,
-    body: JSON.stringify({
-      model: 'gpt-5.2',
-      instructions: opts.systemPrompt,
-      store: false,
-      stream: true,
-      input
-    })
+    body: JSON.stringify(body)
   })
 
   if (!res.ok) {
     const txt = await res.text().catch(() => '')
-    throw new Error(`ChatGPT Codex vision error: ${res.status} ${res.statusText}${txt ? ` - ${txt}` : ''}`)
+    throw new Error(
+      `ChatGPT Codex vision error: ${res.status} ${res.statusText}${txt ? ` - ${txt}` : ''}`
+    )
   }
 
   if (!res.body) throw new Error('ChatGPT returned no response body')
 
-  // Parse SSE stream and accumulate text deltas
-  const reader = res.body.getReader()
-  const decoder = new TextDecoder()
   let accumulated = ''
-  let buffer = ''
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-
-    const lines = buffer.split('\n')
-    buffer = lines.pop() ?? ''
-
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue
-      const payload = line.slice(6).trim()
-      if (payload === '[DONE]') continue
-      try {
-        const evt = JSON.parse(payload) as Record<string, unknown>
-        if (evt.type === 'response.output_text.delta' && typeof evt.delta === 'string') {
-          accumulated += evt.delta
-        }
-        if (evt.type === 'response.output_item.done') {
-          const item = evt.item as { type?: string; content?: Array<{ type: string; text?: string }> } | undefined
-          if (item?.content) {
-            for (const c of item.content) {
-              if (c.type === 'output_text' && typeof c.text === 'string' && !accumulated) {
-                accumulated += c.text
-              }
-            }
-          }
-        }
-      } catch {
-        // ignore malformed SSE lines
-      }
+  for await (const evt of parseSSE(res)) {
+    // Clawdbot listens for these events:
+    if (evt.type === 'response.output_text.delta' && typeof evt.delta === 'string') {
+      accumulated += evt.delta
+    }
+    if (evt.type === 'response.done' || evt.type === 'response.completed') {
+      // Stream finished
+      break
+    }
+    if (evt.type === 'response.failed' || evt.type === 'error') {
+      const msg = (evt.message as string) ?? (evt.code as string) ?? 'Unknown error'
+      throw new Error(`ChatGPT stream error: ${msg}`)
     }
   }
 
