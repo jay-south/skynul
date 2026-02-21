@@ -6,6 +6,7 @@
 
 import { randomBytes } from 'crypto'
 import { readFile, writeFile, mkdir } from 'fs/promises'
+import { writeFileSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { app, type BrowserWindow } from 'electron'
 import type {
@@ -15,8 +16,8 @@ import type {
 import type { PolicyState } from '../../shared/policy'
 import { TaskRunner } from './task-runner'
 
-const DEFAULT_MAX_STEPS = 50
-const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
+const DEFAULT_MAX_STEPS = 200
+const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000 // 30 minutes
 const MAX_CONCURRENT_TASKS = 3
 
 export class TaskManager {
@@ -60,7 +61,7 @@ export class TaskManager {
       timeoutMs: req.timeoutMs ?? DEFAULT_TIMEOUT_MS
     }
     this.tasks.set(id, task)
-    this.schedulePersist()
+    void this.persistToDisk()
     return task
   }
 
@@ -110,7 +111,7 @@ export class TaskManager {
     void runner.run().then((final) => {
       this.tasks.set(final.id, final)
       this.runners.delete(taskId)
-      this.schedulePersist()
+      void this.persistToDisk() // task reached terminal state — persist immediately
     }).catch((e) => {
       task.status = 'failed'
       task.error = e instanceof Error ? e.message : String(e)
@@ -118,7 +119,7 @@ export class TaskManager {
       this.tasks.set(taskId, task)
       this.pushUpdate(task)
       this.runners.delete(taskId)
-      this.schedulePersist()
+      void this.persistToDisk() // task failed — persist immediately
     })
 
     return task
@@ -144,8 +145,26 @@ export class TaskManager {
     task.updatedAt = Date.now()
     this.tasks.set(taskId, task)
     this.pushUpdate(task)
-    this.schedulePersist()
+    void this.persistToDisk()
     return task
+  }
+
+  /**
+   * Delete a task permanently (cancels it first if running).
+   */
+  delete(taskId: string): void {
+    const task = this.tasks.get(taskId)
+    if (!task) return
+
+    // Cancel runner if active
+    const runner = this.runners.get(taskId)
+    if (runner) {
+      runner.abort('Deleted by user')
+      this.runners.delete(taskId)
+    }
+
+    this.tasks.delete(taskId)
+    void this.persistToDisk()
   }
 
   /**
@@ -170,8 +189,8 @@ export class TaskManager {
       runner.abort('App shutting down')
       this.runners.delete(id)
     }
-    // Force persist on shutdown
-    void this.persistToDisk()
+    // Synchronous write — guarantees data is on disk before the process exits
+    this.persistToDiskSync()
   }
 
   private getOrThrow(taskId: string): Task {
@@ -188,6 +207,7 @@ export class TaskManager {
 
   // ── Persistence ─────────────────────────────────────────────────────
 
+  /** Debounced persist — used during active task execution (many updates/sec). */
   private schedulePersist(): void {
     if (this.persistTimer) return
     this.persistTimer = setTimeout(() => {
@@ -196,22 +216,33 @@ export class TaskManager {
     }, 2000)
   }
 
+  /** Async persist — used for important state changes (create, finish, cancel, delete). */
   private async persistToDisk(): Promise<void> {
     try {
-      const tasks = this.list()
-      // Strip screenshot data to keep file small. Keep only metadata.
-      const stripped = tasks.map((t) => ({
-        ...t,
-        steps: t.steps.map((s) => ({
-          ...s,
-          screenshotBase64: '' // strip large data
-        }))
-      }))
+      const stripped = this.buildStripped()
       await mkdir(dirname(this.persistPath), { recursive: true })
       await writeFile(this.persistPath, JSON.stringify(stripped, null, 2), 'utf8')
     } catch {
       // Non-critical — tasks still live in memory
     }
+  }
+
+  /** Synchronous persist — used on app quit to guarantee write before process exits. */
+  private persistToDiskSync(): void {
+    try {
+      const stripped = this.buildStripped()
+      mkdirSync(dirname(this.persistPath), { recursive: true })
+      writeFileSync(this.persistPath, JSON.stringify(stripped, null, 2), 'utf8')
+    } catch {
+      // ignore
+    }
+  }
+
+  private buildStripped(): object[] {
+    return this.list().map((t) => ({
+      ...t,
+      steps: t.steps.map((s) => ({ ...s, screenshotBase64: '' }))
+    }))
   }
 
   private async loadFromDisk(): Promise<void> {
