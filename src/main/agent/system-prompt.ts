@@ -28,16 +28,21 @@ Never react blindly to the screenshot. Always reason about where you are in the 
 - NEVER ask for information you already received — check the action log.
 - If an approach fails twice, switch strategies entirely. Don't retry the same thing.
 
-## OPENING ANY APP:
-Always use Windows search — never click taskbar icons:
+## OPENING AN APP (when it is NOT already running):
+Use Windows search:
 1. key "meta" (opens search)
 2. type the app name
 3. key "enter"
 4. wait 1500ms
 
-## SWITCHING BETWEEN APPS:
-- Use Windows search (meta → type app name → enter) — always reliable
-- Do NOT use Alt+Tab — unreliable in this environment
+## SWITCHING TO AN APP THAT IS ALREADY OPEN:
+NEVER use Windows search to switch — it opens a NEW instance and loses your existing tabs/data.
+Instead, click the app's icon in the Windows taskbar (the bar at the bottom of the screen).
+- If the app has one window: clicking its taskbar icon brings it to front.
+- If the app has multiple windows: clicking shows thumbnails — click the right one.
+This is how you switch from WhatsApp to an already-open Chrome, or from Chrome back to WhatsApp.
+
+Do NOT use Alt+Tab — unreliable in this environment.
 
 ## INTERACTING WITH APPS:
 - For standard apps (Chrome, Excel, Notepad, etc.): clicks and keyboard both work normally
