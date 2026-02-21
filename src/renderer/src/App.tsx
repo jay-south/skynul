@@ -533,6 +533,17 @@ function App(): React.JSX.Element {
     }
   }
 
+  const handleDeleteTask = useCallback(
+    (taskId: string): void => {
+      // Remove from local state immediately for snappy UI
+      setTasks((prev) => prev.filter((t) => t.id !== taskId))
+      if (activeTaskId === taskId) setActiveTaskId(null)
+      // Persist deletion to main process (cancels runner + removes from disk)
+      void window.netbot.taskDelete(taskId).catch(() => {})
+    },
+    [activeTaskId]
+  )
+
   return (
     <div className="layout">
       <div className="titleBar">
@@ -570,60 +581,62 @@ function App(): React.JSX.Element {
           </button>
         </div>
 
-        {/* ── Chats sidebar ───────────────────────────────────────── */}
-        {sidebarTab === 'chats' && (
-          <>
-            <div className="rbTop">
-              <div className="rbTitle">Chats</div>
-              <button className="rbNew" onClick={createChat} title="New chat">
-                New
-              </button>
-            </div>
+        {/* ── Chats / Tasks content ───────────────────────────────── */}
+        <div className="sidebarContent">
+          {sidebarTab === 'chats' && (
+            <>
+              <div className="rbTop">
+                <div className="rbTitle">Chats</div>
+                <button className="rbNew" onClick={createChat} title="New chat">
+                  New
+                </button>
+              </div>
 
-            <div className="rbList" role="tablist" aria-label="Chats">
-              {conversations.map((c) => (
-                <div
-                  key={c.id}
-                  className={`rbItem ${c.id === activeId ? 'active' : ''}`}
-                  role="tab"
-                  aria-selected={c.id === activeId}
-                >
-                  <div className="rbItemContent" onClick={() => setActiveId(c.id)}>
-                    <div className="rbItemTitle">{c.title}</div>
-                    <div className="rbItemMeta">{c.messages.length} messages</div>
-                  </div>
-                  <button
-                    className="rbMenuBtn"
-                    aria-label="Chat options"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setMenuOpenId(menuOpenId === c.id ? null : c.id)
-                    }}
+              <div className="rbList" role="tablist" aria-label="Chats">
+                {conversations.map((c) => (
+                  <div
+                    key={c.id}
+                    className={`rbItem ${c.id === activeId ? 'active' : ''}`}
+                    role="tab"
+                    aria-selected={c.id === activeId}
                   >
-                    ···
-                  </button>
-                  {menuOpenId === c.id && (
-                    <div className="rbDropdown" onClick={(e) => e.stopPropagation()}>
-                      <button className="rbDropdownItem" onClick={() => deleteConversation(c.id)}>
-                        Delete
-                      </button>
+                    <div className="rbItemContent" onClick={() => setActiveId(c.id)}>
+                      <div className="rbItemTitle">{c.title}</div>
+                      <div className="rbItemMeta">{c.messages.length} messages</div>
                     </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </>
-        )}
+                    <button
+                      className="rbMenuBtn"
+                      aria-label="Chat options"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setMenuOpenId(menuOpenId === c.id ? null : c.id)
+                      }}
+                    >
+                      ···
+                    </button>
+                    {menuOpenId === c.id && (
+                      <div className="rbDropdown" onClick={(e) => e.stopPropagation()}>
+                        <button className="rbDropdownItem danger" onClick={() => deleteConversation(c.id)}>
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
 
-        {/* ── Tasks sidebar ───────────────────────────────────────── */}
-        {sidebarTab === 'tasks' && (
-          <TaskPanel
-            tasks={tasks}
-            activeTaskId={activeTaskId}
-            onSelectTask={setActiveTaskId}
-            onNewTask={(prompt, caps) => void handleNewTask(prompt, caps)}
-          />
-        )}
+          {sidebarTab === 'tasks' && (
+            <TaskPanel
+              tasks={tasks}
+              activeTaskId={activeTaskId}
+              onSelectTask={setActiveTaskId}
+              onNewTask={(prompt, caps) => void handleNewTask(prompt, caps)}
+              onDeleteTask={handleDeleteTask}
+            />
+          )}
+        </div>
 
         <div className="rbFooter">
           <div className="sbFooterRow">

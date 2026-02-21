@@ -150,7 +150,7 @@ export function TaskPanel(props: {
   }
 
   return (
-    <>
+    <div className="taskPanelWrap">
       <div className="rbTop">
         <div className="rbTitle">Tasks</div>
         <button className="rbNew" onClick={() => setShowNew(!showNew)}>
@@ -274,6 +274,6 @@ export function TaskPanel(props: {
           onClose={closeMenu}
         />
       )}
-    </>
+    </div>
   )
 }

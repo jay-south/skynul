@@ -87,10 +87,19 @@ code {
   background: var(--nb-panel-2);
   backdrop-filter: blur(18px);
   overflow: hidden;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
   user-select: none;
+}
+
+.sidebarContent {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
 }
 
 .brandMark {
@@ -130,6 +139,8 @@ code {
 }
 
 .rbList {
+  flex: 1;
+  min-height: 0;
   overflow: auto;
   display: flex;
   flex-direction: column;
@@ -856,6 +867,15 @@ code {
 }
 
 /* ── Task panel ───────────────────────────────────────────────────────── */
+
+.taskPanelWrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
 
 .taskNewForm {
   display: flex;
