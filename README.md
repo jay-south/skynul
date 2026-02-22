@@ -10,6 +10,10 @@ Core idea: deny by default. The model only gets the tools and scopes you enable.
 
 ## Project Setup
 
+## Environment
+
+Create a `.env` file in the project root (see `.env.example`).
+
 ### Install
 
 ```bash
