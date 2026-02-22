@@ -79,6 +79,7 @@ function App(): React.JSX.Element {
   const [isThinking, setIsThinking] = useState<boolean>(false)
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
   const [isRecording, setIsRecording] = useState<boolean>(false)
+  const [isMaximized, setIsMaximized] = useState<boolean>(false)
   const recognitionRef = useRef<InstanceType<typeof SpeechRecognition> | null>(null)
 
   // ── Sidebar tab ──────────────────────────────────────────────────────
@@ -141,6 +142,11 @@ function App(): React.JSX.Element {
     return () => {
       alive = false
     }
+  }, [])
+
+  // ── Maximize state listener ──────────────────────────────────────────
+  useEffect(() => {
+    return window.netbot.onWindowMaximized(setIsMaximized)
   }, [])
 
   // ── Task update listener ─────────────────────────────────────────────
@@ -548,7 +554,7 @@ function App(): React.JSX.Element {
   )
 
   return (
-    <div className="layout">
+    <div className={`layout${isMaximized ? ' maximized' : ''}`}>
       <div className="titleBar">
         <button className="winBtn" onClick={() => void window.netbot.windowMinimize()} aria-label="Minimize">
           <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">

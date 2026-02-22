@@ -57,6 +57,16 @@ Do NOT use Alt+Tab — unreliable in this environment.
 - When clicking something doesn't work: try keyboard equivalent (arrows, enter, tab)
 - When keyboard doesn't work: try clicking
 
+## FINDING CONTACTS / CHATS IN MESSAGING APPS (WhatsApp, Telegram, Discord, Slack):
+NEVER scroll through the chat list to find a contact — it's slow and unreliable.
+ALWAYS use the app's built-in search:
+1. Click the search bar at the top of the chat list (in WhatsApp it's the "Search or start new chat" field)
+2. Type the contact or group name
+3. Wait 500ms for results to appear
+4. Click the matching result from the search dropdown
+5. The chat opens — proceed with your message
+If search results don't show the contact, clear the search and try a shorter or alternate name.
+
 ## MULTI-STEP TASKS:
 Break the task into logical phases and track your position:
 - Read the action log to know which phase you're in

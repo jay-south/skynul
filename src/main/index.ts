@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, session, nativeTheme } from 'electron'
+import { app, shell, BrowserWindow, screen, session, nativeTheme } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -38,6 +38,18 @@ function createWindow(): BrowserWindow {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+  })
+
+  // Notify renderer when maximize state changes so it can adapt the layout.
+  // On Windows, frameless+transparent windows overflow the work area when maximized.
+  // We constrain to the display work area so the UI doesn't hide behind the taskbar.
+  mainWindow.on('maximize', () => {
+    const { workArea } = screen.getDisplayMatching(mainWindow.getBounds())
+    mainWindow.setBounds(workArea)
+    mainWindow.webContents.send('netbot:window:maximized', true)
+  })
+  mainWindow.on('unmaximize', () => {
+    mainWindow.webContents.send('netbot:window:maximized', false)
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {

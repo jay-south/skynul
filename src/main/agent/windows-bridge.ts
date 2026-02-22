@@ -1,7 +1,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'child_process'
-import { readFile, writeFile, unlink, mkdir } from 'fs/promises'
+import { readFile, writeFile, unlink, mkdir, access } from 'fs/promises'
 import { tmpdir } from 'os'
-import { randomBytes } from 'crypto'
+import { randomBytes, createHash } from 'crypto'
 
 /**
  * Persistent PowerShell process that provides screenshot capture and
@@ -148,6 +148,11 @@ const INIT_TIMEOUT = 30_000
 const ACTION_TIMEOUT = 15_000
 const SCREENSHOT_TIMEOUT = 20_000
 
+/** Cached DLL path on the Windows side — survives across tasks in the same session. */
+const CSHARP_HASH = createHash('sha256').update(CSHARP_SOURCE).digest('hex').slice(0, 12)
+const DLL_WIN_PATH = `C:\\Temp\\netbot_input_${CSHARP_HASH}.dll`
+const DLL_WSL_PATH = `/mnt/c/Temp/netbot_input_${CSHARP_HASH}.dll`
+
 export class WindowsBridge {
   private proc: ChildProcessWithoutNullStreams | null = null
   private initialized = false
@@ -168,19 +173,30 @@ export class WindowsBridge {
   async init(): Promise<void> {
     if (this.initialized) return
 
-    // Write C# source to a temp file on the Windows side first.
-    // We do this from Node so we don't depend on PowerShell heredocs via stdin.
-    const csFileName = `netbot_input_${randomBytes(4).toString('hex')}.cs`
     const wslTmpDir = '/mnt/c/Temp'
-    const wslCsPath = `${wslTmpDir}/${csFileName}`
-    const winCsPath = `C:\\Temp\\${csFileName}`
-
     try {
       await mkdir(wslTmpDir, { recursive: true })
     } catch {
       // might already exist
     }
-    await writeFile(wslCsPath, CSHARP_SOURCE, 'utf8')
+
+    // Check if we already have a cached DLL for this version of the C# source
+    let dllExists = false
+    try {
+      await access(DLL_WSL_PATH)
+      dllExists = true
+    } catch {
+      // DLL not cached yet — need to compile from source
+    }
+
+    let csWslPath: string | null = null
+    let csWinPath: string | null = null
+    if (!dllExists) {
+      const csFileName = `netbot_input_${randomBytes(4).toString('hex')}.cs`
+      csWslPath = `${wslTmpDir}/${csFileName}`
+      csWinPath = `C:\\Temp\\${csFileName}`
+      await writeFile(csWslPath, CSHARP_SOURCE, 'utf8')
+    }
 
     // Spawn persistent PowerShell
     this.proc = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', '-'], {
@@ -223,13 +239,50 @@ export class WindowsBridge {
       throw new Error(`PowerShell not responding: ${e instanceof Error ? e.message : String(e)}`)
     }
 
-    // Load C# types from the temp file (avoids heredoc issues via stdin)
+    // Load referenced assemblies so PowerShell scripts can use types like
+    // [System.Windows.Forms.Screen] directly (not just through our C# class).
+    // This is needed regardless of DLL cache because Add-Type -Path doesn't
+    // auto-load referenced assemblies into the PS session.
+    try {
+      await this.exec(
+        `Add-Type -AssemblyName System.Drawing; Add-Type -AssemblyName System.Windows.Forms`,
+        INIT_TIMEOUT
+      )
+    } catch {
+      // Non-fatal — the assemblies might already be loaded
+    }
+
+    // Load required .NET assemblies — needed both by the C# class and screenshot scripts
     try {
       this.stderrBuffer = ''
       await this.exec(
-        `Add-Type -Path '${winCsPath}' -ReferencedAssemblies System.Drawing,System.Windows.Forms`,
+        `Add-Type -AssemblyName System.Drawing; Add-Type -AssemblyName System.Windows.Forms`,
         INIT_TIMEOUT
       )
+    } catch (e) {
+      const stderr = this.stderrBuffer.slice(-500)
+      this.destroy()
+      throw new Error(
+        `Failed to load .NET assemblies: ${e instanceof Error ? e.message : String(e)}` +
+        (stderr ? `\nPowerShell stderr: ${stderr}` : '')
+      )
+    }
+
+    // Load C# types — either from cached DLL or compile from source
+    try {
+      this.stderrBuffer = ''
+      if (dllExists) {
+        // Fast path: load pre-compiled DLL directly (~200ms vs ~5-15s)
+        await this.exec(`Add-Type -Path '${DLL_WIN_PATH}'`, INIT_TIMEOUT)
+      } else {
+        // First run: compile from source and cache the DLL for next time
+        await this.exec(
+          `Add-Type -Path '${csWinPath}' -ReferencedAssemblies System.Drawing,System.Windows.Forms -OutputAssembly '${DLL_WIN_PATH}'`,
+          INIT_TIMEOUT
+        )
+        // Load the compiled DLL (OutputAssembly doesn't auto-load it)
+        await this.exec(`Add-Type -Path '${DLL_WIN_PATH}'`, INIT_TIMEOUT)
+      }
     } catch (e) {
       const stderr = this.stderrBuffer.slice(-500)
       this.destroy()
@@ -239,8 +292,10 @@ export class WindowsBridge {
       )
     }
 
-    // Clean up temp .cs file
-    void unlink(wslCsPath).catch(() => {})
+    // Clean up temp .cs file if we wrote one
+    if (csWslPath) {
+      void unlink(csWslPath).catch(() => {})
+    }
 
     this.initialized = true
   }
@@ -555,7 +610,12 @@ $bmp.Dispose()`
 
   async launchApp(name: string): Promise<void> {
     const escaped = name.replace(/'/g, "''")
-    // Try Start-Process first; if it fails for non-exe names, use Win search
+
+    // First check if the app is already running and bring it to front
+    const focused = await this.tryFocusApp(escaped)
+    if (focused) return
+
+    // App not running — launch it
     const result = await this.exec(`Start-Process '${escaped}'`)
     if (!result.ok) {
       // Fallback: open Start Menu, type the name, press Enter
@@ -564,6 +624,32 @@ $bmp.Dispose()`
       await this.type(name)
       await this.sleep(800)
       await this.keyCombo('enter')
+    }
+  }
+
+  /**
+   * Try to find a running process matching `name` and bring its window to front.
+   * Returns true if an existing window was focused, false otherwise.
+   */
+  private async tryFocusApp(name: string): Promise<boolean> {
+    const script = `
+$proc = Get-Process | Where-Object {
+  $_.MainWindowHandle -ne 0 -and $_.ProcessName -like '*${name}*'
+} | Select-Object -First 1
+if ($proc) {
+  $sig = '[DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);[DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);'
+  Add-Type -MemberDefinition $sig -Name WinFocus -Namespace NetbotFocus -ErrorAction SilentlyContinue
+  [NetbotFocus.WinFocus]::ShowWindow($proc.MainWindowHandle, 9) | Out-Null
+  [NetbotFocus.WinFocus]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null
+  'focused'
+} else {
+  'not_found'
+}`
+    try {
+      const result = await this.execViaFile(script, true, ACTION_TIMEOUT)
+      return result.ok && result.data === 'focused'
+    } catch {
+      return false
     }
   }
 

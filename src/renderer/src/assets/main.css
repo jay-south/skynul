@@ -28,6 +28,10 @@ code {
   background: transparent;
 }
 
+#root:has(.layout.maximized) {
+  padding: 0;
+}
+
 .layout {
   height: 100%;
   display: grid;
@@ -37,6 +41,13 @@ code {
   border-radius: 10px;
   overflow: hidden;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 24px 48px rgba(0, 0, 0, 0.5);
+}
+
+/* ── Maximized state — remove decorations and fit to work area ────────── */
+
+.layout.maximized {
+  border-radius: 0;
+  box-shadow: none;
 }
 
 /* ── Custom title bar ───────────────────────────────────────────────────── */

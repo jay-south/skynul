@@ -98,7 +98,7 @@ export class TaskRunner {
         let scaleX = 1
         let scaleY = 1
         try {
-          const shot = await this.bridge.captureScreen({ maxWidth: 900, maxHeight: 506 })
+          const shot = await this.bridge.captureScreen({ maxWidth: 1280, maxHeight: 720 })
           screenshotBuf = shot.buffer
           scaleX = shot.scaleX
           scaleY = shot.scaleY

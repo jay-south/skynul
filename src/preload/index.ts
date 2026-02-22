@@ -109,6 +109,11 @@ const netbot = {
     const handler = (_evt: unknown, payload: TaskUpdateEvent): void => cb(payload.task)
     ipcRenderer.on('netbot:task:update', handler)
     return () => ipcRenderer.off('netbot:task:update', handler)
+  },
+  onWindowMaximized: (cb: (maximized: boolean) => void): (() => void) => {
+    const handler = (_evt: unknown, maximized: boolean): void => cb(maximized)
+    ipcRenderer.on('netbot:window:maximized', handler)
+    return () => ipcRenderer.off('netbot:window:maximized', handler)
   }
 }
 
