@@ -5,10 +5,19 @@
 
 import type { CdpRelay } from './cdp-relay'
 
+export type PageElement = {
+  tag: string
+  type?: string
+  selector: string
+  text?: string
+  interactive?: boolean
+}
+
 export type PageInfo = {
   url: string
   title: string
   text: string
+  elements: PageElement[]
 }
 
 export class BrowserBridge {
@@ -22,19 +31,43 @@ export class BrowserBridge {
     return this.relay.isExtensionConnected
   }
 
+  /** Create a new tab for the task; never use or close the user's current tab. Call once at task start. */
+  async ensureTaskTab(): Promise<void> {
+    await this.relay.sendCommand('taskStart')
+  }
+
   async getPageInfo(): Promise<PageInfo> {
     if (!this.relay.isExtensionConnected) {
       throw new Error('Chrome extension not connected')
     }
-    const result = (await this.relay.sendCommand('getPageInfo')) as {
-      url?: string
-      title?: string
-      text?: string
-    }
-    return {
-      url: result.url ?? '',
-      title: result.title ?? '',
-      text: result.text ?? ''
+    try {
+      const result = (await this.relay.sendCommand('getPageInfo')) as {
+        url?: string
+        title?: string
+        text?: string
+        elements?: PageElement[]
+      }
+      const elements = result.elements ?? []
+      return {
+        url: result.url ?? '',
+        title: result.title ?? '',
+        text: result.text ?? '',
+        elements: Array.isArray(elements) ? elements.slice(0, 50) : []
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      // Chrome blocks CDP access on chrome:// and other privileged URLs.
+      // Instead of failing the whole task, surface a stub page so the agent
+      // can immediately navigate to a normal https:// page.
+      if (/chrome:\/\//i.test(msg) || /Cannot access a chrome:\/\//i.test(msg)) {
+        return {
+          url: 'chrome://restricted',
+          title: 'Restricted browser page',
+          text: '',
+          elements: []
+        }
+      }
+      throw e
     }
   }
 

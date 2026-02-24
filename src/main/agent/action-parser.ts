@@ -11,12 +11,45 @@ type ModelResponse = {
   action: TaskAction
 }
 
+/** Regex that matches status-log noise (allows optional · and whitespace/newlines). */
+const NOISE_REGEX = /\s*·?\s*CDP\s+browser\s+bridge\s+ready\.?\s*(Starting\s+agent\s+loop\.\.\.)?\s*/gi
+
+/**
+ * Remove status-log noise from anywhere in the string (middle or end).
+ * This fixes responses where UI/stream concatenated our status with the model output.
+ */
+function stripEmbeddedNoise(text: string): string {
+  return text.replace(NOISE_REGEX, ' ').trim()
+}
+
+/**
+ * Strip trailing lines that look like status logs.
+ */
+function stripTrailingNoise(text: string): string {
+  const lines = text.split('\n')
+  while (lines.length > 0) {
+    const last = lines[lines.length - 1].trim()
+    if (!last) {
+      lines.pop()
+      continue
+    }
+    if (last.startsWith('·') || /Starting agent loop|bridge ready|CDP browser/i.test(last)) {
+      lines.pop()
+      continue
+    }
+    break
+  }
+  return lines.join('\n').trim()
+}
+
 /**
  * Parse the model response into a thought + action.
  * Throws if the response cannot be parsed.
  */
 export function parseModelResponse(raw: string): ModelResponse {
-  const trimmed = raw.trim()
+  let trimmed = raw.trim()
+  trimmed = stripEmbeddedNoise(trimmed)
+  trimmed = stripTrailingNoise(trimmed)
 
   // Try direct JSON parse first (single clean object)
   try {
@@ -46,7 +79,13 @@ export function parseModelResponse(raw: string): ModelResponse {
     }
   }
 
-  throw new Error(`Could not parse model response as JSON action: ${trimmed.slice(0, 200)}`)
+  const preview = trimmed.slice(0, 200)
+  if (/^\s*\{\s*"thought"\s*:/.test(trimmed) && !trimmed.includes('"action"')) {
+    throw new Error(
+      `Model response looks truncated (has "thought" but no "action"). Keep thought short and always output full JSON with both thought and action. Raw: ${preview}`
+    )
+  }
+  throw new Error(`Could not parse model response as JSON action: ${preview}`)
 }
 
 /**
@@ -101,7 +140,16 @@ const VALID_ACTION_TYPES = new Set([
   'launch',
   'wait',
   'done',
-  'fail'
+  'fail',
+  // CDP browser agent actions
+  'navigate',
+  'pressKey',
+  'evaluate',
+  // Polymarket trading actions
+  'polymarket_get_account_summary',
+   'polymarket_get_trader_leaderboard',
+  'polymarket_place_order',
+  'polymarket_close_position'
 ])
 
 function validateResponse(obj: unknown): ModelResponse {

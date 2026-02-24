@@ -11,20 +11,33 @@ const ACTION_LABELS: Record<string, string> = {
   launch: 'Launch',
   wait: 'Wait',
   done: 'Done',
-  fail: 'Failed'
+  fail: 'Failed',
+  navigate: 'Navigate',
+  pressKey: 'Key',
+  evaluate: 'Evaluate'
 }
 
 function formatAction(step: TaskStep): string {
-  const a = step.action
-  switch (a.type) {
+  const a = step.action as Record<string, unknown>
+  const type = a.type as string
+  switch (type) {
     case 'click':
-      return `Click (${a.x}, ${a.y}) ${a.button ?? 'left'}`
+      if ('selector' in a && typeof a.selector === 'string') {
+        return `Click: ${a.selector}`
+      }
+      return `Click (${a.x}, ${a.y}) ${(a.button as string) ?? 'left'}`
     case 'double_click':
       return `Double click (${a.x}, ${a.y})`
     case 'type':
-      return `Type "${a.text.length > 30 ? a.text.slice(0, 30) + '...' : a.text}"`
+      if ('selector' in a && typeof a.selector === 'string') {
+        const text = (a.text as string) ?? ''
+        return `Type in ${a.selector}: "${text.length > 25 ? text.slice(0, 25) + '…' : text}"`
+      }
+      return `Type "${((a.text as string) ?? '').length > 30 ? (a.text as string).slice(0, 30) + '...' : (a.text as string)}"`
     case 'key':
       return `Key: ${a.combo}`
+    case 'pressKey':
+      return `Key: ${a.key}`
     case 'scroll':
       return `Scroll ${a.direction} at (${a.x}, ${a.y})`
     case 'move':
@@ -32,7 +45,12 @@ function formatAction(step: TaskStep): string {
     case 'launch':
       return `Launch: ${a.app}`
     case 'wait':
-      return `Wait ${a.ms}ms`
+      return `Wait ${(a.ms as number) ?? 0}ms`
+    case 'navigate':
+      return `Navigate: ${(a.url as string) ?? ''}`
+    case 'evaluate':
+      const script = (a.script as string) ?? ''
+      return `Evaluate: ${script.length > 40 ? script.slice(0, 40) + '…' : script}`
     case 'done':
       return `Done: ${a.summary}`
     case 'fail':

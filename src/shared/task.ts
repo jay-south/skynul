@@ -6,6 +6,7 @@ export type TaskCapabilityId =
   | 'input.keyboard'
   | 'app.launch'
   | 'browser.cdp'
+  | 'polymarket.trading'
 
 export const ALL_TASK_CAPABILITIES: Array<{
   id: TaskCapabilityId
@@ -16,7 +17,12 @@ export const ALL_TASK_CAPABILITIES: Array<{
   { id: 'input.mouse', title: 'Mouse Control', desc: 'Click, scroll, and move the cursor.' },
   { id: 'input.keyboard', title: 'Keyboard Input', desc: 'Type text and send key combos.' },
   { id: 'app.launch', title: 'Launch Apps', desc: 'Open applications on your computer.' },
-  { id: 'browser.cdp', title: 'Browser (CDP)', desc: 'Control Chrome via extension relay (no screenshots).' }
+  { id: 'browser.cdp', title: 'Browser (CDP)', desc: 'Control Chrome via extension relay (no screenshots).' },
+  {
+    id: 'polymarket.trading',
+    title: 'Polymarket Trading',
+    desc: 'Trade on Polymarket via a dedicated API client (no screen control).'
+  }
 ]
 
 // ── Task Status Flow ──────────────────────────────────────────────────────────
@@ -33,6 +39,7 @@ export type TaskStatus =
 // ── Task Actions (model output) ───────────────────────────────────────────────
 
 export type TaskAction =
+  // Desktop / screen agent actions
   | { type: 'click'; x: number; y: number; button?: 'left' | 'right' | 'middle' }
   | { type: 'double_click'; x: number; y: number }
   | { type: 'type'; text: string }
@@ -43,6 +50,23 @@ export type TaskAction =
   | { type: 'wait'; ms: number }
   | { type: 'done'; summary: string }
   | { type: 'fail'; reason: string }
+  // Polymarket trading actions (require polymarket.trading capability)
+  | { type: 'polymarket_get_account_summary' }
+  | { type: 'polymarket_get_trader_leaderboard' }
+  | {
+      type: 'polymarket_place_order'
+      tokenId: string
+      side: 'buy' | 'sell'
+      price: number
+      size: number
+      tickSize?: string
+      negRisk?: boolean
+    }
+  | {
+      type: 'polymarket_close_position'
+      tokenId: string
+      size?: number
+    }
 
 // ── Task Step (one turn of the agent loop) ────────────────────────────────────
 

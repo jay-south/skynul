@@ -18,6 +18,7 @@ import type { CdpRelay } from './cdp-relay'
 import { buildSystemPrompt, buildCdpSystemPrompt } from './system-prompt'
 import { parseModelResponse } from './action-parser'
 import { codexVisionRespond, type VisionMessage } from '../providers/codex-vision'
+import { PolymarketClient } from '../polymarket-client'
 
 export type TaskRunnerCallbacks = {
   onUpdate: (task: Task) => void
@@ -230,6 +231,13 @@ export class TaskRunner {
       return this.finish('failed', 'Chrome extension not connected to CDP relay')
     }
 
+    // Always create a new tab for the task; never close or reuse the user's current tab
+    try {
+      await browserBridge.ensureTaskTab()
+    } catch (e) {
+      return this.finish('failed', `Could not create task tab: ${e instanceof Error ? e.message : String(e)}`)
+    }
+
     this.timeoutHandle = setTimeout(() => {
       this.abort('Task timed out')
     }, this.task.timeoutMs)
@@ -246,18 +254,25 @@ export class TaskRunner {
 
     while (!this.aborted && this.task.steps.length < this.task.maxSteps) {
       try {
-        // Get page info
-        let pageInfo: { url: string; title: string; text: string }
+        // Get page info (includes interactive elements with selectors for click/type)
+        let pageInfo: Awaited<ReturnType<BrowserBridge['getPageInfo']>>
         try {
           pageInfo = await browserBridge.getPageInfo()
         } catch (e) {
           return this.finish('failed', `getPageInfo failed: ${e instanceof Error ? e.message : String(e)}`)
         }
 
+        const elementsBlock =
+          pageInfo.elements.length > 0
+            ? `\n\nInteractive elements (use these exact selectors for click/type):\n${pageInfo.elements
+                .map((el) => `  ${el.selector}  ${el.text ? `| "${el.text.slice(0, 40)}${el.text.length > 40 ? '…' : ''}"` : ''}`)
+                .join('\n')}`
+            : ''
+
         const stepIndex = this.task.steps.length
         const turnText = stepIndex === 0
-          ? `Task: ${this.task.prompt}\n\nCurrent page:\nURL: ${pageInfo.url}\nTitle: ${pageInfo.title}\nText: ${pageInfo.text.slice(0, 3000)}`
-          : `Step ${stepIndex + 1}.\nURL: ${pageInfo.url}\nTitle: ${pageInfo.title}\nText: ${pageInfo.text.slice(0, 3000)}`
+          ? `Task: ${this.task.prompt}\n\nCurrent page:\nURL: ${pageInfo.url}\nTitle: ${pageInfo.title}\nText: ${pageInfo.text.slice(0, 2800)}${elementsBlock}`
+          : `Step ${stepIndex + 1}.\nURL: ${pageInfo.url}\nTitle: ${pageInfo.title}\nText: ${pageInfo.text.slice(0, 2800)}${elementsBlock}`
 
         const turnMessage: VisionMessage = {
           role: 'user',
@@ -346,6 +361,12 @@ export class TaskRunner {
       case 'wait':
         await this.sleep((raw.ms as number) ?? 1000)
         break
+      case 'polymarket_get_account_summary':
+      case 'polymarket_get_trader_leaderboard':
+      case 'polymarket_place_order':
+      case 'polymarket_close_position':
+        await this.executePolymarketAction(action)
+        break
     }
   }
 
@@ -404,6 +425,12 @@ export class TaskRunner {
       case 'launch':
         if (!caps.has('app.launch')) return `Action "${action.type}" requires app.launch capability`
         break
+      case 'polymarket_get_account_summary':
+      case 'polymarket_get_trader_leaderboard':
+      case 'polymarket_place_order':
+      case 'polymarket_close_position':
+        if (!caps.has('polymarket.trading')) return `Action "${action.type}" requires polymarket.trading capability`
+        break
       case 'wait':
       case 'done':
       case 'fail':
@@ -447,6 +474,54 @@ export class TaskRunner {
       case 'wait':
         await this.sleep(action.ms)
         break
+      case 'polymarket_get_account_summary':
+      case 'polymarket_get_trader_leaderboard':
+      case 'polymarket_place_order':
+      case 'polymarket_close_position': {
+        await this.executePolymarketAction(action)
+        break
+      }
+    }
+  }
+
+  private async executePolymarketAction(action: TaskAction): Promise<void> {
+    const client = new PolymarketClient({ mode: 'live' })
+
+    switch (action.type) {
+      case 'polymarket_get_account_summary': {
+        const summary = await client.getAccountSummary()
+        this.task.summary = `Polymarket: balance $${summary.balanceUsd.toFixed(
+          2
+        )} across ${summary.positions.length} positions.`
+        break
+      }
+      case 'polymarket_get_trader_leaderboard': {
+        const traders = await client.getTopTraders({ limit: 10, timePeriod: 'MONTH', category: 'OVERALL' })
+        const top = traders
+          .slice(0, 5)
+          .map((t) => `#${t.rank} ${t.userName || t.wallet.slice(0, 8)} PnL $${t.pnlUsd.toFixed(2)}`)
+          .join('; ')
+        this.task.summary = `Polymarket leaderboard (MONTH, OVERALL): ${top || 'no traders found'}.`
+        break
+      }
+      case 'polymarket_place_order': {
+        await client.placeOrder({
+          tokenId: action.tokenId,
+          side: action.side,
+          price: action.price,
+          size: action.size,
+          tickSize: action.tickSize,
+          negRisk: action.negRisk
+        })
+        break
+      }
+      case 'polymarket_close_position': {
+        await client.closePosition({
+          tokenId: action.tokenId,
+          size: action.size
+        })
+        break
+      }
     }
   }
 

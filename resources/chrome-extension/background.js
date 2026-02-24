@@ -16,6 +16,8 @@ const KEEPALIVE_INTERVAL_MIN = 0.5 // 30 seconds — minimum chrome.alarms allow
 let ws = null
 /** @type {Set<number>} */
 const attachedTabs = new Set()
+/** @type {number | null} — tab used for the current task; all commands target this instead of active tab */
+let taskTabId = null
 
 // ── Keepalive via chrome.alarms ─────────────────────────────────────
 
@@ -59,6 +61,7 @@ function connect() {
   ws.onclose = () => {
     console.log('[Netbot] Relay disconnected')
     ws = null
+    taskTabId = null
     detachAll()
     // Alarm will trigger reconnect — no setTimeout needed
   }
@@ -77,6 +80,9 @@ async function handleCommand(msg) {
   try {
     let result
     switch (action) {
+      case 'taskStart':
+        result = await createTaskTab()
+        break
       case 'navigate':
         result = await navigateTab(msg.url)
         break
@@ -116,17 +122,33 @@ async function handleCommand(msg) {
 // ── Debugger helpers ────────────────────────────────────────────────
 
 async function getActiveTabId() {
+  // If a task tab was set (task started), use it and verify it still exists
+  if (taskTabId != null) {
+    try {
+      await chrome.tabs.get(taskTabId)
+      return taskTabId
+    } catch {
+      taskTabId = null
+    }
+  }
   // Try active tab in current window first
   let [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
   if (tab?.id)
     return tab.id
-    // Fallback: active tab in any window (Netbot may have focus, not Chrome)
+  // Fallback: active tab in any window (Netbot may have focus, not Chrome)
   ;[tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
   if (tab?.id) return tab.id
   // Last resort: any non-chrome tab
   const tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] })
   if (tabs.length > 0) return tabs[tabs.length - 1].id
   throw new Error('No active tab found')
+}
+
+/** Create a new tab for the task; all subsequent commands use this tab (never close the user's current tab). */
+async function createTaskTab() {
+  const tab = await chrome.tabs.create({ url: 'about:blank' })
+  taskTabId = tab.id
+  return { tabId: tab.id }
 }
 
 async function ensureAttached(tabId) {
@@ -368,7 +390,10 @@ chrome.debugger.onDetach.addListener((source) => {
   if (source.tabId) attachedTabs.delete(source.tabId)
 })
 
-chrome.tabs.onRemoved.addListener((tabId) => attachedTabs.delete(tabId))
+chrome.tabs.onRemoved.addListener((tabId) => {
+  attachedTabs.delete(tabId)
+  if (tabId === taskTabId) taskTabId = null
+})
 
 // Initial connect
 connect()
