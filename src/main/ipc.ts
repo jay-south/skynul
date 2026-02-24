@@ -1,6 +1,4 @@
 import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
-
-type OpenDialogOptions = Parameters<typeof dialog.showOpenDialog>[1]
 import { spawn } from 'child_process'
 import { readFile, writeFile } from 'fs/promises'
 import { IPC } from '../shared/ipc'
@@ -158,8 +156,8 @@ export function registerIpcHandlers(opts: {
 
   ipcMain.handle(IPC.pickWorkspace, async (_evt) => {
     const win = BrowserWindow.fromWebContents(_evt.sender)
-    const opts: OpenDialogOptions = {
-      properties: ['openDirectory', 'createDirectory']
+    const opts = {
+      properties: ['openDirectory', 'createDirectory'] as Array<'openDirectory' | 'createDirectory'>
     }
     const result = win
       ? await dialog.showOpenDialog(win, opts)
@@ -190,8 +188,8 @@ export function registerIpcHandlers(opts: {
 
   ipcMain.handle(IPC.showOpenFilesDialog, async (evt) => {
     const win = BrowserWindow.fromWebContents(evt.sender)
-    const opts: OpenDialogOptions = {
-      properties: ['openFile', 'multiSelections'],
+    const opts = {
+      properties: ['openFile', 'multiSelections'] as Array<'openFile' | 'multiSelections'>,
       filters: [
         { name: 'Imágenes', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] },
         { name: 'Documentos', extensions: ['pdf', 'txt', 'md', 'json'] },
