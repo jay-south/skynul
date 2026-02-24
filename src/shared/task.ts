@@ -5,6 +5,7 @@ export type TaskCapabilityId =
   | 'input.mouse'
   | 'input.keyboard'
   | 'app.launch'
+  | 'browser.cdp'
 
 export const ALL_TASK_CAPABILITIES: Array<{
   id: TaskCapabilityId
@@ -14,7 +15,8 @@ export const ALL_TASK_CAPABILITIES: Array<{
   { id: 'screen.read', title: 'Screen Capture', desc: 'Take screenshots of your display.' },
   { id: 'input.mouse', title: 'Mouse Control', desc: 'Click, scroll, and move the cursor.' },
   { id: 'input.keyboard', title: 'Keyboard Input', desc: 'Type text and send key combos.' },
-  { id: 'app.launch', title: 'Launch Apps', desc: 'Open applications on your computer.' }
+  { id: 'app.launch', title: 'Launch Apps', desc: 'Open applications on your computer.' },
+  { id: 'browser.cdp', title: 'Browser (CDP)', desc: 'Control Chrome via extension relay (no screenshots).' }
 ]
 
 // ── Task Status Flow ──────────────────────────────────────────────────────────

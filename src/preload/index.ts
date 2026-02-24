@@ -4,9 +4,11 @@ import type {
   CapabilityId,
   ChatSendRequest,
   ChatSendResponse,
+  LanguageCode,
   PolicyState,
   ReadTextFileRequest,
   SetCapabilityRequest,
+  SetLanguageRequest,
   SetOpenAIModelRequest,
   SetThemeRequest,
   ThemeMode,
@@ -67,7 +69,17 @@ const netbot = {
   windowMinimize: (): Promise<void> => ipcRenderer.invoke(IPC.windowMinimize),
   windowMaximize: (): Promise<void> => ipcRenderer.invoke(IPC.windowMaximize),
   windowClose: (): Promise<void> => ipcRenderer.invoke(IPC.windowClose),
+  showOpenFilesDialog: (): Promise<{ canceled: boolean; filePaths: string[] }> =>
+    ipcRenderer.invoke(IPC.showOpenFilesDialog),
   setActiveProvider: (id: string): Promise<PolicyState> => ipcRenderer.invoke(IPC.setActiveProvider, id),
+  setProviderApiKey: (provider: string, apiKey: string): Promise<boolean> =>
+    ipcRenderer.invoke(IPC.setProviderApiKey, { provider, apiKey }),
+  hasProviderApiKey: (provider: string): Promise<boolean> =>
+    ipcRenderer.invoke(IPC.hasProviderApiKey, { provider }),
+  setLanguage: (language: LanguageCode): Promise<PolicyState> => {
+    const req: SetLanguageRequest = { language }
+    return ipcRenderer.invoke(IPC.setLanguage, req)
+  },
   chatgptOAuthStart: (): Promise<string> => ipcRenderer.invoke(IPC.chatgptOAuthStart),
   chatgptHasAuth: (): Promise<boolean> => ipcRenderer.invoke(IPC.chatgptHasAuth),
   chatgptSignOut: (): Promise<boolean> => ipcRenderer.invoke(IPC.chatgptSignOut),

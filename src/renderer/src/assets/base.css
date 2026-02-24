@@ -17,9 +17,10 @@
 
 :root[data-theme='dark'],
 html[data-theme='dark'] {
-  --nb-bg: #0f1115;
-  --nb-panel: rgba(20, 22, 26, 0.55);
-  --nb-panel-2: rgba(20, 22, 26, 0.78);
+  --nb-bg: #121212;
+  --nb-sidebar-bg: #1a1a1a;
+  --nb-panel: rgba(37, 37, 38, 0.6);
+  --nb-panel-2: rgba(45, 45, 48, 0.85);
   --nb-border: rgba(255, 255, 255, 0.12);
   --nb-text: rgba(255, 255, 255, 0.88);
   --nb-muted: rgba(255, 255, 255, 0.56);
@@ -35,9 +36,10 @@ html[data-theme='dark'] {
 
 @media (prefers-color-scheme: dark) {
   html:not([data-theme]) {
-    --nb-bg: #0f1115;
-    --nb-panel: rgba(20, 22, 26, 0.55);
-    --nb-panel-2: rgba(20, 22, 26, 0.78);
+    --nb-bg: #121212;
+    --nb-sidebar-bg: #1a1a1a;
+    --nb-panel: rgba(37, 37, 38, 0.6);
+    --nb-panel-2: rgba(45, 45, 48, 0.85);
     --nb-border: rgba(255, 255, 255, 0.12);
     --nb-text: rgba(255, 255, 255, 0.88);
     --nb-muted: rgba(255, 255, 255, 0.56);

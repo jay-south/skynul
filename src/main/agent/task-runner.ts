@@ -13,11 +13,11 @@
 import type { Task, TaskAction, TaskStep } from '../../shared/task'
 import type { ProviderId } from '../../shared/policy'
 import { WindowsBridge } from './windows-bridge'
-import { buildSystemPrompt } from './system-prompt'
+import { BrowserBridge } from './browser-bridge'
+import type { CdpRelay } from './cdp-relay'
+import { buildSystemPrompt, buildCdpSystemPrompt } from './system-prompt'
 import { parseModelResponse } from './action-parser'
-import { openaiVisionRespond } from '../providers/openai-vision'
 import { codexVisionRespond, type VisionMessage } from '../providers/codex-vision'
-import { getSecret } from '../secret-store'
 
 export type TaskRunnerCallbacks = {
   onUpdate: (task: Task) => void
@@ -26,6 +26,7 @@ export type TaskRunnerCallbacks = {
 export type TaskRunnerOpts = {
   provider: ProviderId
   openaiModel: string
+  cdpRelay?: CdpRelay | null
 }
 
 export class TaskRunner {
@@ -46,14 +47,15 @@ export class TaskRunner {
    * Run the agent loop. Resolves when the task is done, failed, or cancelled.
    */
   async run(): Promise<Task> {
-    // Validate provider auth before starting
-    if (this.opts.provider === 'openai') {
-      const apiKey = await getSecret('openai.apiKey')
-      if (!apiKey) {
-        return this.finish('failed', 'OpenAI API key is not set')
-      }
+    // If task has browser.cdp capability, use CDP text-based loop
+    if (this.task.capabilities.includes('browser.cdp')) {
+      return this.runCdp()
     }
-    // For chatgpt provider, codexVisionRespond checks tokens internally
+
+    // Validate provider auth before starting
+    if (this.opts.provider === 'chatgpt') {
+      // codexVisionRespond checks tokens internally
+    }
 
     // Setup timeout
     this.timeoutHandle = setTimeout(() => {
@@ -215,26 +217,163 @@ export class TaskRunner {
   }
 
   /**
+   * CDP text-based agent loop (no screenshots).
+   */
+  private async runCdp(): Promise<Task> {
+    const relay = this.opts.cdpRelay
+    if (!relay) {
+      return this.finish('failed', 'CDP relay not available')
+    }
+
+    const browserBridge = new BrowserBridge(relay)
+    if (!browserBridge.isConnected) {
+      return this.finish('failed', 'Chrome extension not connected to CDP relay')
+    }
+
+    this.timeoutHandle = setTimeout(() => {
+      this.abort('Task timed out')
+    }, this.task.timeoutMs)
+
+    this.pushStatus('CDP browser bridge ready. Starting agent loop...')
+
+    const systemPrompt = buildCdpSystemPrompt(this.task.capabilities)
+    const history: VisionMessage[] = []
+
+    history.push({
+      role: 'user',
+      content: [{ type: 'input_text', text: `Task: ${this.task.prompt}` }]
+    })
+
+    while (!this.aborted && this.task.steps.length < this.task.maxSteps) {
+      try {
+        // Get page info
+        let pageInfo: { url: string; title: string; text: string }
+        try {
+          pageInfo = await browserBridge.getPageInfo()
+        } catch (e) {
+          return this.finish('failed', `getPageInfo failed: ${e instanceof Error ? e.message : String(e)}`)
+        }
+
+        const stepIndex = this.task.steps.length
+        const turnText = stepIndex === 0
+          ? `Task: ${this.task.prompt}\n\nCurrent page:\nURL: ${pageInfo.url}\nTitle: ${pageInfo.title}\nText: ${pageInfo.text.slice(0, 3000)}`
+          : `Step ${stepIndex + 1}.\nURL: ${pageInfo.url}\nTitle: ${pageInfo.title}\nText: ${pageInfo.text.slice(0, 3000)}`
+
+        const turnMessage: VisionMessage = {
+          role: 'user',
+          content: [{ type: 'input_text', text: turnText }]
+        }
+
+        if (history.length > 20) {
+          history.splice(1, history.length - 19)
+        }
+        history.push(turnMessage)
+
+        const rawResponse = await this.callVisionModel(systemPrompt, history)
+        const { thought, action } = parseModelResponse(rawResponse)
+
+        history.push({
+          role: 'assistant',
+          content: [{ type: 'output_text', text: rawResponse }]
+        })
+
+        const step: TaskStep = {
+          index: this.task.steps.length,
+          timestamp: Date.now(),
+          screenshotBase64: '',
+          action,
+          thought
+        }
+
+        if (action.type === 'done') {
+          this.task.summary = action.summary
+          this.task.steps.push(step)
+          this.pushUpdate()
+          browserBridge.destroy()
+          return this.finish('completed')
+        }
+
+        if (action.type === 'fail') {
+          this.task.steps.push(step)
+          this.pushUpdate()
+          browserBridge.destroy()
+          return this.finish('failed', action.reason)
+        }
+
+        // Execute CDP action
+        try {
+          await this.executeCdpAction(browserBridge, action)
+        } catch (e) {
+          step.error = e instanceof Error ? e.message : String(e)
+        }
+
+        this.task.steps.push(step)
+        this.pushUpdate()
+        await this.sleep(500)
+      } catch (e) {
+        if (this.aborted) break
+        browserBridge.destroy()
+        return this.finish('failed', `CDP loop error: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    }
+
+    browserBridge.destroy()
+    if (this.aborted) return this.finish('cancelled')
+    return this.finish('failed', `Reached max steps (${this.task.maxSteps})`)
+  }
+
+  private async executeCdpAction(bridge: BrowserBridge, action: TaskAction): Promise<void> {
+    // CDP actions use a different format than screen actions
+    const raw = action as Record<string, unknown>
+    const type = raw.type as string
+
+    switch (type) {
+      case 'navigate':
+        await bridge.navigate(raw.url as string)
+        break
+      case 'click':
+        await bridge.click(raw.selector as string)
+        break
+      case 'type':
+        await bridge.type(raw.selector as string, raw.text as string)
+        break
+      case 'pressKey':
+        await bridge.pressKey(raw.key as string)
+        break
+      case 'evaluate':
+        await bridge.evaluate(raw.script as string)
+        break
+      case 'wait':
+        await this.sleep((raw.ms as number) ?? 1000)
+        break
+    }
+  }
+
+  /**
    * Route vision call to the correct provider.
    */
   private async callVisionModel(
     systemPrompt: string,
     messages: VisionMessage[]
   ): Promise<string> {
-    if (this.opts.provider === 'chatgpt') {
-      return codexVisionRespond({ systemPrompt, messages, sessionId: this.task.id })
+    switch (this.opts.provider) {
+      case 'chatgpt':
+        return codexVisionRespond({ systemPrompt, messages, sessionId: this.task.id })
+      case 'claude': {
+        const { claudeVisionRespond } = await import('../providers/claude-vision')
+        return claudeVisionRespond({ systemPrompt, messages })
+      }
+      case 'deepseek': {
+        const { deepseekVisionRespond } = await import('../providers/deepseek-vision')
+        return deepseekVisionRespond({ systemPrompt, messages })
+      }
+      case 'kimi': {
+        const { kimiVisionRespond } = await import('../providers/kimi-vision')
+        return kimiVisionRespond({ systemPrompt, messages })
+      }
+      default:
+        throw new Error(`Unsupported provider: ${this.opts.provider}`)
     }
-
-    // OpenAI direct API
-    const apiKey = await getSecret('openai.apiKey')
-    if (!apiKey) throw new Error('OpenAI API key is not set')
-
-    return openaiVisionRespond({
-      apiKey,
-      model: this.opts.openaiModel,
-      systemPrompt,
-      messages
-    })
   }
 
   /**

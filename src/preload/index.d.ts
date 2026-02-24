@@ -1,4 +1,4 @@
-import type { CapabilityId, PolicyState, ThemeMode } from '../shared/policy'
+import type { CapabilityId, LanguageCode, PolicyState, ThemeMode } from '../shared/policy'
 import type { Task, TaskCapabilityId, TaskCreateResponse, TaskListResponse } from '../shared/task'
 
 declare global {
@@ -23,7 +23,11 @@ declare global {
       windowMinimize: () => Promise<void>
       windowMaximize: () => Promise<void>
       windowClose: () => Promise<void>
+      showOpenFilesDialog: () => Promise<{ canceled: boolean; filePaths: string[] }>
       setActiveProvider: (id: string) => Promise<PolicyState>
+      setProviderApiKey: (provider: string, apiKey: string) => Promise<boolean>
+      hasProviderApiKey: (provider: string) => Promise<boolean>
+      setLanguage: (language: LanguageCode) => Promise<PolicyState>
       chatgptOAuthStart: () => Promise<string>
       chatgptHasAuth: () => Promise<boolean>
       chatgptSignOut: () => Promise<boolean>
@@ -44,6 +48,7 @@ declare global {
       taskList: () => Promise<TaskListResponse>
       taskDelete: (taskId: string) => Promise<boolean>
       onTaskUpdate: (cb: (task: Task) => void) => () => void
+      onWindowMaximized: (cb: (maximized: boolean) => void) => () => void
     }
   }
 }

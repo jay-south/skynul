@@ -1,10 +1,26 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
-import type { CapabilityId, ChatMessage, PolicyState, ThemeMode } from '../../shared/policy'
+import type {
+  CapabilityId,
+  ChatMessage,
+  LanguageCode,
+  PolicyState,
+  ProviderId,
+  ThemeMode
+} from '../../shared/policy'
 import type { Task, TaskCapabilityId } from '../../shared/task'
 import { OAUTH_REDIRECT_TO, supabase, SUPABASE_CONFIGURED } from './supabase'
 import { TaskPanel } from './components/TaskPanel'
 import { TaskDetailView } from './components/TaskDetailView'
 import { TaskApprovalDialog } from './components/TaskApprovalDialog'
+import { TaskTemplates, type TaskTemplateId } from './components/TaskTemplates'
+import { TaskComposer } from './components/TaskComposer'
+import { t } from './i18n'
+
+import chatgptIcon from './assets/chatgpt.svg'
+import claudeIcon from './assets/claude-logo.svg'
+import deepseekIcon from './assets/deepseek.svg'
+import kimiIcon from './assets/kimi.svg'
+import skynulLogo from './assets/logo-skynul.svg'
 
 const CAPABILITIES: Array<{ id: CapabilityId; title: string; desc: string }> = [
   {
@@ -29,13 +45,25 @@ const CAPABILITIES: Array<{ id: CapabilityId; title: string; desc: string }> = [
   }
 ]
 
+const PROVIDERS: Array<{
+  id: ProviderId
+  label: string
+  icon: string
+  desc: string
+}> = [
+  { id: 'chatgpt', label: 'ChatGPT Pro', icon: chatgptIcon, desc: 'OAuth · gpt-5.2 via Codex' },
+  { id: 'claude', label: 'Claude', icon: claudeIcon, desc: 'Supabase edge function' },
+  { id: 'deepseek', label: 'DeepSeek', icon: deepseekIcon, desc: 'Supabase edge function' },
+  { id: 'kimi', label: 'Kimi', icon: kimiIcon, desc: 'API key · api.kimi.com (Kimi for Coding)' }
+]
+
 type Conversation = {
   id: string
   title: string
   messages: ChatMessage[]
 }
 
-type SidebarTab = 'chats' | 'tasks'
+type SidebarTab = 'chats' | 'tasks' | 'settings'
 
 const STORAGE_KEY = 'netbot.conversations.v1'
 
@@ -69,13 +97,17 @@ function App(): React.JSX.Element {
   const [error, setError] = useState<string>('')
 
   const [draft, setDraft] = useState<string>('')
-  const [settingsOpen, setSettingsOpen] = useState<boolean>(false)
   const [accountEmail, setAccountEmail] = useState<string>('')
   const [accountConnected, setAccountConnected] = useState<boolean>(false)
   const [accountBusy, setAccountBusy] = useState<boolean>(false)
 
   const [chatgptConnected, setChatgptConnected] = useState<boolean>(false)
   const [chatgptBusy, setChatgptBusy] = useState<boolean>(false)
+  const [providerSwitchBusy, setProviderSwitchBusy] = useState<boolean>(false)
+  const [providerApiKeys, setProviderApiKeys] = useState<Record<string, boolean>>({})
+  const [apiKeyDraft, setApiKeyDraft] = useState<string>('')
+  const [apiKeyBusy, setApiKeyBusy] = useState<boolean>(false)
+  const [hasApiKey, setHasApiKey] = useState<boolean>(false)
   const [isThinking, setIsThinking] = useState<boolean>(false)
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
   const [isRecording, setIsRecording] = useState<boolean>(false)
@@ -90,10 +122,16 @@ function App(): React.JSX.Element {
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
   const [approvalTask, setApprovalTask] = useState<Task | null>(null)
 
+  // ── Task template flow (renders in main panel) ─────────────────────
+  const [showTemplates, setShowTemplates] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState<TaskTemplateId | null>(null)
+
   const activeTask = useMemo(
     () => tasks.find((t) => t.id === activeTaskId) ?? null,
     [tasks, activeTaskId]
   )
+
+  const lang: LanguageCode = policy?.language ?? 'en'
 
   const [conversations, setConversations] = useState<Conversation[]>(() => {
     try {
@@ -194,6 +232,35 @@ function App(): React.JSX.Element {
       data.subscription.unsubscribe()
     }
   }, [])
+
+  // Refresh API key status for provider badges when opening Settings
+  useEffect(() => {
+    if (sidebarTab !== 'settings') return
+    const ids: ProviderId[] = ['kimi', 'claude', 'deepseek']
+    let alive = true
+    void Promise.all(ids.map((id) => window.netbot.hasProviderApiKey(id).then((has) => [id, has] as const))).then(
+      (pairs) => {
+        if (alive) setProviderApiKeys(Object.fromEntries(pairs))
+      }
+    )
+    return () => {
+      alive = false
+    }
+  }, [sidebarTab])
+
+  // When an API-key provider is selected, check if it has a key and clear draft
+  const apiKeyProvider = policy?.provider.active
+  useEffect(() => {
+    if (apiKeyProvider !== 'kimi' && apiKeyProvider !== 'claude' && apiKeyProvider !== 'deepseek') return
+    setApiKeyDraft('')
+    let alive = true
+    void window.netbot.hasProviderApiKey(apiKeyProvider).then((has) => {
+      if (alive) setHasApiKey(has)
+    })
+    return () => {
+      alive = false
+    }
+  }, [apiKeyProvider])
 
   useEffect(() => {
     void window.netbot.chatgptHasAuth().then(async (connected) => {
@@ -304,6 +371,63 @@ function App(): React.JSX.Element {
     setPolicy(next)
   }
 
+  const setLanguage = async (language: LanguageCode): Promise<void> => {
+    if (!policy) return
+    setError('')
+    const next = await window.netbot.setLanguage(language)
+    setPolicy(next)
+  }
+
+  const saveProviderApiKey = async (): Promise<void> => {
+    const active = policy?.provider.active
+    if (active !== 'kimi' && active !== 'claude' && active !== 'deepseek') return
+    const key = apiKeyDraft.trim()
+    if (!key) {
+      setError('API key is required.')
+      return
+    }
+    setError('')
+    setApiKeyBusy(true)
+    try {
+      await window.netbot.setProviderApiKey(active, key)
+      setApiKeyDraft('')
+      setHasApiKey(true)
+      setProviderApiKeys((prev) => ({ ...prev, [active]: true }))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setApiKeyBusy(false)
+    }
+  }
+
+  const setActiveProvider = async (id: ProviderId): Promise<void> => {
+    if (providerSwitchBusy) return
+    // Si hacen click en el provider ya activo, cambiar a otro para poder "salir" (ej. de Kimi)
+    const current = policy?.provider.active
+    const target: ProviderId =
+      current === id
+        ? (PROVIDERS.find((p) => p.id !== id)?.id ?? id)
+        : id
+    if (target === id && current === id) return
+
+    setError('')
+    setProviderSwitchBusy(true)
+    const timeoutMs = 8000
+    const timeoutId = window.setTimeout(() => {
+      setProviderSwitchBusy(false)
+      setError('Provider change timed out. Try again.')
+    }, timeoutMs)
+    try {
+      const next = await window.netbot.setActiveProvider(target)
+      setPolicy(next)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      window.clearTimeout(timeoutId)
+      setProviderSwitchBusy(false)
+    }
+  }
+
   const send = async (): Promise<void> => {
     const text = draft.trim()
     if (!text) return
@@ -328,34 +452,15 @@ function App(): React.JSX.Element {
 
     try {
       const currentMessages = (activeConversation?.messages ?? []).concat(userMsg)
+      const active = policy?.provider.active ?? 'chatgpt'
 
       setIsThinking(true)
       let content: string
 
-      if (policy.provider.active === 'chatgpt') {
-        // Route through main process → Codex endpoint
-        const res = await window.netbot.chatSend(currentMessages)
-        content = res.content
-      } else {
-        // Supabase edge function path
-        if (!SUPABASE_CONFIGURED || !supabase) {
-          throw new Error('Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.')
-        }
-        const { data: userData, error: userErr } = await supabase.auth.getUser()
-        if (userErr || !userData.user) {
-          throw new Error('Not signed in. Open Settings and sign in.')
-        }
-        const { data, error: fnErr } = await supabase.functions.invoke('chat', {
-          body: { messages: currentMessages }
-        })
-        if (fnErr) {
-          const name = (fnErr as { name?: string }).name
-          const msg = (fnErr as { message?: string }).message
-          throw new Error(`Edge function error${name ? ` (${name})` : ''}: ${msg ?? String(fnErr)}`)
-        }
-        content = (data as { content?: string } | null)?.content ?? ''
-        if (!content) throw new Error('Empty response')
-      }
+      // All providers (ChatGPT, Kimi, Claude, DeepSeek) go through main process:
+      // ChatGPT uses Codex OAuth; others use stored API keys and their APIs (e.g. Kimi at api.kimi.com/coding/v1).
+      const res = await window.netbot.chatSend(currentMessages)
+      content = res.content
 
       const assistantMsg: ChatMessage = { role: 'assistant', content }
 
@@ -443,8 +548,8 @@ function App(): React.JSX.Element {
 
   const modelLabel = useMemo(() => {
     if (!policy) return ''
-    if (policy.provider.active === 'chatgpt') return 'ChatGPT Pro · gpt-5.2'
-    return `OpenAI · ${policy.provider.openaiModel}`
+    const p = PROVIDERS.find((pr) => pr.id === policy.provider.active)
+    return p?.label ?? policy.provider.active
   }, [policy])
 
   const toggleMic = (): void => {
@@ -460,9 +565,9 @@ function App(): React.JSX.Element {
     }
 
     const rec = new SR()
-    rec.lang = 'es-AR'
-    rec.interimResults = true  // show text as you speak
-    rec.continuous = true      // keep recording until manually stopped
+    rec.lang = lang === 'es' ? 'es-AR' : 'en-US'
+    rec.interimResults = true
+    rec.continuous = true
 
     const baseText = draft.trim()
 
@@ -470,7 +575,6 @@ function App(): React.JSX.Element {
     rec.onend = (): void => setIsRecording(false)
     rec.onerror = (): void => setIsRecording(false)
     rec.onresult = (e: SpeechRecognitionEvent): void => {
-      // Accumulate all results (final + interim) as live transcript
       const transcript = Array.from(e.results)
         .map((r) => r[0].transcript)
         .join(' ')
@@ -487,7 +591,6 @@ function App(): React.JSX.Element {
     setChatgptBusy(true)
     try {
       await window.netbot.chatgptOAuthStart()
-      // Success/error handled via push events from main process
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
       setChatgptBusy(false)
@@ -500,8 +603,6 @@ function App(): React.JSX.Element {
     try {
       await window.netbot.chatgptSignOut()
       setChatgptConnected(false)
-      const next = await window.netbot.setActiveProvider('openai')
-      setPolicy(next)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -517,6 +618,8 @@ function App(): React.JSX.Element {
       setTasks((prev) => [task, ...prev])
       setActiveTaskId(task.id)
       setApprovalTask(task)
+      setShowTemplates(false)
+      setSelectedTemplate(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     }
@@ -544,14 +647,20 @@ function App(): React.JSX.Element {
 
   const handleDeleteTask = useCallback(
     (taskId: string): void => {
-      // Remove from local state immediately for snappy UI
       setTasks((prev) => prev.filter((t) => t.id !== taskId))
       if (activeTaskId === taskId) setActiveTaskId(null)
-      // Persist deletion to main process (cancels runner + removes from disk)
       void window.netbot.taskDelete(taskId).catch(() => {})
     },
     [activeTaskId]
   )
+
+  // ── Determine what to show in the main panel for tasks tab ─────────
+  const taskMainView = useMemo(() => {
+    if (activeTask) return 'detail' as const
+    if (selectedTemplate) return 'composer' as const
+    if (showTemplates) return 'templates' as const
+    return 'empty' as const
+  }, [activeTask, selectedTemplate, showTemplates])
 
   return (
     <div className={`layout${isMaximized ? ' maximized' : ''}`}>
@@ -580,24 +689,28 @@ function App(): React.JSX.Element {
             className={`sidebarTab ${sidebarTab === 'chats' ? 'active' : ''}`}
             onClick={() => setSidebarTab('chats')}
           >
-            Chats
+            {t(lang, 'sidebar_chats')}
           </button>
           <button
             className={`sidebarTab ${sidebarTab === 'tasks' ? 'active' : ''}`}
-            onClick={() => setSidebarTab('tasks')}
+            onClick={() => {
+              setSidebarTab('tasks')
+              // Mostrar las cards de templates en el centro (igual que "New task") cuando no hay tarea seleccionada
+              if (!activeTaskId && !selectedTemplate) setShowTemplates(true)
+            }}
           >
-            Tasks
+            {t(lang, 'sidebar_tasks')}
           </button>
         </div>
 
-        {/* ── Chats / Tasks content ───────────────────────────────── */}
+        {/* ── Chats / Tasks / Settings content ─────────────────────── */}
         <div className="sidebarContent">
           {sidebarTab === 'chats' && (
             <>
               <div className="rbTop">
-                <div className="rbTitle">Chats</div>
-                <button className="rbNew" onClick={createChat} title="New chat">
-                  New
+                <div className="rbTitle">{t(lang, 'chats_title')}</div>
+                <button className="rbNew" onClick={createChat} title={t(lang, 'chats_new_title')}>
+                  {t(lang, 'chats_new')}
                 </button>
               </div>
 
@@ -626,7 +739,7 @@ function App(): React.JSX.Element {
                     {menuOpenId === c.id && (
                       <div className="rbDropdown" onClick={(e) => e.stopPropagation()}>
                         <button className="rbDropdownItem danger" onClick={() => deleteConversation(c.id)}>
-                          Delete
+                          {t(lang, 'common_delete')}
                         </button>
                       </div>
                     )}
@@ -640,25 +753,39 @@ function App(): React.JSX.Element {
             <TaskPanel
               tasks={tasks}
               activeTaskId={activeTaskId}
-              onSelectTask={setActiveTaskId}
-              onNewTask={(prompt, caps) => void handleNewTask(prompt, caps)}
+              onSelectTask={(id) => {
+                setActiveTaskId(id)
+                setShowTemplates(false)
+                setSelectedTemplate(null)
+              }}
+              onNewTask={() => {
+                setActiveTaskId(null)
+                setShowTemplates(true)
+                setSelectedTemplate(null)
+              }}
               onDeleteTask={handleDeleteTask}
             />
+          )}
+
+          {sidebarTab === 'settings' && (
+            <div className="settingsSidebarHint">
+              <div className="rbTitle">{t(lang, 'settings_title')}</div>
+            </div>
           )}
         </div>
 
         <div className="rbFooter">
           <div className="sbFooterRow">
             <div className="sbFooterBrand">
-              <div className="sbFooterName">Netbot</div>
+              <img src={skynulLogo} alt="Netbot" className="sbFooterLogo" />
             </div>
             <button
-              className="iconBtn"
-              onClick={() => setSettingsOpen(true)}
-              aria-label="Open settings"
-              title="Settings"
+              className={`sbFooterSettingsBtn ${sidebarTab === 'settings' ? 'active' : ''}`}
+              onClick={() => setSidebarTab('settings')}
+              aria-label={t(lang, 'settings_open_title')}
+              title={t(lang, 'settings_open_title')}
             >
-              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
                 <path
                   d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.2 7.2 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 1h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.22-1.13.52-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 7.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.41 1.05.73 1.63.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .44-.18.49-.42l.36-2.54c.58-.22 1.13-.52 1.63-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"
                   fill="currentColor"
@@ -670,26 +797,10 @@ function App(): React.JSX.Element {
       </aside>
 
       <section className="main">
-        {/* ── Chat view ───────────────────────────────────────────── */}
-        {sidebarTab === 'chats' && (
-          <>
-            <div className="chatScroll" ref={scrollRef}>
-              <div className="chat">
-                {messages.map((m, idx) => (
-                  <div key={idx} className={`msg ${m.role}`}>
-                    <div className="msgBody">{m.content}</div>
-                  </div>
-                ))}
-                {isThinking ? (
-                  <div className="typingBubble">
-                    <div className="typingDot" />
-                    <div className="typingDot" />
-                    <div className="typingDot" />
-                  </div>
-                ) : null}
-              </div>
-            </div>
-
+        {/* ── Chat view: input centrado si no hay mensajes; abajo cuando ya hay conversación ── */}
+        {sidebarTab === 'chats' && (() => {
+          const chatEmpty = messages.length === 0 && !isThinking
+          const composerEl = (
             <footer className="composer">
               {error ? <div className="composerError">{error}</div> : null}
               <div className="composerRow">
@@ -697,7 +808,7 @@ function App(): React.JSX.Element {
                   {modelLabel ? <div className="modelBadge">{modelLabel}</div> : null}
                   <textarea
                     className="prompt"
-                    placeholder="Message Netbot..."
+                    placeholder={t(lang, 'composer_placeholder')}
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
                     rows={3}
@@ -708,6 +819,24 @@ function App(): React.JSX.Element {
                       }
                     }}
                   />
+                  <div className="promptActionsLeft">
+                    <button
+                      type="button"
+                      className="attachBtn"
+                      onClick={async () => {
+                        const { canceled, filePaths } = await window.netbot.showOpenFilesDialog()
+                        if (!canceled && filePaths.length) {
+                          // TODO: adjuntar filePaths al mensaje y enviar con el chat
+                        }
+                      }}
+                      aria-label={t(lang, 'composer_attach_label')}
+                      title={t(lang, 'composer_attach_label')}
+                    >
+                      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden>
+                        <path d="M12 4a1 1 0 0 1 1 1v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6V5a1 1 0 0 1 1-1Z" />
+                      </svg>
+                    </button>
+                  </div>
                   <div className="promptActions">
                     <button
                       className={`micBtn${isRecording ? ' recording' : ''}`}
@@ -738,13 +867,44 @@ function App(): React.JSX.Element {
                   </div>
                 </div>
               </div>
-              <div className="composerNote">Enter to send · Shift+Enter nueva línea.</div>
+              <div className="composerNote">{t(lang, 'composer_note')}</div>
             </footer>
-          </>
-        )}
+          )
+          if (chatEmpty) {
+            return (
+              <div className="chatMain chatMain--centered">
+                <div className="chatComposerCenter">
+                  <div className="chatEmptyGreeting">{t(lang, 'chat_greeting_empty')}</div>
+                  {composerEl}
+                </div>
+              </div>
+            )
+          }
+          return (
+            <>
+              <div className="chatScroll" ref={scrollRef}>
+                <div className="chat">
+                  {messages.map((m, idx) => (
+                    <div key={idx} className={`msg ${m.role}`}>
+                      <div className="msgBody">{m.content}</div>
+                    </div>
+                  ))}
+                  {isThinking ? (
+                    <div className="typingBubble">
+                      <div className="typingDot" />
+                      <div className="typingDot" />
+                      <div className="typingDot" />
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+              {composerEl}
+            </>
+          )
+        })()}
 
-        {/* ── Task detail view ────────────────────────────────────── */}
-        {sidebarTab === 'tasks' && activeTask && (
+        {/* ── Task views in main panel ─────────────────────────────── */}
+        {sidebarTab === 'tasks' && taskMainView === 'detail' && activeTask && (
           <TaskDetailView
             task={activeTask}
             onApprove={() => void handleApproveTask(activeTask.id)}
@@ -752,57 +912,193 @@ function App(): React.JSX.Element {
           />
         )}
 
-        {sidebarTab === 'tasks' && !activeTask && (
+        {sidebarTab === 'tasks' && taskMainView === 'templates' && (
+          <div className="mainPanelCenter">
+            <TaskTemplates
+              lang={lang}
+              onPick={(id) => {
+                setSelectedTemplate(id)
+                setShowTemplates(false)
+              }}
+            />
+          </div>
+        )}
+
+        {sidebarTab === 'tasks' && taskMainView === 'composer' && selectedTemplate && (
+          <div className="mainPanelCenter">
+            <TaskComposer
+              lang={lang}
+              template={selectedTemplate}
+              onCancel={() => {
+                setSelectedTemplate(null)
+                setShowTemplates(true)
+              }}
+              onSubmit={(text, caps) => void handleNewTask(text, caps)}
+            />
+          </div>
+        )}
+
+        {sidebarTab === 'tasks' && taskMainView === 'empty' && (
           <div className="taskEmptyMain">
             <div className="taskEmptyMainText">
-              Select a task from the sidebar or create a new one.
+              {t(lang, 'task_empty_main')}
             </div>
           </div>
         )}
-      </section>
 
-      {/* ── Task approval dialog ────────────────────────────────── */}
-      {approvalTask && (
-        <TaskApprovalDialog
-          task={approvalTask}
-          onApprove={() => void handleApproveTask(approvalTask.id)}
-          onCancel={() => setApprovalTask(null)}
-        />
-      )}
+        {/* ── Settings panel ──────────────────────────────────────── */}
+        {sidebarTab === 'settings' && (
+          <div className="settingsPanel">
+            <div className="settingsPanelInner">
+              <h2 className="settingsPanelTitle">{t(lang, 'settings_title')}</h2>
 
-      {settingsOpen ? (
-        <div className="modalBackdrop" onMouseDown={() => setSettingsOpen(false)}>
-          <div
-            className="modal"
-            onMouseDown={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-          >
-            <div className="modalHeader">
-              <div className="modalTitle">Settings</div>
-              <button
-                className="modalClose"
-                onClick={() => setSettingsOpen(false)}
-                aria-label="Close"
-              >
-                ×
-              </button>
-            </div>
+              {error ? <div className="composerError">{error}</div> : null}
 
-            <div className="modalBody">
-              {error ? <div className="modalError">{error}</div> : null}
-              <div className="modalSection">
-                <div className="modalLabel">Workspace</div>
+              {/* ── AI Provider ─────────────────────────────────── */}
+              <div className="settingsSection">
+                <div className="settingsLabel">{t(lang, 'settings_provider')}</div>
+                <div className="providerGrid">
+                  {PROVIDERS.map((p) => {
+                    const isActive = policy?.provider.active === p.id
+                    const showConnected =
+                      (p.id === 'chatgpt' && chatgptConnected) || (p.id !== 'chatgpt' && providerApiKeys[p.id])
+                    const isKimi = p.id === 'kimi'
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className={`providerCard ${isActive ? 'active' : ''} ${isKimi ? 'providerCard--kimi' : ''}`}
+                        onClick={() => void setActiveProvider(p.id)}
+                        disabled={providerSwitchBusy}
+                      >
+                        <img
+                          src={p.icon}
+                          alt={p.label}
+                          className="providerIcon"
+                        />
+                        {isKimi && <div className="providerCardLabel">KIMI k2-5</div>}
+                        {showConnected && (
+                          <div className="providerCardBadge">
+                            <span className="providerCardBadgeCheck" aria-hidden>✓</span>
+                            {t(lang, 'provider_connected')}
+                          </div>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* ── ChatGPT OAuth (only when chatgpt is active) ── */}
+              {policy?.provider.active === 'chatgpt' && (
+                <div className="settingsSection">
+                  <div className="settingsLabel">{t(lang, 'settings_chatgpt_pro')}</div>
+                  <div className="settingsField">
+                    <div className="settingsFieldHint">
+                      {chatgptConnected
+                        ? t(lang, 'chatgpt_status_connected')
+                        : t(lang, 'chatgpt_status_not_connected')}
+                    </div>
+                    {chatgptConnected ? (
+                      <button className="btn" onClick={() => void chatgptDisconnect()} disabled={chatgptBusy}>
+                        {t(lang, 'chatgpt_disconnect')}
+                      </button>
+                    ) : (
+                      <button className="btn" onClick={() => void chatgptConnect()} disabled={chatgptBusy}>
+                        {chatgptBusy ? t(lang, 'chatgpt_connecting') : t(lang, 'chatgpt_connect')}
+                      </button>
+                    )}
+                    <div className="settingsFieldHint">{t(lang, 'chatgpt_hint')}</div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── API key for Kimi / Claude / DeepSeek (when that provider is active) ── */}
+              {(policy?.provider.active === 'kimi' ||
+                policy?.provider.active === 'claude' ||
+                policy?.provider.active === 'deepseek') && (
+                <div className="settingsSection">
+                  <div className="settingsLabel">
+                    {t(lang, `settings_${policy.provider.active}_key` as 'settings_kimi_key' | 'settings_claude_key' | 'settings_deepseek_key')}
+                  </div>
+                  <div className="settingsField">
+                    {hasApiKey && (
+                      <div className="settingsFieldHint">
+                        {t(lang, `${policy.provider.active}_key_configured` as 'kimi_key_configured' | 'claude_key_configured' | 'deepseek_key_configured')}
+                      </div>
+                    )}
+                    <input
+                      type="password"
+                      className="apiKeyInput"
+                      placeholder={t(lang, 'provider_api_key_placeholder')}
+                      value={apiKeyDraft}
+                      onChange={(e) => setApiKeyDraft(e.target.value)}
+                      aria-label={t(lang, 'provider_api_key_placeholder')}
+                    />
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => void saveProviderApiKey()}
+                      disabled={apiKeyBusy || !apiKeyDraft.trim()}
+                    >
+                      {apiKeyBusy ? '...' : t(lang, 'provider_api_key_save')}
+                    </button>
+                    <div className="settingsFieldHint">
+                      {t(lang, `${policy.provider.active}_key_get_from` as 'kimi_key_get_from' | 'claude_key_get_from' | 'deepseek_key_get_from')}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Language ─────────────────────────────────────── */}
+              <div className="settingsSection">
+                <div className="settingsLabel">{t(lang, 'settings_language')}</div>
+                <div className="seg seg--2col">
+                  {(['en', 'es'] as const).map((l) => (
+                    <button
+                      key={l}
+                      className={`segBtn ${lang === l ? 'active' : ''}`}
+                      onClick={() => void setLanguage(l)}
+                      aria-pressed={lang === l}
+                    >
+                      {l === 'en' ? 'English' : 'Espanol'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Theme ───────────────────────────────────────── */}
+              <div className="settingsSection">
+                <div className="settingsLabel">{t(lang, 'settings_theme')}</div>
+                <div className="seg">
+                  {(['system', 'light', 'dark'] as const).map((m) => (
+                    <button
+                      key={m}
+                      className={`segBtn ${policy?.themeMode === m ? 'active' : ''}`}
+                      onClick={() => void setTheme(m)}
+                      disabled={!policy}
+                      aria-pressed={policy?.themeMode === m}
+                    >
+                      {t(lang, `theme_${m}` as 'theme_system' | 'theme_light' | 'theme_dark')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Workspace ───────────────────────────────────── */}
+              <div className="settingsSection">
+                <div className="settingsLabel">{t(lang, 'settings_workspace')}</div>
                 <div className="pathBox" title={workspaceLabel}>
                   {workspaceLabel}
                 </div>
                 <button className="btn" onClick={pickWorkspace}>
-                  Pick workspace
+                  {t(lang, 'settings_pick_workspace')}
                 </button>
               </div>
 
-              <div className="modalSection">
-                <div className="modalLabel">Capabilities</div>
+              {/* ── Capabilities ─────────────────────────────────── */}
+              <div className="settingsSection">
+                <div className="settingsLabel">{t(lang, 'settings_capabilities')}</div>
                 <div className="capList">
                   {CAPABILITIES.map((c) => (
                     <button
@@ -824,81 +1120,43 @@ function App(): React.JSX.Element {
                 </div>
               </div>
 
-              <div className="modalSection">
-                <div className="modalLabel">Theme</div>
-                <div className="seg">
-                  {(['system', 'light', 'dark'] as const).map((m) => (
-                    <button
-                      key={m}
-                      className={`segBtn ${policy?.themeMode === m ? 'active' : ''}`}
-                      onClick={() => void setTheme(m)}
-                      disabled={!policy}
-                      aria-pressed={policy?.themeMode === m}
-                    >
-                      {m === 'system' ? 'System' : m === 'light' ? 'Light' : 'Dark'}
+              {/* ── Account ─────────────────────────────────────── */}
+              <div className="settingsSection">
+                <div className="settingsLabel">{t(lang, 'settings_account')}</div>
+                <div className="settingsField">
+                  <div className="settingsFieldHint">
+                    {SUPABASE_CONFIGURED
+                      ? accountConnected
+                        ? accountEmail
+                          ? t(lang, 'account_connected_as', { email: accountEmail })
+                          : t(lang, 'account_connected')
+                        : t(lang, 'account_not_connected')
+                      : t(lang, 'account_supabase_not_configured')}
+                  </div>
+                  {accountConnected ? (
+                    <button className="btn" onClick={() => void signOut()} disabled={accountBusy}>
+                      {t(lang, 'account_sign_out')}
                     </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="modalSection">
-                <div className="modalLabel">Account</div>
-                <div className="formGrid">
-                  <div className="field">
-                    <div className="fieldLabel">Status</div>
-                    <div className="fieldHint">
-                      {SUPABASE_CONFIGURED
-                        ? accountConnected
-                          ? `Connected${accountEmail ? ` as ${accountEmail}` : ''}.`
-                          : 'Not connected.'
-                        : 'Supabase not configured.'}
-                    </div>
-                  </div>
-
-                  <div className="field">
-                    {accountConnected ? (
-                      <button className="btn" onClick={() => void signOut()} disabled={accountBusy}>
-                        Sign out
-                      </button>
-                    ) : (
-                      <button className="btn" onClick={() => void signIn()} disabled={accountBusy}>
-                        Sign in with Google
-                      </button>
-                    )}
-                    <div className="fieldHint">Network capability must be enabled to chat.</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="modalSection">
-                <div className="modalLabel">ChatGPT Pro</div>
-                <div className="formGrid">
-                  <div className="field">
-                    <div className="fieldLabel">Status</div>
-                    <div className="fieldHint">
-                      {chatgptConnected ? 'Connected — using your ChatGPT Pro subscription.' : 'Not connected.'}
-                    </div>
-                  </div>
-                  <div className="field">
-                    {chatgptConnected ? (
-                      <button className="btn" onClick={() => void chatgptDisconnect()} disabled={chatgptBusy}>
-                        Disconnect
-                      </button>
-                    ) : (
-                      <button className="btn" onClick={() => void chatgptConnect()} disabled={chatgptBusy}>
-                        {chatgptBusy ? 'Connecting…' : 'Connect ChatGPT Pro'}
-                      </button>
-                    )}
-                    <div className="fieldHint">
-                      Opens a browser window to log in with your OpenAI account. No API key needed.
-                    </div>
-                  </div>
+                  ) : (
+                    <button className="btn" onClick={() => void signIn()} disabled={accountBusy}>
+                      {t(lang, 'account_sign_in_google')}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      ) : null}
+        )}
+      </section>
+
+      {/* ── Task approval dialog ────────────────────────────────── */}
+      {approvalTask && (
+        <TaskApprovalDialog
+          task={approvalTask}
+          onApprove={() => void handleApproveTask(approvalTask.id)}
+          onCancel={() => setApprovalTask(null)}
+        />
+      )}
     </div>
   )
 }

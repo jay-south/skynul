@@ -1,4 +1,6 @@
 import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
+
+type OpenDialogOptions = Parameters<typeof dialog.showOpenDialog>[1]
 import { spawn } from 'child_process'
 import { readFile, writeFile } from 'fs/promises'
 import { IPC } from '../shared/ipc'
@@ -8,10 +10,12 @@ import {
   DEFAULT_POLICY,
   ReadTextFileRequest,
   SetCapabilityRequest,
+  SetLanguageRequest,
   SetThemeRequest,
   SetOpenAIModelRequest,
   WriteTextFileRequest
 } from '../shared/policy'
+import type { ProviderId } from '../shared/policy'
 import type {
   TaskCreateRequest,
   TaskApproveRequest,
@@ -21,7 +25,6 @@ import type {
 import { loadPolicy, savePolicy } from './policy-store'
 import { resolveInsideWorkspace } from './workspace-path'
 import { getSecret, hasSecret, setSecret } from './secret-store'
-import { openaiRespond } from './providers/openai'
 import {
   buildAuthorizeUrl,
   clearTokens,
@@ -32,9 +35,24 @@ import {
   loadTokens,
   saveTokens
 } from './providers/codex'
+import { claudeRespond } from './providers/claude'
+import { deepseekRespond } from './providers/deepseek'
+import { kimiRespond } from './providers/kimi'
 import type { TaskManager } from './agent/task-manager'
 
 let policy = DEFAULT_POLICY
+
+// Supabase token store — set by renderer via IPC when user signs in.
+// Used by vision providers (claude-vision, deepseek-vision) that call edge functions.
+let _supabaseToken: string | null = null
+
+export function getSupabaseToken(): string | null {
+  return _supabaseToken
+}
+
+export function setSupabaseToken(token: string | null): void {
+  _supabaseToken = token
+}
 
 // Pending ChatGPT PKCE state (lives only while OAuth is in-flight)
 let pendingChatGPTOAuth: {
@@ -138,10 +156,14 @@ export function registerIpcHandlers(opts: {
     return policy
   })
 
-  ipcMain.handle(IPC.pickWorkspace, async () => {
-    const result = await dialog.showOpenDialog({
+  ipcMain.handle(IPC.pickWorkspace, async (_evt) => {
+    const win = BrowserWindow.fromWebContents(_evt.sender)
+    const opts: OpenDialogOptions = {
       properties: ['openDirectory', 'createDirectory']
-    })
+    }
+    const result = win
+      ? await dialog.showOpenDialog(win, opts)
+      : await dialog.showOpenDialog(opts)
     if (result.canceled || result.filePaths.length === 0) return policy
 
     policy = {
@@ -166,13 +188,52 @@ export function registerIpcHandlers(opts: {
     BrowserWindow.fromWebContents(evt.sender)?.close()
   })
 
+  ipcMain.handle(IPC.showOpenFilesDialog, async (evt) => {
+    const win = BrowserWindow.fromWebContents(evt.sender)
+    const opts: OpenDialogOptions = {
+      properties: ['openFile', 'multiSelections'],
+      filters: [
+        { name: 'Imágenes', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] },
+        { name: 'Documentos', extensions: ['pdf', 'txt', 'md', 'json'] },
+        { name: 'Todos', extensions: ['*'] }
+      ]
+    }
+    const result = win
+      ? await dialog.showOpenDialog(win, opts)
+      : await dialog.showOpenDialog(opts)
+    return { canceled: result.canceled, filePaths: result.filePaths }
+  })
+
+  const VALID_PROVIDERS: ProviderId[] = ['chatgpt', 'claude', 'deepseek', 'kimi']
+
   ipcMain.handle(IPC.setActiveProvider, async (_evt, providerId: string) => {
-    if (providerId !== 'openai' && providerId !== 'chatgpt') {
+    if (!VALID_PROVIDERS.includes(providerId as ProviderId)) {
       throw new Error(`Unknown provider: ${providerId}`)
     }
-    policy = { ...policy, provider: { ...policy.provider, active: providerId } }
+    policy = { ...policy, provider: { ...policy.provider, active: providerId as ProviderId } }
     await savePolicy(policy)
     return policy
+  })
+
+  ipcMain.handle(IPC.setLanguage, async (_evt, req: SetLanguageRequest) => {
+    const lang = req.language
+    if (lang !== 'en' && lang !== 'es') {
+      throw new Error('Invalid language')
+    }
+    policy = { ...policy, language: lang }
+    await savePolicy(policy)
+    return policy
+  })
+
+  ipcMain.handle(IPC.setProviderApiKey, async (_evt, req: { provider: string; apiKey: string }) => {
+    const key = (req.apiKey ?? '').trim()
+    if (!key) throw new Error('API key is required')
+    await setSecret(`${req.provider}.apiKey`, key)
+    return true
+  })
+
+  ipcMain.handle(IPC.hasProviderApiKey, async (_evt, req: { provider: string }) => {
+    return hasSecret(`${req.provider}.apiKey`)
   })
 
   ipcMain.handle(IPC.setCapability, async (_evt, req: SetCapabilityRequest) => {
@@ -268,25 +329,35 @@ export function registerIpcHandlers(opts: {
       throw new Error('Capability net.http is disabled')
     }
 
-    if (policy.provider.active === 'chatgpt') {
+    const active = policy.provider.active
+
+    if (active === 'chatgpt') {
       const content = await codexRespond({ messages: req.messages })
       return { content }
     }
 
-    if (policy.provider.active !== 'openai') {
-      throw new Error('Active provider is not supported yet')
+    if (active === 'kimi') {
+      const apiKey = await getSecret('kimi.apiKey')
+      if (!apiKey) throw new Error('Kimi API key is not set. Go to Settings and add it.')
+      const content = await kimiRespond({ apiKey, messages: req.messages })
+      return { content }
     }
 
-    const apiKey = await getSecret('openai.apiKey')
-    if (!apiKey) throw new Error('OpenAI API key is not set')
+    if (active === 'claude') {
+      const apiKey = await getSecret('claude.apiKey')
+      if (!apiKey) throw new Error('Claude API key is not set. Go to Settings and add it.')
+      const content = await claudeRespond({ apiKey, messages: req.messages })
+      return { content }
+    }
 
-    const content = await openaiRespond({
-      apiKey,
-      model: policy.provider.openaiModel,
-      messages: req.messages
-    })
+    if (active === 'deepseek') {
+      const apiKey = await getSecret('deepseek.apiKey')
+      if (!apiKey) throw new Error('DeepSeek API key is not set. Go to Settings and add it.')
+      const content = await deepseekRespond({ apiKey, messages: req.messages })
+      return { content }
+    }
 
-    return { content }
+    throw new Error(`Unknown provider: ${active}`)
   })
 
   ipcMain.handle(IPC.fsReadText, async (_evt, req: ReadTextFileRequest) => {

@@ -15,6 +15,7 @@ import type {
 } from '../../shared/task'
 import type { PolicyState } from '../../shared/policy'
 import { TaskRunner } from './task-runner'
+import type { CdpRelay } from './cdp-relay'
 
 const DEFAULT_MAX_STEPS = 200
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000 // 30 minutes
@@ -27,6 +28,7 @@ export class TaskManager {
   private persistPath: string
   private persistTimer: ReturnType<typeof setTimeout> | null = null
   private getPolicy: (() => PolicyState) | null = null
+  private cdpRelay: CdpRelay | null = null
 
   constructor() {
     this.persistPath = join(app.getPath('userData'), 'tasks.json')
@@ -38,6 +40,10 @@ export class TaskManager {
    */
   setPolicyGetter(fn: () => PolicyState): void {
     this.getPolicy = fn
+  }
+
+  setCdpRelay(relay: CdpRelay): void {
+    this.cdpRelay = relay
   }
 
   setMainWindow(win: BrowserWindow): void {
@@ -90,12 +96,12 @@ export class TaskManager {
     this.pushUpdate(task)
 
     const policy = this.getPolicy?.() ?? null
-    const provider = policy?.provider.active ?? 'openai'
+    const provider = policy?.provider.active ?? 'chatgpt'
     const openaiModel = policy?.provider.openaiModel ?? 'gpt-4.1'
 
     const runner = new TaskRunner(
       task,
-      { provider, openaiModel },
+      { provider, openaiModel, cdpRelay: this.cdpRelay },
       {
         onUpdate: (updated) => {
           this.tasks.set(updated.id, updated)

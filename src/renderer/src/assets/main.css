@@ -95,13 +95,17 @@ code {
   min-height: 0;
   padding: 14px;
   border-right: 1px solid var(--nb-border);
-  background: var(--nb-panel-2);
+  background: var(--nb-sidebar-bg, var(--nb-panel-2));
   backdrop-filter: blur(18px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 12px;
   user-select: none;
+}
+
+.sidebarTabs {
+  flex-shrink: 0;
 }
 
 .sidebarContent {
@@ -263,6 +267,7 @@ code {
 }
 
 .rbFooter {
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -289,6 +294,40 @@ code {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.sbFooterLogo {
+  display: block;
+  height: 28px;
+  width: auto;
+  object-fit: contain;
+}
+
+[data-theme='light'] .sbFooterLogo {
+  filter: brightness(0);
+}
+
+.sbFooterSettingsBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--nb-text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.sbFooterSettingsBtn:hover {
+  color: var(--nb-text);
+  background: var(--nb-bg-hover, rgba(255, 255, 255, 0.06));
+}
+.sbFooterSettingsBtn.active {
+  color: var(--nb-accent, #6b9fff);
+  background: var(--nb-bg-hover, rgba(255, 255, 255, 0.06));
 }
 
 
@@ -330,8 +369,8 @@ code {
   font-weight: 600;
   border-radius: 999px;
   padding: 10px 14px;
-  border: 1px solid color-mix(in srgb, var(--nb-accent), transparent 68%);
-  background: color-mix(in srgb, var(--nb-accent), transparent 92%);
+  border: 1px solid color-mix(in srgb, var(--nb-accent-2), transparent 68%);
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 92%);
   color: var(--nb-text);
   transition:
     transform 120ms ease,
@@ -341,8 +380,8 @@ code {
 
 .btn:hover {
   transform: translateY(-1px);
-  background: color-mix(in srgb, var(--nb-accent), transparent 88%);
-  border-color: color-mix(in srgb, var(--nb-accent), transparent 55%);
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 88%);
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 55%);
 }
 
 .btn:active {
@@ -409,18 +448,18 @@ code {
 }
 
 .cap.on {
-  border-color: color-mix(in srgb, var(--nb-accent), transparent 60%);
-  background: color-mix(in srgb, var(--nb-accent), transparent 92%);
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 60%);
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 92%);
 }
 
 .cap.on .capToggle {
-  background: color-mix(in srgb, var(--nb-accent), transparent 78%);
-  border-color: color-mix(in srgb, var(--nb-accent), transparent 60%);
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 78%);
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 60%);
 }
 
 .cap.on .capKnob {
   transform: translateX(18px);
-  border-color: color-mix(in srgb, var(--nb-accent), transparent 65%);
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 65%);
 }
 
 .providerRow {
@@ -463,6 +502,31 @@ code {
   background: color-mix(in srgb, var(--nb-text), transparent 92%);
 }
 
+/* Chat vacío: input centrado en el medio */
+.chatMain--centered {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.chatComposerCenter {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chatEmptyGreeting {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--nb-text);
+  text-align: center;
+}
+
 .chatScroll {
   overflow-y: auto;
   overflow-x: hidden;
@@ -488,8 +552,8 @@ code {
 }
 
 .msg.user {
-  background: color-mix(in srgb, var(--nb-accent), transparent 92%);
-  border-color: color-mix(in srgb, var(--nb-accent), transparent 78%);
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 92%);
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 78%);
   align-self: flex-end;
 }
 
@@ -506,13 +570,13 @@ code {
 
 .composer {
   padding: 12px 22px 18px;
-  border-top: 1px solid color-mix(in srgb, var(--nb-border), transparent 40%);
-  background: color-mix(in srgb, var(--nb-panel), transparent 45%);
-  backdrop-filter: blur(18px);
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .composerRow {
-  max-width: 860px;
+  max-width: 960px;
   margin: 0 auto;
 }
 
@@ -523,27 +587,64 @@ code {
 .prompt {
   width: 100%;
   resize: none;
-  border-radius: 14px;
+  border-radius: 16px;
   border: 1px solid var(--nb-border);
+  box-shadow: none;
   background: var(--nb-panel-2);
-  padding: 10px 14px 52px;
-  font-size: 14px;
+  padding: 14px 18px 56px 48px;
+  font-size: 12px;
   font-weight: 480;
-  line-height: 20px;
-  min-height: 96px;
+  line-height: 18px;
+  min-height: 120px;
   color: var(--nb-text);
   outline: none;
+  outline-offset: 0;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
-.prompt:focus {
-  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 65%);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--nb-accent-2), transparent 90%);
+.prompt:hover,
+.prompt:focus,
+.prompt:focus-visible {
+  outline: none;
+  box-shadow: none;
+  border: 1px solid var(--nb-border);
+}
+
+.promptActionsLeft {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.attachBtn {
+  flex-shrink: 0;
+  height: 34px;
+  width: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--nb-border);
+  background: var(--nb-panel);
+  color: var(--nb-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+
+.attachBtn:hover {
+  color: var(--nb-text);
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 50%);
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 92%);
 }
 
 .promptActions {
   position: absolute;
-  bottom: 10px;
-  right: 10px;
+  bottom: 12px;
+  right: 12px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -590,7 +691,7 @@ code {
 }
 
 .composerNote {
-  max-width: 860px;
+  max-width: 960px;
   margin: 8px auto 0;
   font-size: 11px;
   font-weight: 520;
@@ -630,7 +731,7 @@ code {
 }
 
 .composerError {
-  max-width: 860px;
+  max-width: 960px;
   margin: 0 auto 10px;
   border: 1px solid color-mix(in srgb, var(--nb-danger), transparent 70%);
   background: color-mix(in srgb, var(--nb-danger), transparent 93%);
@@ -656,6 +757,10 @@ code {
   border-radius: 12px;
   overflow: hidden;
   background: var(--nb-panel);
+}
+
+.seg--2col {
+  grid-template-columns: 1fr 1fr;
 }
 
 .segBtn {
@@ -935,8 +1040,8 @@ code {
 }
 
 .taskCapChip.on {
-  border-color: color-mix(in srgb, var(--nb-accent), transparent 60%);
-  background: color-mix(in srgb, var(--nb-accent), transparent 88%);
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 60%);
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 88%);
   color: var(--nb-text);
 }
 
@@ -1069,7 +1174,7 @@ code {
 }
 
 .taskDetailSummary {
-  color: var(--nb-accent);
+  color: var(--nb-accent-2);
 }
 
 .taskDetailActions {
@@ -1079,8 +1184,8 @@ code {
 }
 
 .taskBtnApprove {
-  border-color: color-mix(in srgb, var(--nb-accent), transparent 50%) !important;
-  background: color-mix(in srgb, var(--nb-accent), transparent 85%) !important;
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 50%) !important;
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 85%) !important;
 }
 
 .taskBtnCancel {
@@ -1224,6 +1329,321 @@ code {
 .taskEmptyMainText {
   font-size: 14px;
   color: var(--nb-muted);
+}
+
+/* ── Main panel center (templates/composer in main area) ────────────── */
+
+.mainPanelCenter {
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+}
+
+/* ── Settings panel (renders in main area) ───────────────────────────── */
+
+.settingsSidebarHint {
+  padding: 12px 16px;
+}
+
+.settingsPanel {
+  height: 100%;
+  overflow-y: auto;
+  padding: 32px 24px;
+}
+
+.settingsPanelInner {
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.settingsPanelTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--nb-text);
+  margin: 0;
+}
+
+.settingsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settingsLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--nb-text);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.settingsField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settingsFieldHint {
+  font-size: 12px;
+  color: var(--nb-muted);
+}
+
+/* ── Provider cards grid ─────────────────────────────────────────────── */
+
+.providerGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+@media (min-width: 780px) {
+  .providerGrid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+}
+
+.providerCard {
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 24px;
+  border-radius: 14px;
+  border: 1.5px solid var(--nb-border);
+  background: var(--nb-panel);
+  transition: all 150ms ease;
+}
+
+.providerCard:hover {
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 50%);
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 92%);
+}
+
+.providerCard.active {
+  border-color: var(--nb-accent-2);
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 88%);
+}
+
+/* Kimi: card e ícono más chicos y con label */
+.providerCard--kimi .providerIcon {
+  width: 48px;
+  height: 48px;
+}
+
+.providerCard--kimi {
+  padding: 14px 12px;
+  gap: 6px;
+}
+
+.providerCard--kimi .providerCardLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.providerIcon {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+  filter: var(--nb-icon-filter, none);
+}
+
+[data-theme='dark'] .providerIcon {
+  filter: brightness(0) invert(1);
+}
+
+.providerCardLabel {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--nb-text);
+  text-align: center;
+}
+
+.providerCardBadge {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--nb-accent-2);
+  letter-spacing: 0.03em;
+}
+
+.providerCardBadgeCheck {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.apiKeyInput {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--nb-border);
+  background: var(--nb-panel-2);
+  font-size: 13px;
+  font-weight: 480;
+  color: var(--nb-text);
+  outline: none;
+  font-family: ui-monospace, monospace;
+}
+
+.apiKeyInput:focus {
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 50%);
+}
+
+/* ── Task templates/composer in main panel ────────────────────────────── */
+
+.taskTemplatesWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 640px;
+  width: 100%;
+}
+
+.taskTemplatesHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: center;
+}
+
+.taskTemplatesTitle {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--nb-text);
+}
+
+.taskTemplatesSubtitle {
+  font-size: 14px;
+  color: var(--nb-muted);
+}
+
+.taskTemplatesGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.taskTemplateCard {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+  border-radius: 14px;
+  border: 1.5px solid var(--nb-border);
+  background: var(--nb-panel);
+  text-align: left;
+  transition: all 150ms ease;
+}
+
+.taskTemplateCard:hover {
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 50%);
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 92%);
+}
+
+.taskTemplateCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.taskTemplateIcon {
+  color: var(--nb-accent-2);
+}
+
+.taskTemplateCardTitle {
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--nb-text);
+}
+
+.taskTemplateCardDesc {
+  font-size: 13px;
+  color: var(--nb-muted);
+  line-height: 1.45;
+}
+
+/* ── Task composer in main panel ─────────────────────────────────────── */
+
+.taskComposerWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 560px;
+  width: 100%;
+}
+
+.taskComposerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.taskComposerTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--nb-text);
+}
+
+.taskComposerActions {
+  display: flex;
+  gap: 8px;
+}
+
+.taskComposerBody {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.taskComposerSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.taskComposerLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--nb-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.taskComposerPromptWrap {
+  position: relative;
+}
+
+.taskComposerPrompt {
+  padding-right: 40px;
+}
+
+.taskComposerPromptActionsInner {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+}
+
+.taskComposerPromptActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 /* ── Media queries ─────────────────────────────────────────────────────── */

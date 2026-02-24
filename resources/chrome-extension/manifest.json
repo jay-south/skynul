@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Netbot CDP Relay",
+  "version": "1.0.0",
+  "description": "Bridges Chrome DevTools Protocol to Netbot via WebSocket relay — no --remote-debugging-port needed.",
+  "permissions": ["debugger", "tabs", "activeTab", "alarms"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}

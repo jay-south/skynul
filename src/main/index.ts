@@ -5,6 +5,7 @@ import icon from '../../resources/icon.png?asset'
 import { initPolicy, registerIpcHandlers, tryHandleChatGPTCallback } from './ipc'
 import { startAuthCallbackServer } from './auth-callback-server'
 import { TaskManager } from './agent/task-manager'
+import { CdpRelay } from './agent/cdp-relay'
 
 let authServer: { close: () => Promise<void> } | null = null
 let authWindow: BrowserWindow | null = null
@@ -157,6 +158,14 @@ app.whenReady().then(() => {
 
   taskManager = new TaskManager()
   taskManager.setMainWindow(win)
+
+  // Start CDP relay for browser extension tasks
+  const cdpRelay = new CdpRelay()
+  void cdpRelay.start().then(() => {
+    taskManager!.setCdpRelay(cdpRelay)
+  }).catch((e) => {
+    console.warn('[CdpRelay] Failed to start:', e)
+  })
 
   registerIpcHandlers({
     openAuthUrl: (url) => openAuthUrl(win, url),

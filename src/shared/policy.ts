@@ -1,13 +1,16 @@
 export type CapabilityId = 'fs.read' | 'fs.write' | 'cmd.run' | 'net.http'
 
+export type LanguageCode = 'en' | 'es'
+
 export type ThemeMode = 'system' | 'light' | 'dark'
 
-export type ProviderId = 'openai' | 'chatgpt'
+export type ProviderId = 'chatgpt' | 'claude' | 'deepseek' | 'kimi'
 
 export type PolicyState = {
   workspaceRoot: string | null
   capabilities: Record<CapabilityId, boolean>
   themeMode: ThemeMode
+  language: LanguageCode
   provider: {
     active: ProviderId
     openaiModel: string
@@ -23,10 +26,15 @@ export const DEFAULT_POLICY: PolicyState = {
     'net.http': false
   },
   themeMode: 'dark',
+  language: 'en',
   provider: {
-    active: 'openai',
+    active: 'chatgpt',
     openaiModel: 'gpt-4.1-mini'
   }
+}
+
+export type SetLanguageRequest = {
+  language: LanguageCode
 }
 
 export type SetCapabilityRequest = {

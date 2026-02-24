@@ -16,9 +16,13 @@ export const IPC = {
   chatgptHasAuth: 'netbot:chatgpt:hasAuth',
   chatgptSignOut: 'netbot:chatgpt:signOut',
   setActiveProvider: 'netbot:provider:setActive',
+  setProviderApiKey: 'netbot:provider:setApiKey',
+  hasProviderApiKey: 'netbot:provider:hasApiKey',
+  setLanguage: 'netbot:policy:setLanguage',
   windowMinimize: 'netbot:window:minimize',
   windowMaximize: 'netbot:window:maximize',
   windowClose: 'netbot:window:close',
+  showOpenFilesDialog: 'netbot:dialog:showOpenFiles',
 
   // ── Task Agent ────────────────────────────────────────────────────────
   taskCreate: 'netbot:task:create',

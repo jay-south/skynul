@@ -1,24 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import type { Task, TaskCapabilityId } from '../../../shared/task'
-import { ALL_TASK_CAPABILITIES } from '../../../shared/task'
-
-type SavedPrompt = { id: string; text: string }
-
-const SAVED_PROMPTS_KEY = 'netbot.savedTaskPrompts.v1'
-
-function loadSavedPrompts(): SavedPrompt[] {
-  try {
-    const raw = localStorage.getItem(SAVED_PROMPTS_KEY)
-    return raw ? (JSON.parse(raw) as SavedPrompt[]) : []
-  } catch {
-    return []
-  }
-}
-
-function persistSavedPrompts(prompts: SavedPrompt[]): void {
-  localStorage.setItem(SAVED_PROMPTS_KEY, JSON.stringify(prompts))
-}
+import type { Task } from '../../../shared/task'
 
 const STATUS_LABELS: Record<string, string> = {
   pending_approval: 'Pending',
@@ -38,11 +20,9 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: 'var(--nb-muted)'
 }
 
-// Dropdown rendered via portal so it escapes rbList overflow:auto
 function TaskDropdown(props: {
   anchorEl: HTMLElement
   onDelete: () => void
-  onSavePrompt: () => void
   onClose: () => void
 }): React.JSX.Element {
   const rect = props.anchorEl.getBoundingClientRect()
@@ -50,8 +30,11 @@ function TaskDropdown(props: {
 
   useEffect(() => {
     const handler = (e: MouseEvent): void => {
-      if (ref.current && !ref.current.contains(e.target as Node) &&
-          !props.anchorEl.contains(e.target as Node)) {
+      if (
+        ref.current &&
+        !ref.current.contains(e.target as Node) &&
+        !props.anchorEl.contains(e.target as Node)
+      ) {
         props.onClose()
       }
     }
@@ -71,15 +54,6 @@ function TaskDropdown(props: {
       }}
     >
       <button
-        className="rbDropdownItem"
-        onClick={() => {
-          props.onSavePrompt()
-          props.onClose()
-        }}
-      >
-        Save prompt
-      </button>
-      <button
         className="rbDropdownItem danger"
         onClick={() => {
           props.onDelete()
@@ -97,183 +71,29 @@ export function TaskPanel(props: {
   tasks: Task[]
   activeTaskId: string | null
   onSelectTask: (id: string) => void
-  onNewTask: (prompt: string, caps: TaskCapabilityId[]) => void
+  onNewTask: () => void
   onDeleteTask: (id: string) => void
 }): React.JSX.Element {
-  const [showNew, setShowNew] = useState(false)
-  const [prompt, setPrompt] = useState('')
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
-  const [selectedCaps, setSelectedCaps] = useState<Set<TaskCapabilityId>>(
-    new Set(['screen.read', 'input.mouse', 'input.keyboard'])
-  )
-  const [savedPrompts, setSavedPrompts] = useState<SavedPrompt[]>(loadSavedPrompts)
-  const [savedFeedback, setSavedFeedback] = useState(false)
-  const [isRecording, setIsRecording] = useState(false)
-  const recognitionRef = useRef<InstanceType<typeof SpeechRecognition> | null>(null)
-
-  const toggleMic = (): void => {
-    if (isRecording) {
-      recognitionRef.current?.stop()
-      return
-    }
-    const SR = window.SpeechRecognition ?? window.webkitSpeechRecognition
-    if (!SR) return
-
-    const rec = new SR()
-    rec.lang = 'es-AR'
-    rec.interimResults = true
-    rec.continuous = true
-
-    const base = prompt.trim()
-
-    rec.onstart = (): void => setIsRecording(true)
-    rec.onend = (): void => setIsRecording(false)
-    rec.onerror = (): void => setIsRecording(false)
-    rec.onresult = (e: SpeechRecognitionEvent): void => {
-      const transcript = Array.from(e.results)
-        .map((r) => r[0].transcript)
-        .join(' ')
-        .trim()
-      setPrompt(base ? `${base} ${transcript}` : transcript)
-    }
-
-    recognitionRef.current = rec
-    rec.start()
-  }
 
   const closeMenu = useCallback(() => {
     setMenuOpenId(null)
     setMenuAnchor(null)
   }, [])
 
-  const toggleCap = (id: TaskCapabilityId): void => {
-    setSelectedCaps((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
-  const savePromptText = (text: string): void => {
-    const trimmed = text.trim()
-    if (!trimmed) return
-    const id = `sp_${Date.now().toString(36)}`
-    const next = [{ id, text: trimmed }, ...savedPrompts.filter((p) => p.text !== trimmed)]
-    setSavedPrompts(next)
-    persistSavedPrompts(next)
-    setSavedFeedback(true)
-    setTimeout(() => setSavedFeedback(false), 1500)
-  }
-
-  const deleteSavedPrompt = (id: string): void => {
-    const next = savedPrompts.filter((p) => p.id !== id)
-    setSavedPrompts(next)
-    persistSavedPrompts(next)
-  }
-
-  const submit = (): void => {
-    const text = prompt.trim()
-    if (!text) return
-    props.onNewTask(text, [...selectedCaps])
-    setPrompt('')
-    setShowNew(false)
-  }
-
   return (
     <div className="taskPanelWrap">
       <div className="rbTop">
         <div className="rbTitle">Tasks</div>
-        <button className="rbNew" onClick={() => setShowNew(!showNew)}>
-          {showNew ? 'Cancel' : 'New'}
+        <button className="rbNew" onClick={props.onNewTask}>
+          New
         </button>
       </div>
 
-      {showNew && (
-        <div className="taskNewForm">
-          {savedPrompts.length > 0 && (
-            <div className="savedPromptsList">
-              {savedPrompts.map((sp) => (
-                <div key={sp.id} className="savedPromptItem">
-                  <button
-                    className="savedPromptText"
-                    title={sp.text}
-                    onClick={() => setPrompt(sp.text)}
-                  >
-                    {sp.text.slice(0, 48)}{sp.text.length > 48 ? '…' : ''}
-                  </button>
-                  <button
-                    className="savedPromptDel"
-                    aria-label="Remove saved prompt"
-                    onClick={() => deleteSavedPrompt(sp.id)}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          <textarea
-            className="taskNewPrompt"
-            placeholder="Describe what you want the agent to do..."
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            rows={3}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                submit()
-              }
-            }}
-          />
-          <div className="taskCapList">
-            {ALL_TASK_CAPABILITIES.map((c) => (
-              <button
-                key={c.id}
-                className={`taskCapChip ${selectedCaps.has(c.id) ? 'on' : ''}`}
-                onClick={() => toggleCap(c.id)}
-                title={c.desc}
-              >
-                {c.title}
-              </button>
-            ))}
-          </div>
-          <div className="taskNewFormActions">
-            <button
-              className={`micBtn${isRecording ? ' recording' : ''}`}
-              onClick={toggleMic}
-              aria-label={isRecording ? 'Stop recording' : 'Voice input'}
-              title={isRecording ? 'Stop recording' : 'Voice input'}
-            >
-              {isRecording ? (
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
-                  <rect x="6" y="6" width="12" height="12" rx="2" />
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
-                  <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4Zm6.5 9a.5.5 0 0 1 .5.5 7 7 0 0 1-6.5 6.97V19h2a.5.5 0 0 1 0 1h-5a.5.5 0 0 1 0-1h2v-1.53A7 7 0 0 1 5 10.5a.5.5 0 0 1 1 0 6 6 0 0 0 12 0 .5.5 0 0 1 .5-.5Z" />
-                </svg>
-              )}
-            </button>
-            <button
-              className="btnSecondary"
-              onClick={() => savePromptText(prompt)}
-              disabled={!prompt.trim()}
-              title="Save this prompt for later"
-            >
-              {savedFeedback ? 'Saved!' : 'Save prompt'}
-            </button>
-            <button className="btn" onClick={submit} disabled={!prompt.trim()}>
-              Create Task
-            </button>
-          </div>
-        </div>
-      )}
-
       <div className="rbList" role="tablist" aria-label="Tasks">
-        {props.tasks.length === 0 && !showNew && (
-          <div className="taskEmpty">No tasks yet. Click "New" to create one.</div>
+        {props.tasks.length === 0 && (
+          <div className="taskEmpty">No tasks yet. Click &quot;New&quot; to create one.</div>
         )}
         {props.tasks.map((t) => (
           <div
@@ -314,10 +134,6 @@ export function TaskPanel(props: {
       {menuOpenId && menuAnchor && (
         <TaskDropdown
           anchorEl={menuAnchor}
-          onSavePrompt={() => {
-            const task = props.tasks.find((t) => t.id === menuOpenId)
-            if (task) savePromptText(task.prompt)
-          }}
           onDelete={() => props.onDeleteTask(menuOpenId)}
           onClose={closeMenu}
         />
