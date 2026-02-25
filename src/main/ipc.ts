@@ -419,4 +419,13 @@ export function registerIpcHandlers(opts: {
     tm.delete(req.taskId)
     return true
   })
+
+  // ── Secrets ───────────────────────────────────────────────────────────
+  ipcMain.handle(IPC.getSecret, async (_evt, key: string) => {
+    return getSecret(key)
+  })
+
+  ipcMain.handle(IPC.setSecret, async (_evt, req: { key: string; value: string }) => {
+    await setSecret(req.key, req.value)
+  })
 }

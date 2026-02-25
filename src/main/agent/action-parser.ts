@@ -196,7 +196,8 @@ const VALID_ACTION_TYPES = new Set([
   'evaluate',
   // Polymarket trading actions
   'polymarket_get_account_summary',
-   'polymarket_get_trader_leaderboard',
+  'polymarket_get_trader_leaderboard',
+  'polymarket_search_markets',
   'polymarket_place_order',
   'polymarket_close_position'
 ])

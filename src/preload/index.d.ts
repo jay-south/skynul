@@ -49,6 +49,10 @@ declare global {
       taskDelete: (taskId: string) => Promise<boolean>
       onTaskUpdate: (cb: (task: Task) => void) => () => void
       onWindowMaximized: (cb: (maximized: boolean) => void) => () => void
+
+      // Secrets
+      getSecret: (key: string) => Promise<string | null>
+      setSecret: (key: string, value: string) => Promise<void>
     }
   }
 }

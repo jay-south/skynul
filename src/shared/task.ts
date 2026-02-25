@@ -53,6 +53,7 @@ export type TaskAction =
   // Polymarket trading actions (require polymarket.trading capability)
   | { type: 'polymarket_get_account_summary' }
   | { type: 'polymarket_get_trader_leaderboard' }
+  | { type: 'polymarket_search_markets'; query: string; limit?: number }
   | {
       type: 'polymarket_place_order'
       tokenId: string
@@ -79,6 +80,8 @@ export type TaskStep = {
   action: TaskAction
   /** Model reasoning / thought (optional). */
   thought?: string
+  /** Result text from API actions (polymarket, etc.). */
+  result?: string
   /** Error if action execution failed. */
   error?: string
 }

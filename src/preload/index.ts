@@ -122,6 +122,12 @@ const netbot = {
     ipcRenderer.on('netbot:task:update', handler)
     return () => ipcRenderer.off('netbot:task:update', handler)
   },
+  // ── Secrets ──────────────────────────────────────────────────────────
+  getSecret: (key: string): Promise<string | null> =>
+    ipcRenderer.invoke(IPC.getSecret, key),
+  setSecret: (key: string, value: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.setSecret, { key, value }),
+
   onWindowMaximized: (cb: (maximized: boolean) => void): (() => void) => {
     const handler = (_evt: unknown, maximized: boolean): void => cb(maximized)
     ipcRenderer.on('netbot:window:maximized', handler)

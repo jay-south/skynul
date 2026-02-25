@@ -16,30 +16,25 @@ export function buildSystemPrompt(capabilities: TaskCapabilityId[]): string {
 - You are NOT allowed to use these actions unless the capabilities list above includes "polymarket.trading".
 
 Recommended sequence for trading tasks:
-1. If the user mentions "mejores traders", "leaderboard" or "pnl", first call polymarket_get_trader_leaderboard to see top traders.
-2. Then call polymarket_get_account_summary to understand this account's risk capacity.
-3. Only after eso, investigá mercados concretos y ejecutá 1–3 trades como máximo usando polymarket_place_order / polymarket_close_position.
-4. Si encontrás repetidamente páginas de error (por ejemplo textos tipo "Oops... we didn't forecast this"), volvé a la home o terminá la tarea con "fail" en lugar de seguir dando vueltas.
+1. Call polymarket_get_account_summary to check balance and positions.
+2. Navigate to a specific market page on polymarket.com.
+3. Use evaluate to extract tokenIds from the page (works on both SSR and SPA).
+4. Use the extracted tokenId to call polymarket_place_order. NEVER click Buy/Sell buttons.
+5. If you hit repeated error pages, use "fail" instead of looping.
 
 Examples:
-{"thought": "Check my Polymarket risk before trading.", "action": {"type": "polymarket_get_account_summary"}}
+{"thought": "Check my balance.", "action": {"type": "polymarket_get_account_summary"}}
 
-{"thought": "Obtener el top de traders por PnL mensual para copiar su enfoque.", "action": {"type": "polymarket_get_trader_leaderboard"}}
+{"thought": "Extract tokenIds from page.", "action": {"type": "evaluate", "script": "(async()=>{try{const r=await fetch(location.href);const h=await r.text();const m=h.match(/__NEXT_DATA__[^>]*>([\\s\\S]*?)<\\/script>/);if(!m)return'no __NEXT_DATA__';const d=JSON.parse(m[1]);const qs=d.props?.pageProps?.dehydratedState?.queries??[];const res=qs.flatMap(q=>{const ms=q.state?.data?.markets??[];return ms.flatMap(mk=>{const tids=typeof mk.clobTokenIds==='string'?JSON.parse(mk.clobTokenIds):mk.clobTokenIds??[];const outs=typeof mk.outcomes==='string'?JSON.parse(mk.outcomes):mk.outcomes??[];return tids.map((t,i)=>({token:t,outcome:outs[i],q:mk.question?.slice(0,40),negRisk:mk.negRisk}));});}).filter(x=>x.token);return JSON.stringify(res);}catch(e){return'error:'+e.message;}})()" }}
 
-{"thought": "Place a small buy order on a specific token, using parameters I obtained from Polymarket docs / markets API.", "action": {
+{"thought": "Buy Yes.", "action": {
   "type": "polymarket_place_order",
-  "tokenId": "0x...",
+  "tokenId": "93592949212798...",
   "side": "buy",
   "price": 0.51,
   "size": 5,
-  "tickSize": "0.001",
+  "tickSize": "0.01",
   "negRisk": false
-}}
-
-{"thought": "Trim or close an existing token position.", "action": {
-  "type": "polymarket_close_position",
-  "tokenId": "0x...",
-  "size": 5
 }}
 `
     : ''
@@ -137,30 +132,25 @@ export function buildCdpSystemPrompt(capabilities: TaskCapabilityId[]): string {
 - You are NOT allowed to use these actions unless the capabilities list above includes "polymarket.trading".
 
 Recommended sequence for trading tasks:
-1. If the user mentions "best traders", "leaderboard" or "PnL", first call polymarket_get_trader_leaderboard to see top traders.
-2. Then call polymarket_get_account_summary to understand this account's risk capacity.
-3. Only after that, investigate specific markets and execute 1–3 trades máximo using polymarket_place_order / polymarket_close_position.
-4. If you hit repeated error pages (e.g. texts like "Oops... we didn't forecast this"), go back to the main Polymarket site or finish the task with "fail" instead of looping.
+1. Call polymarket_get_account_summary to check balance and positions.
+2. Navigate to a specific market page on polymarket.com.
+3. Use evaluate to extract tokenIds from the page (works on both SSR and SPA).
+4. Use the extracted tokenId to call polymarket_place_order. NEVER click Buy/Sell buttons.
+5. If you hit repeated error pages, use "fail" instead of looping.
 
 Examples:
-{"thought": "Inspect my Polymarket exposure before copying any strategy.", "action": {"type": "polymarket_get_account_summary"}}
+{"thought": "Check my balance.", "action": {"type": "polymarket_get_account_summary"}}
 
-{"thought": "Fetch the monthly PnL leaderboard to find consistently profitable traders.", "action": {"type": "polymarket_get_trader_leaderboard"}}
+{"thought": "Extract tokenIds from page.", "action": {"type": "evaluate", "script": "(async()=>{try{const r=await fetch(location.href);const h=await r.text();const m=h.match(/__NEXT_DATA__[^>]*>([\\s\\S]*?)<\\/script>/);if(!m)return'no __NEXT_DATA__';const d=JSON.parse(m[1]);const qs=d.props?.pageProps?.dehydratedState?.queries??[];const res=qs.flatMap(q=>{const ms=q.state?.data?.markets??[];return ms.flatMap(mk=>{const tids=typeof mk.clobTokenIds==='string'?JSON.parse(mk.clobTokenIds):mk.clobTokenIds??[];const outs=typeof mk.outcomes==='string'?JSON.parse(mk.outcomes):mk.outcomes??[];return tids.map((t,i)=>({token:t,outcome:outs[i],q:mk.question?.slice(0,40),negRisk:mk.negRisk}));});}).filter(x=>x.token);return JSON.stringify(res);}catch(e){return'error:'+e.message;}})()" }}
 
-{"thought": "Place a limit buy on a specific token using parameters I gathered from the page / APIs.", "action": {
+{"thought": "Buy Yes.", "action": {
   "type": "polymarket_place_order",
-  "tokenId": "0x...",
+  "tokenId": "93592949212798...",
   "side": "buy",
   "price": 0.51,
   "size": 5,
-  "tickSize": "0.001",
+  "tickSize": "0.01",
   "negRisk": false
-}}
-
-{"thought": "Close or reduce an existing token position.", "action": {
-  "type": "polymarket_close_position",
-  "tokenId": "0x...",
-  "size": 5
 }}
 `
     : ''

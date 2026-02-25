@@ -114,6 +114,11 @@ function App(): React.JSX.Element {
   const [isMaximized, setIsMaximized] = useState<boolean>(false)
   const recognitionRef = useRef<InstanceType<typeof SpeechRecognition> | null>(null)
 
+  // ── Trading secrets modal ────────────────────────────────────────────
+  const [tradingModal, setTradingModal] = useState<'polymarket' | 'binance' | null>(null)
+  const [tradingSecrets, setTradingSecrets] = useState<Record<string, string>>({})
+  const [tradingSaving, setTradingSaving] = useState(false)
+
   // ── Sidebar tab ──────────────────────────────────────────────────────
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('chats')
 
@@ -654,6 +659,33 @@ function App(): React.JSX.Element {
     [activeTaskId]
   )
 
+  // ── Trading secrets helpers ──────────────────────────────────────────
+  const POLYMARKET_KEYS = ['POLYMARKET_PRIVATE_KEY', 'POLYMARKET_FUNDER_ADDRESS', 'POLYMARKET_SIGNATURE_TYPE'] as const
+
+  const openTradingModal = useCallback(async (platform: 'polymarket' | 'binance') => {
+    setTradingModal(platform)
+    if (platform === 'polymarket') {
+      const vals: Record<string, string> = {}
+      for (const k of POLYMARKET_KEYS) {
+        const v = await window.netbot.getSecret(k)
+        vals[k] = v ?? ''
+      }
+      setTradingSecrets(vals)
+    }
+  }, [])
+
+  const saveTradingSecrets = useCallback(async () => {
+    setTradingSaving(true)
+    try {
+      for (const [k, v] of Object.entries(tradingSecrets)) {
+        if (v) await window.netbot.setSecret(k, v)
+      }
+      setTradingModal(null)
+    } finally {
+      setTradingSaving(false)
+    }
+  }, [tradingSecrets])
+
   // ── Determine what to show in the main panel for tasks tab ─────────
   const taskMainView = useMemo(() => {
     if (activeTask) return 'detail' as const
@@ -1120,6 +1152,19 @@ function App(): React.JSX.Element {
                 </div>
               </div>
 
+              {/* ── Trading Options ──────────────────────────────── */}
+              <div className="settingsSection">
+                <div className="settingsLabel">Trading Options</div>
+                <div className="settingsField" style={{ flexDirection: 'row', gap: 8 }}>
+                  <button className="btn" onClick={() => void openTradingModal('polymarket')}>
+                    Polymarket
+                  </button>
+                  <button className="btn" disabled>
+                    Binance
+                  </button>
+                </div>
+              </div>
+
               {/* ── Account ─────────────────────────────────────── */}
               <div className="settingsSection">
                 <div className="settingsLabel">{t(lang, 'settings_account')}</div>
@@ -1148,6 +1193,39 @@ function App(): React.JSX.Element {
           </div>
         )}
       </section>
+
+      {/* ── Trading secrets modal ─────────────────────────────────── */}
+      {tradingModal === 'polymarket' && (
+        <div className="modalBackdrop" onMouseDown={() => setTradingModal(null)}>
+          <div className="modal" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
+            <div className="modalHeader">
+              <div className="modalTitle">Polymarket Configuration</div>
+              <button className="modalClose" onClick={() => setTradingModal(null)} aria-label="Close">&times;</button>
+            </div>
+            <div className="modalBody" style={{ gridTemplateColumns: '1fr' }}>
+              {POLYMARKET_KEYS.map((k) => (
+                <div className="modalSection" key={k}>
+                  <div className="modalLabel">{k}</div>
+                  <input
+                    type={k === 'POLYMARKET_SIGNATURE_TYPE' ? 'text' : 'password'}
+                    className="input"
+                    value={tradingSecrets[k] ?? ''}
+                    placeholder={k === 'POLYMARKET_SIGNATURE_TYPE' ? '0, 1 or 2 (default: 2)' : ''}
+                    onChange={(e) => setTradingSecrets((prev) => ({ ...prev, [k]: e.target.value }))}
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="modalFooter">
+              <button className="btn" onClick={() => setTradingModal(null)}>Cancel</button>
+              <button className="btn" onClick={() => void saveTradingSecrets()} disabled={tradingSaving}>
+                {tradingSaving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Task approval dialog ────────────────────────────────── */}
       {approvalTask && (

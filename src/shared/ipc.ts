@@ -32,7 +32,12 @@ export const IPC = {
   taskResume: 'netbot:task:resume',
   taskGet: 'netbot:task:get',
   taskList: 'netbot:task:list',
-  taskDelete: 'netbot:task:delete'
+  taskDelete: 'netbot:task:delete',
+
+  // ── Secrets (generic key-value) ──────────────────────────────────────
+  getSecretKeys: 'netbot:secrets:getKeys',
+  getSecret: 'netbot:secrets:get',
+  setSecret: 'netbot:secrets:set'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]

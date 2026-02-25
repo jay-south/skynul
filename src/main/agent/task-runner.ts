@@ -129,7 +129,9 @@ export class TaskRunner {
             else if (a.type === 'scroll') desc = `scroll ${a.direction}`
             else if (a.type === 'wait') desc = `wait ${a.ms}ms`
             else if (a.type === 'launch') desc = `launch ${a.app}`
-            return `Step ${s.index + 1}: ${desc}${s.thought ? ` — ${s.thought.slice(0, 80)}` : ''}`
+            const resultSuffix = s.result ? ` → ${s.result.slice(0, 200)}` : ''
+            const errorSuffix = s.error ? ` [ERROR: ${s.error.slice(0, 100)}]` : ''
+            return `Step ${s.index + 1}: ${desc}${resultSuffix}${errorSuffix}${s.thought ? ` — ${s.thought.slice(0, 80)}` : ''}`
           }).join('\n')
           turnText = `Step ${stepIndex + 1}. Here is the current screenshot.\n\nRecent actions taken:\n${actionLog}\n\nDo NOT repeat actions that already succeeded. Continue with the next logical step.`
         }
@@ -194,7 +196,8 @@ export class TaskRunner {
         }
 
         try {
-          await this.executeAction(action, scaleX, scaleY)
+          const result = await this.executeAction(action, scaleX, scaleY)
+          if (result) step.result = result
         } catch (e) {
           step.error = e instanceof Error ? e.message : String(e)
         }
@@ -270,9 +273,19 @@ export class TaskRunner {
             : ''
 
         const stepIndex = this.task.steps.length
+        let actionLog = ''
+        if (stepIndex > 0) {
+          const recentSteps = this.task.steps.slice(-8)
+          actionLog = '\n\nRecent actions:\n' + recentSteps.map((s) => {
+            let desc = s.action.type
+            const resultSuffix = s.result ? ` → ${s.result.slice(0, 200)}` : ''
+            const errorSuffix = s.error ? ` [ERROR: ${s.error.slice(0, 100)}]` : ''
+            return `Step ${s.index + 1}: ${desc}${resultSuffix}${errorSuffix}`
+          }).join('\n') + '\n\nDo NOT repeat actions that already succeeded.'
+        }
         const turnText = stepIndex === 0
           ? `Task: ${this.task.prompt}\n\nCurrent page:\nURL: ${pageInfo.url}\nTitle: ${pageInfo.title}\nText: ${pageInfo.text.slice(0, 2800)}${elementsBlock}`
-          : `Step ${stepIndex + 1}.\nURL: ${pageInfo.url}\nTitle: ${pageInfo.title}\nText: ${pageInfo.text.slice(0, 2800)}${elementsBlock}`
+          : `Step ${stepIndex + 1}.\nURL: ${pageInfo.url}\nTitle: ${pageInfo.title}\nText: ${pageInfo.text.slice(0, 2800)}${elementsBlock}${actionLog}`
 
         const turnMessage: VisionMessage = {
           role: 'user',
@@ -317,7 +330,8 @@ export class TaskRunner {
 
         // Execute CDP action
         try {
-          await this.executeCdpAction(browserBridge, action)
+          const result = await this.executeCdpAction(browserBridge, action)
+          if (result) step.result = result
         } catch (e) {
           step.error = e instanceof Error ? e.message : String(e)
         }
@@ -337,7 +351,7 @@ export class TaskRunner {
     return this.finish('failed', `Reached max steps (${this.task.maxSteps})`)
   }
 
-  private async executeCdpAction(bridge: BrowserBridge, action: TaskAction): Promise<void> {
+  private async executeCdpAction(bridge: BrowserBridge, action: TaskAction): Promise<string | undefined> {
     // CDP actions use a different format than screen actions
     const raw = action as Record<string, unknown>
     const type = raw.type as string
@@ -355,19 +369,21 @@ export class TaskRunner {
       case 'pressKey':
         await bridge.pressKey(raw.key as string)
         break
-      case 'evaluate':
-        await bridge.evaluate(raw.script as string)
-        break
+      case 'evaluate': {
+        const evalResult = await bridge.evaluate(raw.script as string)
+        return evalResult || undefined
+      }
       case 'wait':
         await this.sleep((raw.ms as number) ?? 1000)
         break
       case 'polymarket_get_account_summary':
       case 'polymarket_get_trader_leaderboard':
+      case 'polymarket_search_markets':
       case 'polymarket_place_order':
       case 'polymarket_close_position':
-        await this.executePolymarketAction(action)
-        break
+        return this.executePolymarketAction(action)
     }
+    return undefined
   }
 
   /**
@@ -427,6 +443,7 @@ export class TaskRunner {
         break
       case 'polymarket_get_account_summary':
       case 'polymarket_get_trader_leaderboard':
+      case 'polymarket_search_markets':
       case 'polymarket_place_order':
       case 'polymarket_close_position':
         if (!caps.has('polymarket.trading')) return `Action "${action.type}" requires polymarket.trading capability`
@@ -440,7 +457,7 @@ export class TaskRunner {
     return null
   }
 
-  private async executeAction(action: TaskAction, scaleX: number, scaleY: number): Promise<void> {
+  private async executeAction(action: TaskAction, scaleX: number, scaleY: number): Promise<string | undefined> {
     if (!this.bridge) throw new Error('Bridge not available')
 
     // Helper: map model coords (screenshot space) → native screen coords
@@ -476,24 +493,28 @@ export class TaskRunner {
         break
       case 'polymarket_get_account_summary':
       case 'polymarket_get_trader_leaderboard':
+      case 'polymarket_search_markets':
       case 'polymarket_place_order':
       case 'polymarket_close_position': {
-        await this.executePolymarketAction(action)
-        break
+        const result = await this.executePolymarketAction(action)
+        return result
       }
     }
+    return undefined
   }
 
-  private async executePolymarketAction(action: TaskAction): Promise<void> {
+  private async executePolymarketAction(action: TaskAction): Promise<string> {
     const client = new PolymarketClient({ mode: 'live' })
 
     switch (action.type) {
       case 'polymarket_get_account_summary': {
         const summary = await client.getAccountSummary()
-        this.task.summary = `Polymarket: balance $${summary.balanceUsd.toFixed(
-          2
-        )} across ${summary.positions.length} positions.`
-        break
+        const result = `Balance: $${summary.balanceUsd.toFixed(2)}, ${summary.positions.length} positions.` +
+          (summary.positions.length > 0
+            ? '\n' + summary.positions.map((p) => `  ${p.marketTitle} [${p.outcome}] ${p.sizeShares} shares @ $${p.avgPriceUsd.toFixed(2)}, PnL $${p.pnlUsd.toFixed(2)}`).join('\n')
+            : '')
+        this.task.summary = `Polymarket: ${result}`
+        return result
       }
       case 'polymarket_get_trader_leaderboard': {
         const traders = await client.getTopTraders({ limit: 10, timePeriod: 'MONTH', category: 'OVERALL' })
@@ -501,8 +522,19 @@ export class TaskRunner {
           .slice(0, 5)
           .map((t) => `#${t.rank} ${t.userName || t.wallet.slice(0, 8)} PnL $${t.pnlUsd.toFixed(2)}`)
           .join('; ')
-        this.task.summary = `Polymarket leaderboard (MONTH, OVERALL): ${top || 'no traders found'}.`
-        break
+        const result = `Leaderboard (MONTH): ${top || 'no traders found'}.`
+        this.task.summary = `Polymarket ${result}`
+        return result
+      }
+      case 'polymarket_search_markets': {
+        const raw = action as any
+        const markets = await client.searchMarkets(raw.query, raw.limit ?? 5)
+        if (markets.length === 0) return 'No markets found.'
+        const result = markets.map((m) => {
+          const tokens = m.tokens.map((t) => `${t.outcome}: ${t.tokenId} @ $${t.price.toFixed(3)}`).join(', ')
+          return `${m.title} | vol: $${m.volume.toFixed(0)} | tokens: [${tokens}]`
+        }).join('\n')
+        return result
       }
       case 'polymarket_place_order': {
         await client.placeOrder({
@@ -513,15 +545,17 @@ export class TaskRunner {
           tickSize: action.tickSize,
           negRisk: action.negRisk
         })
-        break
+        return `Order placed: ${action.side} ${action.size} @ $${action.price} on ${action.tokenId.slice(0, 10)}...`
       }
       case 'polymarket_close_position': {
         await client.closePosition({
           tokenId: action.tokenId,
           size: action.size
         })
-        break
+        return `Position closed: ${action.tokenId.slice(0, 10)}... size=${action.size ?? 'full'}`
       }
+      default:
+        return ''
     }
   }
 

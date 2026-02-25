@@ -53,15 +53,16 @@ export class PolymarketClient {
    * - POLYMARKET_SIGNATURE_TYPE   (0, 1 o 2; docs de Polymarket, default 2)
    */
   private async getLiveSdkClient(): Promise<unknown> {
-    const pk = process.env.POLYMARKET_PRIVATE_KEY
-    const funder = process.env.POLYMARKET_FUNDER_ADDRESS
-    const sigTypeRaw = process.env.POLYMARKET_SIGNATURE_TYPE ?? '2'
+    const { getSecret } = await import('./secret-store')
+    const pk = (await getSecret('POLYMARKET_PRIVATE_KEY')) ?? process.env.POLYMARKET_PRIVATE_KEY
+    const funder = (await getSecret('POLYMARKET_FUNDER_ADDRESS')) ?? process.env.POLYMARKET_FUNDER_ADDRESS
+    const sigTypeRaw = (await getSecret('POLYMARKET_SIGNATURE_TYPE')) ?? process.env.POLYMARKET_SIGNATURE_TYPE ?? '2'
 
     if (!pk) {
-      throw new Error('POLYMARKET_PRIVATE_KEY is not set (export it from polymarket.com/settings).')
+      throw new Error('POLYMARKET_PRIVATE_KEY is not set. Configure it in Settings → Secrets.')
     }
     if (!funder) {
-      throw new Error('POLYMARKET_FUNDER_ADDRESS is not set (proxy / funder address from your profile).')
+      throw new Error('POLYMARKET_FUNDER_ADDRESS is not set. Configure it in Settings → Secrets.')
     }
 
     const signatureType = Number.parseInt(sigTypeRaw, 10)
@@ -113,13 +114,11 @@ export class PolymarketClient {
       }
     }
 
-    // LIVE MODE: prove SDK wiring, then read positions via public Data API.
-    // This is read‑only: no trades are placed here.
-    await this.getLiveSdkClient()
-
-    const funder = process.env.POLYMARKET_FUNDER_ADDRESS
+    // LIVE MODE: read positions via public Data API.
+    const { getSecret } = await import('./secret-store')
+    const funder = (await getSecret('POLYMARKET_FUNDER_ADDRESS')) ?? process.env.POLYMARKET_FUNDER_ADDRESS
     if (!funder) {
-      throw new Error('POLYMARKET_FUNDER_ADDRESS is not set; cannot fetch live positions.')
+      throw new Error('POLYMARKET_FUNDER_ADDRESS is not set. Configure it in Settings → Secrets.')
     }
 
     const fetchFn: typeof fetch | undefined = (globalThis as any).fetch
@@ -154,7 +153,25 @@ export class PolymarketClient {
       }
     })
 
-    const balanceUsd = positions.reduce((sum, pos) => sum + pos.sizeShares * pos.avgPriceUsd, 0)
+    // Fetch USDC balance on-chain via Polygon RPC (balanceOf call)
+    let balanceUsd = 0
+    try {
+      const USDC = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174'
+      const addr = funder.toLowerCase().replace('0x', '').padStart(64, '0')
+      const rpcRes = await fetchFn('https://rpc-mainnet.matic.quiknode.pro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_call', params: [{ to: USDC, data: `0x70a08231${addr}` }, 'latest'] })
+      })
+      if (rpcRes.ok) {
+        const rpcData = await rpcRes.json() as any
+        if (rpcData.result) {
+          balanceUsd = Number(BigInt(rpcData.result)) / 1e6
+        }
+      }
+    } catch (e) {
+      console.error('[Polymarket] balance fetch failed:', e)
+    }
 
     return {
       balanceUsd,
@@ -207,6 +224,41 @@ export class PolymarketClient {
         volumeUsd: vol
       }
     })
+  }
+
+  /**
+   * Search markets by keyword. Returns condition/token IDs needed for trading.
+   */
+  async searchMarkets(query: string, limit = 5): Promise<Array<{
+    conditionId: string
+    slug: string
+    title: string
+    tokens: Array<{ tokenId: string; outcome: string; price: number }>
+    volume: number
+    active: boolean
+  }>> {
+    const fetchFn: typeof fetch | undefined = (globalThis as any).fetch
+    if (!fetchFn) throw new Error('Global fetch not available')
+
+    const url = `https://gamma-api.polymarket.com/markets?closed=false&limit=${limit}&search=${encodeURIComponent(query)}`
+    const res = await fetchFn(url)
+    if (!res.ok) throw new Error(`Polymarket search failed (status ${res.status})`)
+
+    const raw: any[] = await res.json()
+    return raw.map((m) => ({
+      conditionId: String(m.conditionId ?? m.condition_id ?? ''),
+      slug: String(m.slug ?? ''),
+      title: String(m.question ?? m.title ?? ''),
+      tokens: Array.isArray(m.tokens)
+        ? m.tokens.map((t: any) => ({
+            tokenId: String(t.token_id ?? ''),
+            outcome: String(t.outcome ?? ''),
+            price: Number(t.price ?? 0)
+          }))
+        : [],
+      volume: Number(m.volume ?? 0),
+      active: m.active !== false && m.closed !== true
+    }))
   }
 
   /**
