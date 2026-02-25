@@ -11,8 +11,13 @@ type ModelResponse = {
   action: TaskAction
 }
 
+/** Track consecutive truncation recoveries to avoid infinite wait loops */
+let consecutiveTruncations = 0
+const MAX_TRUNCATION_RETRIES = 2
+
 /** Regex that matches status-log noise (allows optional · and whitespace/newlines). */
-const NOISE_REGEX = /\s*·?\s*CDP\s+browser\s+bridge\s+ready\.?\s*(Starting\s+agent\s+loop\.\.\.)?\s*/gi
+const NOISE_REGEX =
+  /\s*·?\s*(?:CDP\s+browser\s+bridge\s+ready|Bridge\s+ready)\.?\s*(Starting\s+agent\s+loop\.\.\.)?\s*/gi
 
 /**
  * Remove status-log noise from anywhere in the string (middle or end).
@@ -33,7 +38,11 @@ function stripTrailingNoise(text: string): string {
       lines.pop()
       continue
     }
-    if (last.startsWith('·') || /Starting agent loop|bridge ready|CDP browser/i.test(last)) {
+    const looksLikeJson = /[{}\[\]"]/.test(last)
+    if (
+      !looksLikeJson &&
+      (last.startsWith('·') || /Starting agent loop|bridge ready|CDP browser/i.test(last))
+    ) {
       lines.pop()
       continue
     }
@@ -79,12 +88,52 @@ export function parseModelResponse(raw: string): ModelResponse {
     }
   }
 
-  const preview = trimmed.slice(0, 200)
-  if (/^\s*\{\s*"thought"\s*:/.test(trimmed) && !trimmed.includes('"action"')) {
-    throw new Error(
-      `Model response looks truncated (has "thought" but no "action"). Keep thought short and always output full JSON with both thought and action. Raw: ${preview}`
-    )
+  // Fallback: tolerate invalid JSON in "thought" as long as "action" is well-formed.
+  // This handles cases where the model's thought includes unescaped quotes or where
+  // UI status logs were concatenated into the thought string, breaking JSON.parse.
+  if (/^\s*\{\s*"thought"\s*:/.test(trimmed) && trimmed.includes('"action"')) {
+    const thoughtMatch = trimmed.match(/"thought"\s*:\s*"(.*?)",\s*"action"/s)
+    if (thoughtMatch) {
+      const rawThought = thoughtMatch[1]
+      const actionKeyIndex = trimmed.indexOf('"action"')
+      if (actionKeyIndex !== -1) {
+        const braceStart = trimmed.indexOf('{', actionKeyIndex)
+        if (braceStart !== -1) {
+          const actionJson = extractFirstJson(trimmed.slice(braceStart))
+          if (actionJson) {
+            try {
+              const actionObj = JSON.parse(actionJson)
+              return validateResponse({ thought: rawThought, action: actionObj })
+            } catch {
+              // fall through to error below
+            }
+          }
+        }
+      }
+    }
   }
+
+  const preview = trimmed.slice(0, 200)
+
+  // Truncated or malformed response: model generated a long thought and ran out
+  // of tokens before producing the action. Recover with wait (up to MAX retries),
+  // then fail cleanly to avoid infinite loops.
+  if (/^\s*\{\s*"thought"\s*:/.test(trimmed)) {
+    consecutiveTruncations++
+    if (consecutiveTruncations > MAX_TRUNCATION_RETRIES) {
+      consecutiveTruncations = 0
+      return {
+        thought: 'Model keeps generating truncated responses — aborting task',
+        action: { type: 'fail', reason: 'Model output repeatedly truncated. Try a simpler task or shorter prompt.' } as unknown as TaskAction
+      }
+    }
+    console.warn(`[action-parser] Truncated response (${consecutiveTruncations}/${MAX_TRUNCATION_RETRIES}) — injecting wait`)
+    return {
+      thought: '(truncated response — retrying with fresh screenshot)',
+      action: { type: 'wait', ms: 1000 } as unknown as TaskAction
+    }
+  }
+
   throw new Error(`Could not parse model response as JSON action: ${preview}`)
 }
 
@@ -153,6 +202,8 @@ const VALID_ACTION_TYPES = new Set([
 ])
 
 function validateResponse(obj: unknown): ModelResponse {
+  // Reset truncation counter on any successful parse
+  consecutiveTruncations = 0
   if (!obj || typeof obj !== 'object') {
     throw new Error('Response is not an object')
   }

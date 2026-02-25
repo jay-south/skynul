@@ -55,7 +55,7 @@ export async function openaiVisionRespond(opts: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ model, input })
+    body: JSON.stringify({ model, input, max_output_tokens: 1024 })
   })
 
   if (!res.ok) {

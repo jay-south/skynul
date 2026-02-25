@@ -208,7 +208,8 @@ export async function codexVisionRespond(opts: {
     include: ['reasoning.encrypted_content'],
     tool_choice: 'auto',
     parallel_tool_calls: true,
-    reasoning: { effort: 'medium', summary: 'auto' }
+    reasoning: { effort: 'medium', summary: 'auto' },
+    max_output_tokens: 1024
   }
 
   if (opts.sessionId) {
