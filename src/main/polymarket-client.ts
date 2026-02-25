@@ -228,6 +228,10 @@ export class PolymarketClient {
 
   /**
    * Search markets by keyword. Returns condition/token IDs needed for trading.
+   *
+   * Strategy:
+   * 1. Try gamma-api by exact slug (works for slugs like "nba-gsw-nop-2026-02-24").
+   * 2. Fetch trending/active events from Polymarket home SSR and filter by query keywords.
    */
   async searchMarkets(query: string, limit = 5): Promise<Array<{
     conditionId: string
@@ -240,25 +244,128 @@ export class PolymarketClient {
     const fetchFn: typeof fetch | undefined = (globalThis as any).fetch
     if (!fetchFn) throw new Error('Global fetch not available')
 
-    const url = `https://gamma-api.polymarket.com/markets?closed=false&limit=${limit}&search=${encodeURIComponent(query)}`
-    const res = await fetchFn(url)
-    if (!res.ok) throw new Error(`Polymarket search failed (status ${res.status})`)
+    // 1) Try exact slug on gamma-api (handles exact slugs like "nba-gsw-nop-2026-02-24")
+    let events: any[] = []
+    try {
+      const slugUrl = `https://gamma-api.polymarket.com/events?closed=false&limit=${limit}&slug=${encodeURIComponent(query)}`
+      const slugRes = await fetchFn(slugUrl)
+      if (slugRes.ok) events = await slugRes.json()
+    } catch { /* ignore */ }
 
-    const raw: any[] = await res.json()
-    return raw.map((m) => ({
-      conditionId: String(m.conditionId ?? m.condition_id ?? ''),
-      slug: String(m.slug ?? ''),
-      title: String(m.question ?? m.title ?? ''),
-      tokens: Array.isArray(m.tokens)
-        ? m.tokens.map((t: any) => ({
-            tokenId: String(t.token_id ?? ''),
-            outcome: String(t.outcome ?? ''),
-            price: Number(t.price ?? 0)
-          }))
-        : [],
-      volume: Number(m.volume ?? 0),
-      active: m.active !== false && m.closed !== true
-    }))
+    // 2) Fallback: SSR search + home page, filtered by keywords
+    if (events.length === 0) {
+      const allEvents: any[] = []
+
+      // 2a) SSR search page
+      try {
+        const searchUrl = `https://polymarket.com/search?_q=${encodeURIComponent(query)}`
+        const htmlRes = await fetchFn(searchUrl, {
+          headers: { 'Accept': 'text/html', 'User-Agent': 'Mozilla/5.0' }
+        })
+        if (htmlRes.ok) {
+          const html = await htmlRes.text()
+          const ssrEvents = this.extractEventsFromHtml(html)
+          allEvents.push(...ssrEvents)
+        }
+      } catch { /* ignore */ }
+
+      // 2b) Home page (has trending/live events the search might miss)
+      if (allEvents.length < 3) {
+        try {
+          const homeRes = await fetchFn('https://polymarket.com/', {
+            headers: { 'Accept': 'text/html', 'User-Agent': 'Mozilla/5.0' }
+          })
+          if (homeRes.ok) {
+            const html = await homeRes.text()
+            const homeEvents = this.extractEventsFromHtml(html)
+            allEvents.push(...homeEvents)
+          }
+        } catch { /* ignore */ }
+      }
+
+      // Filter by query keywords (case-insensitive, all words must match title or slug)
+      const words = query.toLowerCase().split(/\s+/).filter(Boolean)
+      events = allEvents.filter((e) => {
+        const text = `${e.title ?? ''} ${e.slug ?? ''}`.toLowerCase()
+        return words.every((w) => text.includes(w))
+      })
+
+      // If strict match found nothing, try partial (any word matches)
+      if (events.length === 0 && words.length > 1) {
+        events = allEvents.filter((e) => {
+          const text = `${e.title ?? ''} ${e.slug ?? ''}`.toLowerCase()
+          return words.some((w) => text.includes(w))
+        })
+      }
+    }
+
+    // Flatten events → markets with clobTokenIds
+    const results: Array<{
+      conditionId: string; slug: string; title: string
+      tokens: Array<{ tokenId: string; outcome: string; price: number }>
+      volume: number; active: boolean
+    }> = []
+
+    for (const evt of events) {
+      const markets = evt.markets ?? []
+      for (const m of markets) {
+        let tids: string[] = []
+        if (typeof m.clobTokenIds === 'string') {
+          try { tids = JSON.parse(m.clobTokenIds) } catch { /* */ }
+        } else if (Array.isArray(m.clobTokenIds)) {
+          tids = m.clobTokenIds
+        }
+        let outcomes: string[] = []
+        if (typeof m.outcomes === 'string') {
+          try { outcomes = JSON.parse(m.outcomes) } catch { /* */ }
+        } else if (Array.isArray(m.outcomes)) {
+          outcomes = m.outcomes
+        }
+        let prices: number[] = []
+        if (typeof m.outcomePrices === 'string') {
+          try { prices = JSON.parse(m.outcomePrices).map(Number) } catch { /* */ }
+        }
+
+        if (tids.length === 0) continue
+        results.push({
+          conditionId: String(m.conditionId ?? ''),
+          slug: String(m.slug ?? ''),
+          title: String(m.question ?? ''),
+          tokens: tids.map((tid, i) => ({
+            tokenId: tid,
+            outcome: outcomes[i] ?? `Outcome ${i}`,
+            price: prices[i] ?? 0
+          })),
+          volume: Number(m.volume ?? 0),
+          active: m.active !== false && m.closed !== true
+        })
+      }
+    }
+    return results.slice(0, limit * 5)
+  }
+
+  /**
+   * Extract events from Polymarket SSR HTML (__NEXT_DATA__ JSON blob).
+   */
+  private extractEventsFromHtml(html: string): any[] {
+    try {
+      const match = html.match(/<script\s+id="__NEXT_DATA__"\s+type="application\/json">([\s\S]*?)<\/script>/)
+      if (!match) return []
+      const data = JSON.parse(match[1])
+      const events: any[] = data?.props?.pageProps?.events
+        ?? data?.props?.pageProps?.dehydratedState?.queries
+            ?.flatMap((q: any) => {
+              const d = q?.state?.data
+              if (Array.isArray(d)) return d
+              if (d?.events) return d.events
+              if (d?.pages) return d.pages.flatMap((p: any) => p?.events ?? p ?? [])
+              return []
+            })
+        ?? []
+      return Array.isArray(events) ? events : []
+    } catch {
+      return []
+    }
   }
 
   /**

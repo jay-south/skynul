@@ -7,6 +7,7 @@ export type TaskCapabilityId =
   | 'app.launch'
   | 'browser.cdp'
   | 'polymarket.trading'
+  | 'office.professional'
 
 export const ALL_TASK_CAPABILITIES: Array<{
   id: TaskCapabilityId
@@ -22,6 +23,11 @@ export const ALL_TASK_CAPABILITIES: Array<{
     id: 'polymarket.trading',
     title: 'Polymarket Trading',
     desc: 'Trade on Polymarket via a dedicated API client (no screen control).'
+  },
+  {
+    id: 'office.professional',
+    title: 'Office Pro',
+    desc: 'Professional formatting expertise for Excel, Word, and PowerPoint.'
   }
 ]
 
@@ -48,6 +54,8 @@ export type TaskAction =
   | { type: 'move'; x: number; y: number }
   | { type: 'launch'; app: string }
   | { type: 'wait'; ms: number }
+  | { type: 'web_scrape'; url: string; instruction: string }
+  | { type: 'save_to_excel'; filename: string; filter?: string }
   | { type: 'done'; summary: string }
   | { type: 'fail'; reason: string }
   // Polymarket trading actions (require polymarket.trading capability)

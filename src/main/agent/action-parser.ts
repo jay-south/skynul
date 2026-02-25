@@ -188,6 +188,8 @@ const VALID_ACTION_TYPES = new Set([
   'move',
   'launch',
   'wait',
+  'web_scrape',
+  'save_to_excel',
   'done',
   'fail',
   // CDP browser agent actions

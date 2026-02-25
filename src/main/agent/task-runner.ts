@@ -19,6 +19,8 @@ import { buildSystemPrompt, buildCdpSystemPrompt } from './system-prompt'
 import { parseModelResponse } from './action-parser'
 import { codexVisionRespond, type VisionMessage } from '../providers/codex-vision'
 import { PolymarketClient } from '../polymarket-client'
+import { scrapeUrl } from './web-scraper'
+import { createExcelFromTsv } from './excel-writer'
 
 export type TaskRunnerCallbacks = {
   onUpdate: (task: Task) => void
@@ -35,6 +37,9 @@ export class TaskRunner {
   private aborted = false
   private timeoutHandle: ReturnType<typeof setTimeout> | null = null
   private task: Task
+  private lastScrapeData = ''
+  /** When true, next CDP turn includes a screenshot (for after launch/native app interaction). */
+  private cdpNeedsScreenshot = false
 
   constructor(
     task: Task,
@@ -129,6 +134,8 @@ export class TaskRunner {
             else if (a.type === 'scroll') desc = `scroll ${a.direction}`
             else if (a.type === 'wait') desc = `wait ${a.ms}ms`
             else if (a.type === 'launch') desc = `launch ${a.app}`
+            else if (a.type === 'web_scrape') desc = `web_scrape ${a.url.slice(0, 60)}`
+            else if (a.type === 'save_to_excel') desc = `save_to_excel ${a.filename}`
             const resultSuffix = s.result ? ` → ${s.result.slice(0, 200)}` : ''
             const errorSuffix = s.error ? ` [ERROR: ${s.error.slice(0, 100)}]` : ''
             return `Step ${s.index + 1}: ${desc}${resultSuffix}${errorSuffix}${s.thought ? ` — ${s.thought.slice(0, 80)}` : ''}`
@@ -287,9 +294,23 @@ export class TaskRunner {
           ? `Task: ${this.task.prompt}\n\nCurrent page:\nURL: ${pageInfo.url}\nTitle: ${pageInfo.title}\nText: ${pageInfo.text.slice(0, 2800)}${elementsBlock}`
           : `Step ${stepIndex + 1}.\nURL: ${pageInfo.url}\nTitle: ${pageInfo.title}\nText: ${pageInfo.text.slice(0, 2800)}${elementsBlock}${actionLog}`
 
+        const turnContent: VisionMessage['content'] = [{ type: 'input_text', text: turnText }]
+
+        // After launch/native actions, include a screenshot so the model can see the app
+        if (this.cdpNeedsScreenshot) {
+          this.cdpNeedsScreenshot = false
+          try {
+            const wb = await this.getScreenBridge()
+            const shot = await wb.captureScreen({ maxWidth: 1280, maxHeight: 720 })
+            turnContent.push({ type: 'input_image', image_url: `data:image/png;base64,${shot.buffer.toString('base64')}` })
+          } catch {
+            // non-critical — model continues without screenshot
+          }
+        }
+
         const turnMessage: VisionMessage = {
           role: 'user',
-          content: [{ type: 'input_text', text: turnText }]
+          content: turnContent
         }
 
         if (history.length > 20) {
@@ -351,8 +372,16 @@ export class TaskRunner {
     return this.finish('failed', `Reached max steps (${this.task.maxSteps})`)
   }
 
+  /** Lazy-init a WindowsBridge for hybrid CDP+screen actions (launch, file uploads). */
+  private async getScreenBridge(): Promise<WindowsBridge> {
+    if (!this.bridge || !this.bridge.isAlive) {
+      this.bridge = new WindowsBridge()
+      await this.bridge.init()
+    }
+    return this.bridge
+  }
+
   private async executeCdpAction(bridge: BrowserBridge, action: TaskAction): Promise<string | undefined> {
-    // CDP actions use a different format than screen actions
     const raw = action as Record<string, unknown>
     const type = raw.type as string
 
@@ -361,13 +390,44 @@ export class TaskRunner {
         await bridge.navigate(raw.url as string)
         break
       case 'click':
-        await bridge.click(raw.selector as string)
+        if (raw.x != null && raw.y != null) {
+          // Coordinate click → use screen bridge (after launch)
+          const wb = await this.getScreenBridge()
+          await wb.click(raw.x as number, raw.y as number, (raw.button as 'left' | 'right') ?? 'left')
+          this.cdpNeedsScreenshot = true
+        } else {
+          await bridge.click(raw.selector as string)
+        }
         break
       case 'type':
-        await bridge.type(raw.selector as string, raw.text as string)
+        if (raw.selector) {
+          await bridge.type(raw.selector as string, raw.text as string)
+        } else {
+          // No selector → type via screen bridge (after launch)
+          const wb = await this.getScreenBridge()
+          await wb.type(raw.text as string)
+          this.cdpNeedsScreenshot = true
+        }
         break
+      case 'key': {
+        if (this.cdpNeedsScreenshot || this.bridge?.isAlive) {
+          // In screen mode after launch → use bridge for key combos
+          const wb = await this.getScreenBridge()
+          await wb.keyCombo(raw.combo as string || raw.key as string)
+          this.cdpNeedsScreenshot = true
+        } else {
+          await bridge.pressKey(raw.key as string || raw.combo as string)
+        }
+        break
+      }
       case 'pressKey':
-        await bridge.pressKey(raw.key as string)
+        if (this.bridge?.isAlive) {
+          const wb = await this.getScreenBridge()
+          await wb.keyCombo(raw.key as string)
+          this.cdpNeedsScreenshot = true
+        } else {
+          await bridge.pressKey(raw.key as string)
+        }
         break
       case 'evaluate': {
         const evalResult = await bridge.evaluate(raw.script as string)
@@ -376,6 +436,23 @@ export class TaskRunner {
       case 'wait':
         await this.sleep((raw.ms as number) ?? 1000)
         break
+      case 'launch': {
+        // Hybrid: use WindowsBridge to launch native apps from CDP mode
+        const wb = await this.getScreenBridge()
+        await wb.launchApp(raw.app as string)
+        this.cdpNeedsScreenshot = true
+        return `Launched ${raw.app}. Next turn will include a screenshot of the screen.`
+      }
+      case 'web_scrape': {
+        const data = await scrapeUrl(raw.url as string, raw.instruction as string)
+        if (data.includes('\t')) this.lastScrapeData += (this.lastScrapeData ? '\n' : '') + data
+        return data
+      }
+      case 'save_to_excel': {
+        if (!this.lastScrapeData) return '[Error: no web_scrape data available yet. Run web_scrape first.]'
+        const filePath = await createExcelFromTsv(this.lastScrapeData, raw.filename as string, raw.filter as string | undefined)
+        return `Excel saved to: ${filePath}`
+      }
       case 'polymarket_get_account_summary':
       case 'polymarket_get_trader_leaderboard':
       case 'polymarket_search_markets':
@@ -448,6 +525,8 @@ export class TaskRunner {
       case 'polymarket_close_position':
         if (!caps.has('polymarket.trading')) return `Action "${action.type}" requires polymarket.trading capability`
         break
+      case 'web_scrape':
+      case 'save_to_excel':
       case 'wait':
       case 'done':
       case 'fail':
@@ -491,6 +570,16 @@ export class TaskRunner {
       case 'wait':
         await this.sleep(action.ms)
         break
+      case 'web_scrape': {
+        const data = await scrapeUrl(action.url, action.instruction)
+        if (data.includes('\t')) this.lastScrapeData += (this.lastScrapeData ? '\n' : '') + data
+        return data
+      }
+      case 'save_to_excel': {
+        if (!this.lastScrapeData) return '[Error: no web_scrape data available yet. Run web_scrape first.]'
+        const filePath = await createExcelFromTsv(this.lastScrapeData, action.filename, action.filter)
+        return `Excel saved to: ${filePath}`
+      }
       case 'polymarket_get_account_summary':
       case 'polymarket_get_trader_leaderboard':
       case 'polymarket_search_markets':
