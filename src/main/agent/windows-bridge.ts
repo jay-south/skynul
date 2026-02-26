@@ -615,26 +615,28 @@ $bmp.Dispose()`
     const focused = await this.tryFocusApp(escaped)
     if (focused) return
 
-    // App not running — launch it
-    const result = await this.exec(`Start-Process '${escaped}'`)
-    if (!result.ok) {
-      // Fallback: open Start Menu, type the name, press Enter
-      await this.keyCombo('meta')
-      await this.sleep(500)
-      await this.type(name)
-      await this.sleep(800)
-      await this.keyCombo('enter')
-    }
+    // For UWP/Store apps (WhatsApp, Telegram, etc.), Start-Process by name won't work.
+    // Use the Start Menu search which handles both classic and UWP apps reliably.
+    await this.keyCombo('meta')
+    await this.sleep(500)
+    await this.type(name)
+    await this.sleep(800)
+    await this.keyCombo('enter')
+    await this.sleep(2000)
+
+    // Try to focus the newly launched app
+    await this.tryFocusApp(escaped)
   }
 
   /**
    * Try to find a running process matching `name` and bring its window to front.
+   * Searches by ProcessName AND MainWindowTitle (UWP apps often have non-obvious process names).
    * Returns true if an existing window was focused, false otherwise.
    */
   private async tryFocusApp(name: string): Promise<boolean> {
     const script = `
 $proc = Get-Process | Where-Object {
-  $_.MainWindowHandle -ne 0 -and $_.ProcessName -like '*${name}*'
+  $_.MainWindowHandle -ne 0 -and ($_.ProcessName -like '*${name}*' -or $_.MainWindowTitle -like '*${name}*')
 } | Select-Object -First 1
 if ($proc) {
   $sig = '[DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);[DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);'

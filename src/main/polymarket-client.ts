@@ -244,59 +244,41 @@ export class PolymarketClient {
     const fetchFn: typeof fetch | undefined = (globalThis as any).fetch
     if (!fetchFn) throw new Error('Global fetch not available')
 
-    // 1) Try exact slug on gamma-api (handles exact slugs like "nba-gsw-nop-2026-02-24")
+    // 1) Try exact slug match on gamma-api
     let events: any[] = []
     try {
       const slugUrl = `https://gamma-api.polymarket.com/events?closed=false&limit=${limit}&slug=${encodeURIComponent(query)}`
       const slugRes = await fetchFn(slugUrl)
-      if (slugRes.ok) events = await slugRes.json()
+      if (slugRes.ok) {
+        const slugEvents = await slugRes.json()
+        if (Array.isArray(slugEvents) && slugEvents.length > 0) events = slugEvents
+      }
     } catch { /* ignore */ }
 
-    // 2) Fallback: SSR search + home page, filtered by keywords
+    // 2) Fetch active events by volume and filter by keywords locally
     if (events.length === 0) {
-      const allEvents: any[] = []
-
-      // 2a) SSR search page
       try {
-        const searchUrl = `https://polymarket.com/search?_q=${encodeURIComponent(query)}`
-        const htmlRes = await fetchFn(searchUrl, {
-          headers: { 'Accept': 'text/html', 'User-Agent': 'Mozilla/5.0' }
-        })
-        if (htmlRes.ok) {
-          const html = await htmlRes.text()
-          const ssrEvents = this.extractEventsFromHtml(html)
-          allEvents.push(...ssrEvents)
+        const activeUrl = `https://gamma-api.polymarket.com/events?closed=false&limit=200&order=volume24hr&ascending=false`
+        const activeRes = await fetchFn(activeUrl)
+        if (activeRes.ok) {
+          const allEvents = await activeRes.json()
+          if (Array.isArray(allEvents)) {
+            const words = query.toLowerCase().split(/\s+/).filter(w => w.length > 2)
+            // First try: all words match
+            events = allEvents.filter((e: any) => {
+              const text = `${e.title ?? ''} ${e.slug ?? ''} ${e.description ?? ''}`.toLowerCase()
+              return words.every((w: string) => text.includes(w))
+            })
+            // Fallback: any word matches
+            if (events.length === 0 && words.length > 1) {
+              events = allEvents.filter((e: any) => {
+                const text = `${e.title ?? ''} ${e.slug ?? ''} ${e.description ?? ''}`.toLowerCase()
+                return words.some((w: string) => text.includes(w))
+              })
+            }
+          }
         }
       } catch { /* ignore */ }
-
-      // 2b) Home page (has trending/live events the search might miss)
-      if (allEvents.length < 3) {
-        try {
-          const homeRes = await fetchFn('https://polymarket.com/', {
-            headers: { 'Accept': 'text/html', 'User-Agent': 'Mozilla/5.0' }
-          })
-          if (homeRes.ok) {
-            const html = await homeRes.text()
-            const homeEvents = this.extractEventsFromHtml(html)
-            allEvents.push(...homeEvents)
-          }
-        } catch { /* ignore */ }
-      }
-
-      // Filter by query keywords (case-insensitive, all words must match title or slug)
-      const words = query.toLowerCase().split(/\s+/).filter(Boolean)
-      events = allEvents.filter((e) => {
-        const text = `${e.title ?? ''} ${e.slug ?? ''}`.toLowerCase()
-        return words.every((w) => text.includes(w))
-      })
-
-      // If strict match found nothing, try partial (any word matches)
-      if (events.length === 0 && words.length > 1) {
-        events = allEvents.filter((e) => {
-          const text = `${e.title ?? ''} ${e.slug ?? ''}`.toLowerCase()
-          return words.some((w) => text.includes(w))
-        })
-      }
     }
 
     // Flatten events → markets with clobTokenIds
@@ -327,6 +309,11 @@ export class PolymarketClient {
         }
 
         if (tids.length === 0) continue
+
+        // Only include markets with at least one token priced 0.10-0.90 (tradeable range)
+        const hasTradeablePrice = prices.some(p => p >= 0.10 && p <= 0.90)
+        if (!hasTradeablePrice && prices.length > 0) continue
+
         results.push({
           conditionId: String(m.conditionId ?? ''),
           slug: String(m.slug ?? ''),
@@ -341,31 +328,9 @@ export class PolymarketClient {
         })
       }
     }
-    return results.slice(0, limit * 5)
-  }
-
-  /**
-   * Extract events from Polymarket SSR HTML (__NEXT_DATA__ JSON blob).
-   */
-  private extractEventsFromHtml(html: string): any[] {
-    try {
-      const match = html.match(/<script\s+id="__NEXT_DATA__"\s+type="application\/json">([\s\S]*?)<\/script>/)
-      if (!match) return []
-      const data = JSON.parse(match[1])
-      const events: any[] = data?.props?.pageProps?.events
-        ?? data?.props?.pageProps?.dehydratedState?.queries
-            ?.flatMap((q: any) => {
-              const d = q?.state?.data
-              if (Array.isArray(d)) return d
-              if (d?.events) return d.events
-              if (d?.pages) return d.pages.flatMap((p: any) => p?.events ?? p ?? [])
-              return []
-            })
-        ?? []
-      return Array.isArray(events) ? events : []
-    } catch {
-      return []
-    }
+    // Sort by volume (most liquid first) so agent picks tradeable markets
+    results.sort((a, b) => b.volume - a.volume)
+    return results.slice(0, limit)
   }
 
   /**
@@ -430,9 +395,8 @@ export class PolymarketClient {
     const size = params.size ?? 0
     if (!size || size <= 0) return
 
-    // Price must be decided by the model beforehand; here we conservatively
-    // send at price 1 (best-effort close) unless the model calls placeOrder.
-    const price = 1
+    // Best-effort close at max valid price (0.999)
+    const price = 0.999
 
     await client.createAndPostOrder(
       {
@@ -442,7 +406,7 @@ export class PolymarketClient {
         size
       },
       { tickSize: '0.001', negRisk: false },
-      OrderType.GTC
+      OrderType.FOK
     )
   }
 }

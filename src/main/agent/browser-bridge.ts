@@ -90,7 +90,7 @@ export class BrowserBridge {
 
   async evaluate(script: string): Promise<string> {
     const result = await this.relay.sendCommand('evaluate', { js: script })
-    return JSON.stringify(result)
+    return typeof result === 'string' ? result : JSON.stringify(result)
   }
 
   destroy(): void {

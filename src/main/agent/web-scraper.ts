@@ -131,6 +131,21 @@ async function getBrowser(): Promise<Browser> {
  * @param instruction - What to extract (currently unused — returns full visible text).
  */
 export async function scrapeUrl(url: string, _instruction: string): Promise<string> {
+  // Fast path: API URLs → fetch JSON directly, no browser needed
+  if (url.includes('api.mercadolibre.com') || url.includes('/api/') || url.match(/\.(json)(\?|$)/)) {
+    try {
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(PAGE_TIMEOUT_MS)
+      })
+      const text = await res.text()
+      if (text.length > MAX_TEXT_LENGTH) return text.slice(0, MAX_TEXT_LENGTH) + '\n\n[... truncated]'
+      return text || '[Empty API response]'
+    } catch (e) {
+      return `[API fetch error: ${e instanceof Error ? e.message : String(e)}]`
+    }
+  }
+
   const browser = await getBrowser()
   const context = await browser.newContext({
     userAgent:
@@ -147,12 +162,40 @@ export async function scrapeUrl(url: string, _instruction: string): Promise<stri
   })
   const page = await context.newPage()
 
-  // Remove webdriver flag — main anti-bot detection vector
+  // Stealth: evade common anti-bot checks
   await page.addInitScript(() => {
-    Object.defineProperty(navigator, 'webdriver', { get: () => false })
-    // Fake plugins/languages to look like a real browser
-    Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] })
+    // 1. Remove webdriver flag
+    Object.defineProperty(navigator, 'webdriver', { get: () => undefined })
+
+    // 2. Fake chrome runtime (headless doesn't have it)
+    if (!(window as any).chrome) {
+      (window as any).chrome = { runtime: {}, loadTimes: () => ({}), csi: () => ({}) }
+    }
+
+    // 3. Realistic plugins array
+    Object.defineProperty(navigator, 'plugins', {
+      get: () => {
+        const arr = [
+          { name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer', description: 'Portable Document Format' },
+          { name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai', description: '' },
+          { name: 'Native Client', filename: 'internal-nacl-plugin', description: '' }
+        ]
+        Object.defineProperty(arr, 'length', { value: 3 })
+        return arr
+      }
+    })
+
+    // 4. Languages
     Object.defineProperty(navigator, 'languages', { get: () => ['es-AR', 'es', 'en'] })
+
+    // 5. Permissions API — pretend notifications are "denied" like a real browser
+    const origQuery = (navigator.permissions?.query || (() => Promise.resolve({ state: 'denied' }))).bind(navigator.permissions)
+    if (navigator.permissions) {
+      navigator.permissions.query = (params: any) =>
+        params.name === 'notifications'
+          ? Promise.resolve({ state: 'denied', onchange: null } as any)
+          : origQuery(params)
+    }
   })
 
   try {

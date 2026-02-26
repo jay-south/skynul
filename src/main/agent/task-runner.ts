@@ -40,6 +40,9 @@ export class TaskRunner {
   private lastScrapeData = ''
   /** When true, next CDP turn includes a screenshot (for after launch/native app interaction). */
   private cdpNeedsScreenshot = false
+  /** Scale factors from last CDP screenshot — needed to convert screenshot coords to native coords. */
+  private cdpScaleX = 1
+  private cdpScaleY = 1
 
   constructor(
     task: Task,
@@ -302,6 +305,8 @@ export class TaskRunner {
           try {
             const wb = await this.getScreenBridge()
             const shot = await wb.captureScreen({ maxWidth: 1280, maxHeight: 720 })
+            this.cdpScaleX = shot.scaleX
+            this.cdpScaleY = shot.scaleY
             turnContent.push({ type: 'input_image', image_url: `data:image/png;base64,${shot.buffer.toString('base64')}` })
           } catch {
             // non-critical — model continues without screenshot
@@ -391,9 +396,11 @@ export class TaskRunner {
         break
       case 'click':
         if (raw.x != null && raw.y != null) {
-          // Coordinate click → use screen bridge (after launch)
+          // Coordinate click → use screen bridge (after launch), scale to native resolution
           const wb = await this.getScreenBridge()
-          await wb.click(raw.x as number, raw.y as number, (raw.button as 'left' | 'right') ?? 'left')
+          const nx = Math.round((raw.x as number) * this.cdpScaleX)
+          const ny = Math.round((raw.y as number) * this.cdpScaleY)
+          await wb.click(nx, ny, (raw.button as 'left' | 'right') ?? 'left')
           this.cdpNeedsScreenshot = true
         } else {
           await bridge.click(raw.selector as string)
@@ -431,6 +438,18 @@ export class TaskRunner {
         break
       case 'evaluate': {
         const evalResult = await bridge.evaluate(raw.script as string)
+        // If evaluate returns TSV data, accumulate into lastScrapeData so save_to_excel can use it
+        if (evalResult && evalResult.includes('\t')) {
+          if (this.lastScrapeData) {
+            // Append rows only (skip header of subsequent evaluates)
+            const newLines = evalResult.split('\n').filter(l => l.includes('\t'))
+            const existingHeader = this.lastScrapeData.split('\n')[0]
+            const newRows = newLines.filter(l => l !== existingHeader)
+            if (newRows.length > 0) this.lastScrapeData += '\n' + newRows.join('\n')
+          } else {
+            this.lastScrapeData = evalResult
+          }
+        }
         return evalResult || undefined
       }
       case 'wait':
@@ -449,9 +468,13 @@ export class TaskRunner {
         return data
       }
       case 'save_to_excel': {
-        if (!this.lastScrapeData) return '[Error: no web_scrape data available yet. Run web_scrape first.]'
-        const filePath = await createExcelFromTsv(this.lastScrapeData, raw.filename as string, raw.filter as string | undefined)
-        return `Excel saved to: ${filePath}`
+        if (!this.lastScrapeData) return '[Error: no data available. Use web_scrape or evaluate (returning TSV) first.]'
+        try {
+          const filePath = await createExcelFromTsv(this.lastScrapeData, raw.filename as string, raw.filter as string | undefined)
+          return `Excel saved and opened: ${filePath}`
+        } catch (e) {
+          return `[Error creating Excel: ${e instanceof Error ? e.message : String(e)}. Data had ${this.lastScrapeData.split('\\n').length} lines.]`
+        }
       }
       case 'polymarket_get_account_summary':
       case 'polymarket_get_trader_leaderboard':
@@ -576,9 +599,13 @@ export class TaskRunner {
         return data
       }
       case 'save_to_excel': {
-        if (!this.lastScrapeData) return '[Error: no web_scrape data available yet. Run web_scrape first.]'
-        const filePath = await createExcelFromTsv(this.lastScrapeData, action.filename, action.filter)
-        return `Excel saved to: ${filePath}`
+        if (!this.lastScrapeData) return '[Error: no data available. Use web_scrape or evaluate (returning TSV) first.]'
+        try {
+          const filePath = await createExcelFromTsv(this.lastScrapeData, action.filename, action.filter)
+          return `Excel saved and opened: ${filePath}`
+        } catch (e) {
+          return `[Error creating Excel: ${e instanceof Error ? e.message : String(e)}. Data had ${this.lastScrapeData.split('\\n').length} lines.]`
+        }
       }
       case 'polymarket_get_account_summary':
       case 'polymarket_get_trader_leaderboard':
@@ -634,9 +661,10 @@ export class TaskRunner {
           tickSize: action.tickSize,
           negRisk: action.negRisk
         })
-        return `Order placed: ${action.side} ${action.size} @ $${action.price} on ${action.tokenId.slice(0, 10)}...`
+        return `Order placed (GTC): ${action.side} ${action.size} @ $${action.price} on ${action.tokenId.slice(0, 10)}... — order stays in book until filled.`
       }
       case 'polymarket_close_position': {
+        if (!action.tokenId) return '[Error: tokenId is required. Use polymarket_get_account_summary to find your position tokenId first.]'
         await client.closePosition({
           tokenId: action.tokenId,
           size: action.size

@@ -146,7 +146,7 @@ async function getActiveTabId() {
 
 /** Create a new tab for the task; all subsequent commands use this tab (never close the user's current tab). */
 async function createTaskTab() {
-  const tab = await chrome.tabs.create({ url: 'about:blank' })
+  const tab = await chrome.tabs.create({ url: 'about:blank', active: true })
   taskTabId = tab.id
   return { tabId: tab.id }
 }

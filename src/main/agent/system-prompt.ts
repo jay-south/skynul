@@ -70,10 +70,12 @@ export function buildSystemPrompt(capabilities: TaskCapabilityId[]): string {
 
 Recommended sequence for trading tasks:
 1. Call polymarket_get_account_summary to check balance and positions.
-2. Call polymarket_search_markets with keywords (e.g. "warriors", "bitcoin", "trump", "nba"). It supports ANY search term — use descriptive keywords.
-3. Use the tokenId from search results to call polymarket_place_order. NEVER click Buy/Sell buttons.
-4. Monitor positions with polymarket_get_account_summary every 2-3 steps.
-5. Close positions before finishing.
+2. Call polymarket_get_trader_leaderboard to see what the top traders are doing. Study their strategies.
+3. Call polymarket_search_markets with SHORT keywords (1-3 words max, e.g. "bitcoin", "trump", "nba"). Long queries return worse results.
+4. Pick a market with price between 0.20-0.80 (best risk/reward). Use the EXACT tokenId from search results.
+5. Call polymarket_place_order with the market price shown in search results. Orders are GTC (stay in book until filled). After placing, wait 2-3 seconds then check account summary to confirm fill.
+6. Monitor positions with polymarket_get_account_summary every 2-3 steps.
+7. Close positions before finishing.
 
 Examples:
 {"thought": "Check my balance.", "action": {"type": "polymarket_get_account_summary"}}
@@ -100,6 +102,8 @@ Examples:
 - Only use "done" when: (a) all positions are closed, AND (b) you have summarized total PnL.
 - Do NOT trade on markets that already expired or resolved. Check the market end date before buying.
 - Keep using "wait" + polymarket_get_account_summary in a loop to monitor active positions until the time window ends or targets are hit.
+- If a position is ILLIQUID (sell orders keep failing, no buyers at any price), STOP trying to close it. Accept the loss, report it, and move on. Do NOT waste 10+ steps trying to sell something nobody wants to buy.
+- MAX 3 search attempts. If you can't find a good market in 3 searches, pick the best available from what you found and trade it. Do NOT search 20+ times.
 `
     : ''
 
@@ -172,6 +176,10 @@ BEFORE navigating to any website to read data, ALWAYS use web_scrape. It fetches
 - Use for: Google Maps, Airbnb, Amazon, Facebook Marketplace, flight searches, ANY website where you need to READ data.
 - Only use visual navigation (click, type, scroll) when you need to INTERACT: fill forms, click buttons, log in, submit data.
 - You can call web_scrape multiple times with different URLs to gather all the data you need.
+- BLOCKED SITES — NEVER use web_scrape on these:
+  * MercadoLibre: navigate visually, then use the search bar to search. Read results from screenshots.
+  * Facebook/Instagram: navigate visually — the user is already logged in.
+- IMPORTANT: If a scrape returns error or empty data, try ONE alternative. If that also fails, report what you found and finish.
 
 ## ACTION FORMAT:
 {"thought": "...", "action": {"type": "web_scrape", "url": "https://...", "instruction": "what to extract"}}
@@ -221,10 +229,12 @@ export function buildCdpSystemPrompt(capabilities: TaskCapabilityId[]): string {
 
 Recommended sequence for trading tasks:
 1. Call polymarket_get_account_summary to check balance and positions.
-2. Call polymarket_search_markets with keywords (e.g. "warriors", "bitcoin", "trump", "nba"). It supports ANY search term — use descriptive keywords.
-3. Use the tokenId from search results to call polymarket_place_order. NEVER click Buy/Sell buttons.
-4. Monitor positions with polymarket_get_account_summary every 2-3 steps.
-5. Close positions before finishing.
+2. Call polymarket_get_trader_leaderboard to see what the top traders are doing. Study their strategies.
+3. Call polymarket_search_markets with SHORT keywords (1-3 words max, e.g. "bitcoin", "trump", "nba"). Long queries return worse results.
+4. Pick a market with price between 0.20-0.80 (best risk/reward). Use the EXACT tokenId from search results.
+5. Call polymarket_place_order with the market price shown in search results. Orders are GTC (stay in book until filled). After placing, wait 2-3 seconds then check account summary to confirm fill.
+6. Monitor positions with polymarket_get_account_summary every 2-3 steps.
+7. Close positions before finishing.
 
 Examples:
 {"thought": "Check my balance.", "action": {"type": "polymarket_get_account_summary"}}
@@ -251,6 +261,8 @@ Examples:
 - Only use "done" when: (a) all positions are closed, AND (b) you have summarized total PnL.
 - Do NOT trade on markets that already expired or resolved. Check the market end date before buying.
 - Keep using "wait" + polymarket_get_account_summary in a loop to monitor active positions until the time window ends or targets are hit.
+- If a position is ILLIQUID (sell orders keep failing, no buyers at any price), STOP trying to close it. Accept the loss, report it, and move on. Do NOT waste 10+ steps trying to sell something nobody wants to buy.
+- MAX 3 search attempts. If you can't find a good market in 3 searches, pick the best available from what you found and trade it. Do NOT search 20+ times.
 `
     : ''
 
@@ -271,12 +283,26 @@ ${capList}
 ## INTERACTIVE ELEMENTS (critical):
 Each message includes an "Interactive elements" list with exact CSS selectors and short labels. For click and type actions you MUST use one of those selectors exactly — do not invent selectors. Pick the element whose label matches what you want (e.g. "Buy No", "Search", "+$10"). If the list is empty, use evaluate to discover the DOM first.
 
-## WEB SCRAPING — USE THIS FIRST for data extraction:
-BEFORE navigating to any website to read data, ALWAYS use web_scrape. It fetches the page server-side and returns text in one step — 10x faster than navigating with click/evaluate.
-{"thought": "Get pizza places from Maps", "action": {"type": "web_scrape", "url": "https://www.google.com/maps/search/pizza+near+me", "instruction": "extract business names, ratings, addresses and websites"}}
-- Use for: Google Maps, Airbnb, Amazon, Facebook Marketplace, flight searches, ANY website where you need to READ data.
-- Only use navigate/click/type/evaluate when you need to INTERACT: fill forms, click buttons, log in, submit data.
-- You can call web_scrape multiple times with different URLs to gather all the data you need.
+## DATA EXTRACTION — PRIORITY ORDER (follow strictly):
+1. **web_scrape** (fastest, 1 step) — try this FIRST for any site not in the blocked list.
+2. **navigate + evaluate** (CDP, no screenshots, cheap) — use when web_scrape fails OR for blocked sites. ALWAYS return TSV from evaluate so save_to_excel works.
+3. **Screenshots + visual navigation** (expensive) — LAST RESORT. Only for filling forms, logging in, or interacting with native apps via launch.
+
+NEVER fall back to screenshots for DATA EXTRACTION. If web_scrape fails, use navigate + evaluate.
+
+### Blocked sites (NEVER use web_scrape):
+- **MercadoLibre**: navigate to the search URL, then evaluate with THIS EXACT script:
+  (() => { try { const s = document.querySelector('#__PRELOADED_STATE__'); if (s) { const d = JSON.parse(s.textContent); const items = d?.initialState?.results || []; const rows = ['Titulo\\tZona\\tPrecio\\tLink']; items.forEach(i => { rows.push((i.title||'') + '\\t' + ((i.location?.city?.name||'') + ' ' + (i.location?.state?.name||'')) + '\\t' + (i.price?.amount||'') + '\\t' + (i.permalink||'')); }); return rows.join('\\n'); } } catch {} const rows = ['Titulo\\tLink']; document.querySelectorAll('a[href*="/MLA-"]').forEach(a => { const t = a.textContent?.trim()?.slice(0,120); if (t && t.length > 10) rows.push(t + '\\t' + a.href); }); return rows.join('\\n'); })()
+  Do NOT write your own script. Do NOT use fetch/API.
+- **Facebook/Instagram**: navigate + evaluate — user's Chrome is already logged in.
+
+### Generic evaluate for ANY site (when web_scrape fails):
+(() => { const rows = []; document.querySelectorAll('a[href]').forEach(a => { const t = a.textContent?.trim(); if (t && t.length > 10 && t.length < 200) rows.push(t + '\\t' + a.href); }); return 'Titulo\\tLink\\n' + rows.join('\\n'); })()
+
+### Rules:
+- evaluate MUST return TSV format (tab-separated, header row first). This feeds save_to_excel directly.
+- If a scrape returns error or empty data, try ONE alternative. If that also fails, report what you found and finish.
+- NEVER try 5+ different URLs or strategies. Max 2 attempts per source.
 
 ## AVAILABLE ACTIONS:
 {"thought": "...", "action": {"type": "web_scrape", "url": "https://...", "instruction": "what to extract"}}
