@@ -8,6 +8,7 @@ import { randomBytes } from 'crypto'
 import { readFile, writeFile, mkdir } from 'fs/promises'
 import { writeFileSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
+import { EventEmitter } from 'events'
 import { app, type BrowserWindow } from 'electron'
 import type {
   Task,
@@ -16,12 +17,13 @@ import type {
 import type { PolicyState } from '../../shared/policy'
 import { TaskRunner } from './task-runner'
 import type { CdpRelay } from './cdp-relay'
+import { saveMemory, searchMemories, formatMemoriesForPrompt, closeMemoryDb } from './task-memory'
 
 const DEFAULT_MAX_STEPS = 200
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000 // 30 minutes
 const MAX_CONCURRENT_TASKS = 3
 
-export class TaskManager {
+export class TaskManager extends EventEmitter {
   private tasks = new Map<string, Task>()
   private runners = new Map<string, TaskRunner>()
   private mainWindow: BrowserWindow | null = null
@@ -31,6 +33,7 @@ export class TaskManager {
   private cdpRelay: CdpRelay | null = null
 
   constructor() {
+    super()
     this.persistPath = join(app.getPath('userData'), 'tasks.json')
     void this.loadFromDisk()
   }
@@ -99,9 +102,14 @@ export class TaskManager {
     const provider = policy?.provider.active ?? 'chatgpt'
     const openaiModel = policy?.provider.openaiModel ?? 'gpt-4.1'
 
+    // Search for relevant past task memories (if enabled)
+    const memoryEnabled = policy?.taskMemoryEnabled ?? true
+    const memories = memoryEnabled ? searchMemories(task.prompt) : []
+    const memoryContext = formatMemoriesForPrompt(memories)
+
     const runner = new TaskRunner(
       task,
-      { provider, openaiModel, cdpRelay: this.cdpRelay },
+      { provider, openaiModel, cdpRelay: this.cdpRelay, memoryContext },
       {
         onUpdate: (updated) => {
           this.tasks.set(updated.id, updated)
@@ -113,11 +121,14 @@ export class TaskManager {
 
     this.runners.set(taskId, runner)
 
+    const startTime = Date.now()
+
     // Run in background — don't await
     void runner.run().then((final) => {
       this.tasks.set(final.id, final)
       this.runners.delete(taskId)
-      void this.persistToDisk() // task reached terminal state — persist immediately
+      if (memoryEnabled) this.extractAndSaveMemory(final, provider, Date.now() - startTime)
+      void this.persistToDisk()
     }).catch((e) => {
       task.status = 'failed'
       task.error = e instanceof Error ? e.message : String(e)
@@ -125,7 +136,8 @@ export class TaskManager {
       this.tasks.set(taskId, task)
       this.pushUpdate(task)
       this.runners.delete(taskId)
-      void this.persistToDisk() // task failed — persist immediately
+      if (memoryEnabled) this.extractAndSaveMemory(task, provider, Date.now() - startTime)
+      void this.persistToDisk()
     })
 
     return task
@@ -197,6 +209,29 @@ export class TaskManager {
     }
     // Synchronous write — guarantees data is on disk before the process exits
     this.persistToDiskSync()
+    closeMemoryDb()
+  }
+
+  /**
+   * Extract learnings from a finished task and persist to memory DB.
+   * Uses the task's final summary/error + last few action types as a compact learning.
+   */
+  private extractAndSaveMemory(task: Task, provider: string, durationMs: number): void {
+    if (task.status !== 'completed' && task.status !== 'failed') return
+
+    const outcome = task.status === 'completed' ? 'completed' : 'failed'
+    const lastActions = task.steps.slice(-5).map((s) => s.action.type).join(', ')
+    const summary = task.summary ?? task.error ?? 'No summary'
+    const learnings = `${summary}. Steps: ${task.steps.length}. Last actions: ${lastActions}. Duration: ${Math.round(durationMs / 1000)}s.`
+
+    saveMemory({
+      taskId: task.id,
+      prompt: task.prompt,
+      outcome,
+      learnings,
+      provider,
+      durationMs
+    })
   }
 
   private getOrThrow(taskId: string): Task {
@@ -209,6 +244,7 @@ export class TaskManager {
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
       this.mainWindow.webContents.send('netbot:task:update', { task })
     }
+    this.emit('taskUpdate', task)
   }
 
   // ── Persistence ─────────────────────────────────────────────────────

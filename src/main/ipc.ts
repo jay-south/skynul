@@ -37,6 +37,7 @@ import { claudeRespond } from './providers/claude'
 import { deepseekRespond } from './providers/deepseek'
 import { kimiRespond } from './providers/kimi'
 import type { TaskManager } from './agent/task-manager'
+import type { TelegramBot } from './telegram/telegram-bot'
 
 let policy = DEFAULT_POLICY
 
@@ -108,6 +109,7 @@ export async function tryHandleChatGPTCallback(
 export function registerIpcHandlers(opts: {
   openAuthUrl: (url: string) => void
   taskManager: TaskManager
+  telegramBot: TelegramBot
 }): void {
   // Give TaskManager access to current policy (provider, model, etc.)
   opts.taskManager.setPolicyGetter(() => policy)
@@ -256,6 +258,12 @@ export function registerIpcHandlers(opts: {
       ...policy,
       themeMode: mode
     }
+    await savePolicy(policy)
+    return policy
+  })
+
+  ipcMain.handle(IPC.setTaskMemoryEnabled, async (_evt, enabled: boolean) => {
+    policy = { ...policy, taskMemoryEnabled: !!enabled }
     await savePolicy(policy)
     return policy
   })
@@ -417,6 +425,32 @@ export function registerIpcHandlers(opts: {
 
   ipcMain.handle(IPC.taskDelete, async (_evt, req: { taskId: string }) => {
     tm.delete(req.taskId)
+    return true
+  })
+
+  // ── Telegram ────────────────────────────────────────────────────────
+  const tg = opts.telegramBot
+
+  ipcMain.handle(IPC.telegramGetSettings, async () => {
+    return tg.getSettings()
+  })
+
+  ipcMain.handle(IPC.telegramSetEnabled, async (_evt, enabled: boolean) => {
+    await tg.setEnabled(enabled)
+    return tg.getSettings()
+  })
+
+  ipcMain.handle(IPC.telegramSetToken, async (_evt, token: string) => {
+    await setSecret('telegram.botToken', token.trim())
+    return true
+  })
+
+  ipcMain.handle(IPC.telegramGeneratePairingCode, async () => {
+    return tg.generatePairingCode()
+  })
+
+  ipcMain.handle(IPC.telegramUnpair, async () => {
+    await tg.unpair()
     return true
   })
 

@@ -34,6 +34,15 @@ export const IPC = {
   taskList: 'netbot:task:list',
   taskDelete: 'netbot:task:delete',
 
+  setTaskMemoryEnabled: 'netbot:policy:setTaskMemoryEnabled',
+
+  // ── Telegram ────────────────────────────────────────────────────────
+  telegramGetSettings: 'netbot:telegram:getSettings',
+  telegramSetEnabled: 'netbot:telegram:setEnabled',
+  telegramSetToken: 'netbot:telegram:setToken',
+  telegramGeneratePairingCode: 'netbot:telegram:generatePairingCode',
+  telegramUnpair: 'netbot:telegram:unpair',
+
   // ── Secrets (generic key-value) ──────────────────────────────────────
   getSecretKeys: 'netbot:secrets:getKeys',
   getSecret: 'netbot:secrets:get',

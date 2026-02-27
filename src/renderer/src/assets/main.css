@@ -1470,7 +1470,7 @@ code {
 
 .providerCardBadge {
   position: absolute;
-  top: 6px;
+  top: 8px;
   right: 8px;
   display: inline-flex;
   align-items: center;
@@ -1478,13 +1478,45 @@ code {
   font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
-  color: var(--nb-accent-2);
-  letter-spacing: 0.03em;
+  color: #fff;
+  letter-spacing: 0.04em;
+  background: var(--nb-accent-2);
+  padding: 3px 8px;
+  border-radius: 999px;
 }
 
 .providerCardBadgeCheck {
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1;
+}
+
+.settingsBadgeDot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 10px;
+  line-height: 1;
+  color: #fff;
+  background: var(--nb-accent-2);
+  border-radius: 999px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.settingsBadge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #fff;
+  background: var(--nb-accent-2);
+  padding: 3px 8px;
+  border-radius: 999px;
+  vertical-align: middle;
 }
 
 .apiKeyInput {

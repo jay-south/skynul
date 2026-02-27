@@ -6,10 +6,12 @@ import { initPolicy, registerIpcHandlers, tryHandleChatGPTCallback } from './ipc
 import { startAuthCallbackServer } from './auth-callback-server'
 import { TaskManager } from './agent/task-manager'
 import { CdpRelay } from './agent/cdp-relay'
+import { TelegramBot } from './telegram/telegram-bot'
 
 let authServer: { close: () => Promise<void> } | null = null
 let authWindow: BrowserWindow | null = null
 let taskManager: TaskManager | null = null
+let telegramBot: TelegramBot | null = null
 
 // WSL/VMs often fail GPU init; disable to avoid crashes/noise.
 app.disableHardwareAcceleration()
@@ -159,6 +161,11 @@ app.whenReady().then(() => {
   taskManager = new TaskManager()
   taskManager.setMainWindow(win)
 
+  telegramBot = new TelegramBot(taskManager)
+  void telegramBot.start().catch((e) => {
+    console.warn('[TelegramBot] Failed to start:', e)
+  })
+
   // Start CDP relay for browser extension tasks
   const cdpRelay = new CdpRelay()
   void cdpRelay.start().then(() => {
@@ -169,7 +176,8 @@ app.whenReady().then(() => {
 
   registerIpcHandlers({
     openAuthUrl: (url) => openAuthUrl(win, url),
-    taskManager
+    taskManager,
+    telegramBot
   })
 
   // Local callback server used for OAuth redirects.
@@ -201,6 +209,7 @@ app.whenReady().then(() => {
 
 app.on('before-quit', () => {
   taskManager?.destroyAll()
+  void telegramBot?.stop()
   void authServer?.close()
 })
 

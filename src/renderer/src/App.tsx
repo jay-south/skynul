@@ -114,10 +114,22 @@ function App(): React.JSX.Element {
   const [isMaximized, setIsMaximized] = useState<boolean>(false)
   const recognitionRef = useRef<InstanceType<typeof SpeechRecognition> | null>(null)
 
+  // ── Settings tab ────────────────────────────────────────────────────
+  const [settingsTab, setSettingsTab] = useState<'general' | 'providers' | 'computer'>('general')
+
+  // ── Telegram bot ────────────────────────────────────────────────────
+  const [tgEnabled, setTgEnabled] = useState(false)
+  const [tgPairedChatId, setTgPairedChatId] = useState<number | null>(null)
+  const [tgPairingCode, setTgPairingCode] = useState<string | null>(null)
+  const [tgTokenDraft, setTgTokenDraft] = useState('')
+  const [tgBusy, setTgBusy] = useState(false)
+  const [tgHasToken, setTgHasToken] = useState(false)
+
   // ── Trading secrets modal ────────────────────────────────────────────
   const [tradingModal, setTradingModal] = useState<'polymarket' | 'binance' | null>(null)
   const [tradingSecrets, setTradingSecrets] = useState<Record<string, string>>({})
   const [tradingSaving, setTradingSaving] = useState(false)
+  const [polymarketConfigured, setPolymarketConfigured] = useState(false)
 
   // ── Sidebar tab ──────────────────────────────────────────────────────
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('chats')
@@ -208,6 +220,24 @@ function App(): React.JSX.Element {
       })
     })
     return off
+  }, [])
+
+  // ── Telegram settings loader ───────────────────────────────────────
+  useEffect(() => {
+    void (async () => {
+      try {
+        const s = await window.netbot.telegramGetSettings()
+        setTgEnabled(s.enabled)
+        setTgPairedChatId(s.pairedChatId)
+        setTgPairingCode(s.pairingCode)
+        const has = await window.netbot.getSecret('telegram.botToken')
+        setTgHasToken(Boolean(has))
+        const pmKey = await window.netbot.getSecret('POLYMARKET_PRIVATE_KEY')
+        setPolymarketConfigured(Boolean(pmKey))
+      } catch {
+        // not available
+      }
+    })()
   }, [])
 
   useEffect(() => {
@@ -457,8 +487,6 @@ function App(): React.JSX.Element {
 
     try {
       const currentMessages = (activeConversation?.messages ?? []).concat(userMsg)
-      const active = policy?.provider.active ?? 'chatgpt'
-
       setIsThinking(true)
       let content: string
 
@@ -680,6 +708,7 @@ function App(): React.JSX.Element {
       for (const [k, v] of Object.entries(tradingSecrets)) {
         if (v) await window.netbot.setSecret(k, v)
       }
+      if (tradingSecrets['POLYMARKET_PRIVATE_KEY']) setPolymarketConfigured(true)
       setTradingModal(null)
     } finally {
       setTradingSaving(false)
@@ -984,211 +1013,389 @@ function App(): React.JSX.Element {
             <div className="settingsPanelInner">
               <h2 className="settingsPanelTitle">{t(lang, 'settings_title')}</h2>
 
+              {/* ── Settings tabs ─────────────────────────────── */}
+              <div className="seg">
+                {(['general', 'providers', 'computer'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    className={`segBtn ${settingsTab === tab ? 'active' : ''}`}
+                    onClick={() => setSettingsTab(tab)}
+                    aria-pressed={settingsTab === tab}
+                  >
+                    {tab === 'providers' ? 'Providers' : tab === 'computer' ? 'Computer' : 'General'}
+                  </button>
+                ))}
+              </div>
+
               {error ? <div className="composerError">{error}</div> : null}
 
-              {/* ── AI Provider ─────────────────────────────────── */}
-              <div className="settingsSection">
-                <div className="settingsLabel">{t(lang, 'settings_provider')}</div>
-                <div className="providerGrid">
-                  {PROVIDERS.map((p) => {
-                    const isActive = policy?.provider.active === p.id
-                    const showConnected =
-                      (p.id === 'chatgpt' && chatgptConnected) || (p.id !== 'chatgpt' && providerApiKeys[p.id])
-                    const isKimi = p.id === 'kimi'
-                    return (
-                      <button
-                        key={p.id}
-                        type="button"
-                        className={`providerCard ${isActive ? 'active' : ''} ${isKimi ? 'providerCard--kimi' : ''}`}
-                        onClick={() => void setActiveProvider(p.id)}
-                        disabled={providerSwitchBusy}
-                      >
-                        <img
-                          src={p.icon}
-                          alt={p.label}
-                          className="providerIcon"
-                        />
-                        {isKimi && <div className="providerCardLabel">KIMI k2-5</div>}
-                        {showConnected && (
-                          <div className="providerCardBadge">
-                            <span className="providerCardBadgeCheck" aria-hidden>✓</span>
-                            {t(lang, 'provider_connected')}
+              {/* ═══════════════ TAB: Providers ═══════════════ */}
+              {settingsTab === 'providers' && (
+                <>
+                  {/* ── AI Provider ─────────────────────────────────── */}
+                  <div className="settingsSection">
+                    <div className="settingsLabel">{t(lang, 'settings_provider')}</div>
+                    <div className="providerGrid">
+                      {PROVIDERS.map((p) => {
+                        const isActive = policy?.provider.active === p.id
+                        const showConnected = isActive &&
+                          ((p.id === 'chatgpt' && chatgptConnected) || (p.id !== 'chatgpt' && providerApiKeys[p.id]))
+                        const isKimi = p.id === 'kimi'
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            className={`providerCard ${isActive ? 'active' : ''} ${isKimi ? 'providerCard--kimi' : ''}`}
+                            onClick={() => void setActiveProvider(p.id)}
+                            disabled={providerSwitchBusy}
+                          >
+                            <img
+                              src={p.icon}
+                              alt={p.label}
+                              className="providerIcon"
+                            />
+                            {isKimi && <div className="providerCardLabel">KIMI k2-5</div>}
+                            {showConnected && (
+                              <div className="providerCardBadge">
+                                <span className="providerCardBadgeCheck" aria-hidden>✓</span>
+                                {t(lang, 'provider_connected')}
+                              </div>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* ── ChatGPT OAuth (only when chatgpt is active) ── */}
+                  {policy?.provider.active === 'chatgpt' && (
+                    <div className="settingsSection">
+                      <div className="settingsLabel">{t(lang, 'settings_chatgpt_pro')}</div>
+                      <div className="settingsField">
+                        <div className="settingsFieldHint">
+                          {chatgptConnected
+                            ? t(lang, 'chatgpt_status_connected')
+                            : t(lang, 'chatgpt_status_not_connected')}
+                        </div>
+                        {chatgptConnected ? (
+                          <button className="btn" onClick={() => void chatgptDisconnect()} disabled={chatgptBusy}>
+                            {t(lang, 'chatgpt_disconnect')}
+                          </button>
+                        ) : (
+                          <button className="btn" onClick={() => void chatgptConnect()} disabled={chatgptBusy}>
+                            {chatgptBusy ? t(lang, 'chatgpt_connecting') : t(lang, 'chatgpt_connect')}
+                          </button>
+                        )}
+                        <div className="settingsFieldHint">{t(lang, 'chatgpt_hint')}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── API key for Kimi / Claude / DeepSeek (when that provider is active) ── */}
+                  {(policy?.provider.active === 'kimi' ||
+                    policy?.provider.active === 'claude' ||
+                    policy?.provider.active === 'deepseek') && (
+                    <div className="settingsSection">
+                      <div className="settingsLabel">
+                        {t(lang, `settings_${policy.provider.active}_key` as 'settings_kimi_key' | 'settings_claude_key' | 'settings_deepseek_key')}
+                      </div>
+                      <div className="settingsField">
+                        {hasApiKey && (
+                          <div className="settingsFieldHint">
+                            {t(lang, `${policy.provider.active}_key_configured` as 'kimi_key_configured' | 'claude_key_configured' | 'deepseek_key_configured')}
                           </div>
                         )}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* ── ChatGPT OAuth (only when chatgpt is active) ── */}
-              {policy?.provider.active === 'chatgpt' && (
-                <div className="settingsSection">
-                  <div className="settingsLabel">{t(lang, 'settings_chatgpt_pro')}</div>
-                  <div className="settingsField">
-                    <div className="settingsFieldHint">
-                      {chatgptConnected
-                        ? t(lang, 'chatgpt_status_connected')
-                        : t(lang, 'chatgpt_status_not_connected')}
-                    </div>
-                    {chatgptConnected ? (
-                      <button className="btn" onClick={() => void chatgptDisconnect()} disabled={chatgptBusy}>
-                        {t(lang, 'chatgpt_disconnect')}
-                      </button>
-                    ) : (
-                      <button className="btn" onClick={() => void chatgptConnect()} disabled={chatgptBusy}>
-                        {chatgptBusy ? t(lang, 'chatgpt_connecting') : t(lang, 'chatgpt_connect')}
-                      </button>
-                    )}
-                    <div className="settingsFieldHint">{t(lang, 'chatgpt_hint')}</div>
-                  </div>
-                </div>
-              )}
-
-              {/* ── API key for Kimi / Claude / DeepSeek (when that provider is active) ── */}
-              {(policy?.provider.active === 'kimi' ||
-                policy?.provider.active === 'claude' ||
-                policy?.provider.active === 'deepseek') && (
-                <div className="settingsSection">
-                  <div className="settingsLabel">
-                    {t(lang, `settings_${policy.provider.active}_key` as 'settings_kimi_key' | 'settings_claude_key' | 'settings_deepseek_key')}
-                  </div>
-                  <div className="settingsField">
-                    {hasApiKey && (
-                      <div className="settingsFieldHint">
-                        {t(lang, `${policy.provider.active}_key_configured` as 'kimi_key_configured' | 'claude_key_configured' | 'deepseek_key_configured')}
+                        <input
+                          type="password"
+                          className="apiKeyInput"
+                          placeholder={t(lang, 'provider_api_key_placeholder')}
+                          value={apiKeyDraft}
+                          onChange={(e) => setApiKeyDraft(e.target.value)}
+                          aria-label={t(lang, 'provider_api_key_placeholder')}
+                        />
+                        <button
+                          type="button"
+                          className="btn"
+                          onClick={() => void saveProviderApiKey()}
+                          disabled={apiKeyBusy || !apiKeyDraft.trim()}
+                        >
+                          {apiKeyBusy ? '...' : t(lang, 'provider_api_key_save')}
+                        </button>
+                        <div className="settingsFieldHint">
+                          {t(lang, `${policy.provider.active}_key_get_from` as 'kimi_key_get_from' | 'claude_key_get_from' | 'deepseek_key_get_from')}
+                        </div>
                       </div>
-                    )}
-                    <input
-                      type="password"
-                      className="apiKeyInput"
-                      placeholder={t(lang, 'provider_api_key_placeholder')}
-                      value={apiKeyDraft}
-                      onChange={(e) => setApiKeyDraft(e.target.value)}
-                      aria-label={t(lang, 'provider_api_key_placeholder')}
-                    />
-                    <button
-                      type="button"
-                      className="btn"
-                      onClick={() => void saveProviderApiKey()}
-                      disabled={apiKeyBusy || !apiKeyDraft.trim()}
-                    >
-                      {apiKeyBusy ? '...' : t(lang, 'provider_api_key_save')}
-                    </button>
-                    <div className="settingsFieldHint">
-                      {t(lang, `${policy.provider.active}_key_get_from` as 'kimi_key_get_from' | 'claude_key_get_from' | 'deepseek_key_get_from')}
                     </div>
-                  </div>
-                </div>
+                  )}
+                </>
               )}
 
-              {/* ── Language ─────────────────────────────────────── */}
-              <div className="settingsSection">
-                <div className="settingsLabel">{t(lang, 'settings_language')}</div>
-                <div className="seg seg--2col">
-                  {(['en', 'es'] as const).map((l) => (
+              {/* ═══════════════ TAB: Computer ═══════════════ */}
+              {settingsTab === 'computer' && (
+                <>
+                  {/* ── Task Memory ──────────────────────────────────── */}
+                  <div className="settingsSection">
+                    <div className="settingsLabel">Task Memory</div>
                     <button
-                      key={l}
-                      className={`segBtn ${lang === l ? 'active' : ''}`}
-                      onClick={() => void setLanguage(l)}
-                      aria-pressed={lang === l}
-                    >
-                      {l === 'en' ? 'English' : 'Espanol'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* ── Theme ───────────────────────────────────────── */}
-              <div className="settingsSection">
-                <div className="settingsLabel">{t(lang, 'settings_theme')}</div>
-                <div className="seg">
-                  {(['system', 'light', 'dark'] as const).map((m) => (
-                    <button
-                      key={m}
-                      className={`segBtn ${policy?.themeMode === m ? 'active' : ''}`}
-                      onClick={() => void setTheme(m)}
+                      className={`cap ${policy?.taskMemoryEnabled ? 'on' : 'off'}`}
+                      onClick={async () => {
+                        const next = !policy?.taskMemoryEnabled
+                        const p = await window.netbot.setTaskMemoryEnabled(next)
+                        setPolicy(p)
+                      }}
                       disabled={!policy}
-                      aria-pressed={policy?.themeMode === m}
-                    >
-                      {t(lang, `theme_${m}` as 'theme_system' | 'theme_light' | 'theme_dark')}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* ── Workspace ───────────────────────────────────── */}
-              <div className="settingsSection">
-                <div className="settingsLabel">{t(lang, 'settings_workspace')}</div>
-                <div className="pathBox" title={workspaceLabel}>
-                  {workspaceLabel}
-                </div>
-                <button className="btn" onClick={pickWorkspace}>
-                  {t(lang, 'settings_pick_workspace')}
-                </button>
-              </div>
-
-              {/* ── Capabilities ─────────────────────────────────── */}
-              <div className="settingsSection">
-                <div className="settingsLabel">{t(lang, 'settings_capabilities')}</div>
-                <div className="capList">
-                  {CAPABILITIES.map((c) => (
-                    <button
-                      key={c.id}
-                      className={`cap ${policy?.capabilities[c.id] ? 'on' : 'off'}`}
-                      onClick={() => toggle(c.id)}
-                      disabled={!policy}
-                      title={c.desc}
                     >
                       <div className="capLeft">
-                        <div className="capTitle">{c.title}</div>
-                        <div className="capDesc">{c.id}</div>
+                        <div className="capTitle">Learn from Tasks</div>
+                        <div className="capDesc">Remember past results to improve future tasks</div>
                       </div>
                       <div className="capToggle" aria-hidden="true">
                         <div className="capKnob" />
                       </div>
                     </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* ── Trading Options ──────────────────────────────── */}
-              <div className="settingsSection">
-                <div className="settingsLabel">Trading Options</div>
-                <div className="settingsField" style={{ flexDirection: 'row', gap: 8 }}>
-                  <button className="btn" onClick={() => void openTradingModal('polymarket')}>
-                    Polymarket
-                  </button>
-                  <button className="btn" disabled>
-                    Binance
-                  </button>
-                </div>
-              </div>
-
-              {/* ── Account ─────────────────────────────────────── */}
-              <div className="settingsSection">
-                <div className="settingsLabel">{t(lang, 'settings_account')}</div>
-                <div className="settingsField">
-                  <div className="settingsFieldHint">
-                    {SUPABASE_CONFIGURED
-                      ? accountConnected
-                        ? accountEmail
-                          ? t(lang, 'account_connected_as', { email: accountEmail })
-                          : t(lang, 'account_connected')
-                        : t(lang, 'account_not_connected')
-                      : t(lang, 'account_supabase_not_configured')}
                   </div>
-                  {accountConnected ? (
-                    <button className="btn" onClick={() => void signOut()} disabled={accountBusy}>
-                      {t(lang, 'account_sign_out')}
+
+                  {/* ── Capabilities ─────────────────────────────────── */}
+                  <div className="settingsSection">
+                    <div className="settingsLabel">{t(lang, 'settings_capabilities')}</div>
+                    <div className="capList">
+                      {CAPABILITIES.map((c) => (
+                        <button
+                          key={c.id}
+                          className={`cap ${policy?.capabilities[c.id] ? 'on' : 'off'}`}
+                          onClick={() => toggle(c.id)}
+                          disabled={!policy}
+                          title={c.desc}
+                        >
+                          <div className="capLeft">
+                            <div className="capTitle">{c.title}</div>
+                            <div className="capDesc">{c.id}</div>
+                          </div>
+                          <div className="capToggle" aria-hidden="true">
+                            <div className="capKnob" />
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ── Trading Options ──────────────────────────────── */}
+                  <div className="settingsSection">
+                    <div className="settingsLabel">Trading Options</div>
+                    <div className="settingsField" style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                      <button className="btn" onClick={() => void openTradingModal('polymarket')}>
+                        Polymarket
+                        {polymarketConfigured && <span className="settingsBadgeDot">✓</span>}
+                      </button>
+                      <button className="btn" disabled>
+                        Binance
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* ── Telegram Bot ────────────────────────────────── */}
+                  <div className="settingsSection">
+                    <div className="settingsLabel">
+                      Telegram Bot
+                      {tgPairedChatId && <span className="settingsBadge" style={{ marginLeft: 8 }}>Paired</span>}
+                    </div>
+                    <div className="settingsField">
+                      <div className="settingsFieldHint">
+                        {tgHasToken
+                          ? 'Bot token configured'
+                          : 'Paste your bot token from @BotFather'}
+                      </div>
+                      <input
+                        type="password"
+                        className="apiKeyInput"
+                        placeholder="123456:ABC-DEF1234..."
+                        value={tgTokenDraft}
+                        onChange={(e) => setTgTokenDraft(e.target.value)}
+                        aria-label="Telegram bot token"
+                      />
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={async () => {
+                          if (!tgTokenDraft.trim()) return
+                          setTgBusy(true)
+                          try {
+                            await window.netbot.telegramSetToken(tgTokenDraft)
+                            setTgHasToken(true)
+                            setTgTokenDraft('')
+                          } catch (e) {
+                            setError(e instanceof Error ? e.message : String(e))
+                          } finally {
+                            setTgBusy(false)
+                          }
+                        }}
+                        disabled={tgBusy || !tgTokenDraft.trim()}
+                      >
+                        {tgBusy ? '...' : 'Save Token'}
+                      </button>
+
+                      {tgHasToken && (
+                        <button
+                          className={`cap ${tgEnabled ? 'on' : 'off'}`}
+                          onClick={async () => {
+                            setTgBusy(true)
+                            try {
+                              const s = await window.netbot.telegramSetEnabled(!tgEnabled)
+                              setTgEnabled(s.enabled)
+                              setTgPairedChatId(s.pairedChatId)
+                              setTgPairingCode(s.pairingCode)
+                            } catch (e) {
+                              setError(e instanceof Error ? e.message : String(e))
+                            } finally {
+                              setTgBusy(false)
+                            }
+                          }}
+                          disabled={tgBusy}
+                        >
+                          <div className="capLeft">
+                            <div className="capTitle">Bot Active</div>
+                            <div className="capDesc">
+                              {tgEnabled ? 'Listening for messages' : 'Bot is off'}
+                            </div>
+                          </div>
+                          <div className="capToggle" aria-hidden="true">
+                            <div className="capKnob" />
+                          </div>
+                        </button>
+                      )}
+
+                      {tgEnabled && !tgPairedChatId && (
+                        <>
+                          {tgPairingCode ? (
+                            <div className="settingsFieldHint">
+                              Send <code>/pair {tgPairingCode}</code> to your bot in Telegram
+                            </div>
+                          ) : (
+                            <button
+                              className="btn"
+                              onClick={async () => {
+                                setTgBusy(true)
+                                try {
+                                  const code = await window.netbot.telegramGeneratePairingCode()
+                                  setTgPairingCode(code)
+                                } catch (e) {
+                                  setError(e instanceof Error ? e.message : String(e))
+                                } finally {
+                                  setTgBusy(false)
+                                }
+                              }}
+                              disabled={tgBusy}
+                            >
+                              Generate Pairing Code
+                            </button>
+                          )}
+                        </>
+                      )}
+
+                      {tgEnabled && tgPairedChatId && (
+                        <>
+                          <div className="settingsFieldHint">
+                            Paired to chat {tgPairedChatId}
+                          </div>
+                          <button
+                            className="btn"
+                            onClick={async () => {
+                              setTgBusy(true)
+                              try {
+                                await window.netbot.telegramUnpair()
+                                setTgPairedChatId(null)
+                                setTgPairingCode(null)
+                              } catch (e) {
+                                setError(e instanceof Error ? e.message : String(e))
+                              } finally {
+                                setTgBusy(false)
+                              }
+                            }}
+                            disabled={tgBusy}
+                          >
+                            Unpair
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ═══════════════ TAB: General ═══════════════ */}
+              {settingsTab === 'general' && (
+                <>
+                  {/* ── Language ─────────────────────────────────────── */}
+                  <div className="settingsSection">
+                    <div className="settingsLabel">{t(lang, 'settings_language')}</div>
+                    <div className="seg seg--2col">
+                      {(['en', 'es'] as const).map((l) => (
+                        <button
+                          key={l}
+                          className={`segBtn ${lang === l ? 'active' : ''}`}
+                          onClick={() => void setLanguage(l)}
+                          aria-pressed={lang === l}
+                        >
+                          {l === 'en' ? 'English' : 'Espanol'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ── Theme ───────────────────────────────────────── */}
+                  <div className="settingsSection">
+                    <div className="settingsLabel">{t(lang, 'settings_theme')}</div>
+                    <div className="seg">
+                      {(['system', 'light', 'dark'] as const).map((m) => (
+                        <button
+                          key={m}
+                          className={`segBtn ${policy?.themeMode === m ? 'active' : ''}`}
+                          onClick={() => void setTheme(m)}
+                          disabled={!policy}
+                          aria-pressed={policy?.themeMode === m}
+                        >
+                          {t(lang, `theme_${m}` as 'theme_system' | 'theme_light' | 'theme_dark')}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ── Workspace ───────────────────────────────────── */}
+                  <div className="settingsSection">
+                    <div className="settingsLabel">{t(lang, 'settings_workspace')}</div>
+                    <div className="pathBox" title={workspaceLabel}>
+                      {workspaceLabel}
+                    </div>
+                    <button className="btn" onClick={pickWorkspace}>
+                      {t(lang, 'settings_pick_workspace')}
                     </button>
-                  ) : (
-                    <button className="btn" onClick={() => void signIn()} disabled={accountBusy}>
-                      {t(lang, 'account_sign_in_google')}
-                    </button>
-                  )}
-                </div>
-              </div>
+                  </div>
+
+                  <div className="settingsSection">
+                    <div className="settingsLabel">{t(lang, 'settings_account')}</div>
+                    <div className="settingsField">
+                      <div className="settingsFieldHint">
+                        {SUPABASE_CONFIGURED
+                          ? accountConnected
+                            ? accountEmail
+                              ? t(lang, 'account_connected_as', { email: accountEmail })
+                              : t(lang, 'account_connected')
+                            : t(lang, 'account_not_connected')
+                          : t(lang, 'account_supabase_not_configured')}
+                      </div>
+                      {accountConnected ? (
+                        <button className="btn" onClick={() => void signOut()} disabled={accountBusy}>
+                          {t(lang, 'account_sign_out')}
+                        </button>
+                      ) : (
+                        <button className="btn" onClick={() => void signIn()} disabled={accountBusy}>
+                          {t(lang, 'account_sign_in_google')}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}

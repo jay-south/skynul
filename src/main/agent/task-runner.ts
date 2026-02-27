@@ -30,6 +30,7 @@ export type TaskRunnerOpts = {
   provider: ProviderId
   openaiModel: string
   cdpRelay?: CdpRelay | null
+  memoryContext?: string
 }
 
 export class TaskRunner {
@@ -85,10 +86,11 @@ export class TaskRunner {
     const systemPrompt = buildSystemPrompt(this.task.capabilities)
     const history: VisionMessage[] = []
 
-    // Initial user message with the task prompt
+    // Initial user message with the task prompt + memory context
+    const memCtx = this.opts.memoryContext ?? ''
     history.push({
       role: 'user',
-      content: [{ type: 'input_text', text: `Task: ${this.task.prompt}` }]
+      content: [{ type: 'input_text', text: `Task: ${this.task.prompt}${memCtx}` }]
     })
 
     // Agent loop
@@ -260,9 +262,10 @@ export class TaskRunner {
     const systemPrompt = buildCdpSystemPrompt(this.task.capabilities)
     const history: VisionMessage[] = []
 
+    const memCtxCdp = this.opts.memoryContext ?? ''
     history.push({
       role: 'user',
-      content: [{ type: 'input_text', text: `Task: ${this.task.prompt}` }]
+      content: [{ type: 'input_text', text: `Task: ${this.task.prompt}${memCtxCdp}` }]
     })
 
     while (!this.aborted && this.task.steps.length < this.task.maxSteps) {

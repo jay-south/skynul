@@ -122,6 +122,27 @@ const netbot = {
     ipcRenderer.on('netbot:task:update', handler)
     return () => ipcRenderer.off('netbot:task:update', handler)
   },
+  setTaskMemoryEnabled: (enabled: boolean): Promise<PolicyState> =>
+    ipcRenderer.invoke(IPC.setTaskMemoryEnabled, enabled),
+
+  // ── Telegram ─────────────────────────────────────────────────────────
+  telegramGetSettings: (): Promise<{
+    enabled: boolean
+    pairedChatId: number | null
+    pairingCode: string | null
+  }> => ipcRenderer.invoke(IPC.telegramGetSettings),
+  telegramSetEnabled: (enabled: boolean): Promise<{
+    enabled: boolean
+    pairedChatId: number | null
+    pairingCode: string | null
+  }> => ipcRenderer.invoke(IPC.telegramSetEnabled, enabled),
+  telegramSetToken: (token: string): Promise<boolean> =>
+    ipcRenderer.invoke(IPC.telegramSetToken, token),
+  telegramGeneratePairingCode: (): Promise<string> =>
+    ipcRenderer.invoke(IPC.telegramGeneratePairingCode),
+  telegramUnpair: (): Promise<boolean> =>
+    ipcRenderer.invoke(IPC.telegramUnpair),
+
   // ── Secrets ──────────────────────────────────────────────────────────
   getSecret: (key: string): Promise<string | null> =>
     ipcRenderer.invoke(IPC.getSecret, key),

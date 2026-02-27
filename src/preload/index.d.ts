@@ -50,6 +50,23 @@ declare global {
       onTaskUpdate: (cb: (task: Task) => void) => () => void
       onWindowMaximized: (cb: (maximized: boolean) => void) => () => void
 
+      setTaskMemoryEnabled: (enabled: boolean) => Promise<PolicyState>
+
+      // Telegram
+      telegramGetSettings: () => Promise<{
+        enabled: boolean
+        pairedChatId: number | null
+        pairingCode: string | null
+      }>
+      telegramSetEnabled: (enabled: boolean) => Promise<{
+        enabled: boolean
+        pairedChatId: number | null
+        pairingCode: string | null
+      }>
+      telegramSetToken: (token: string) => Promise<boolean>
+      telegramGeneratePairingCode: () => Promise<string>
+      telegramUnpair: () => Promise<boolean>
+
       // Secrets
       getSecret: (key: string) => Promise<string | null>
       setSecret: (key: string, value: string) => Promise<void>
