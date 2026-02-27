@@ -15,6 +15,8 @@ import { TaskApprovalDialog } from './components/TaskApprovalDialog'
 import { TaskTemplates, type TaskTemplateId } from './components/TaskTemplates'
 import { TaskComposer } from './components/TaskComposer'
 import { t } from './i18n'
+import { SkillGraph } from './components/SkillGraph'
+import type { Skill } from '../../shared/skill'
 
 import chatgptIcon from './assets/chatgpt.svg'
 import claudeIcon from './assets/claude-logo.svg'
@@ -115,7 +117,12 @@ function App(): React.JSX.Element {
   const recognitionRef = useRef<InstanceType<typeof SpeechRecognition> | null>(null)
 
   // ── Settings tab ────────────────────────────────────────────────────
-  const [settingsTab, setSettingsTab] = useState<'general' | 'providers' | 'computer'>('general')
+  const [settingsTab, setSettingsTab] = useState<'general' | 'providers' | 'computer' | 'skills'>('general')
+
+  // ── Skills ─────────────────────────────────────────────────────────
+  const [skills, setSkills] = useState<Skill[]>([])
+  const [skillModal, setSkillModal] = useState<Skill | 'new' | null>(null)
+  const [skillDraft, setSkillDraft] = useState({ name: '', tag: '', description: '', prompt: '' })
 
   // ── Telegram bot ────────────────────────────────────────────────────
   const [tgEnabled, setTgEnabled] = useState(false)
@@ -234,6 +241,8 @@ function App(): React.JSX.Element {
         setTgHasToken(Boolean(has))
         const pmKey = await window.netbot.getSecret('POLYMARKET_PRIVATE_KEY')
         setPolymarketConfigured(Boolean(pmKey))
+        const sk = await window.netbot.skillList()
+        setSkills(sk)
       } catch {
         // not available
       }
@@ -1015,14 +1024,14 @@ function App(): React.JSX.Element {
 
               {/* ── Settings tabs ─────────────────────────────── */}
               <div className="seg">
-                {(['general', 'providers', 'computer'] as const).map((tab) => (
+                {(['general', 'providers', 'computer', 'skills'] as const).map((tab) => (
                   <button
                     key={tab}
                     className={`segBtn ${settingsTab === tab ? 'active' : ''}`}
                     onClick={() => setSettingsTab(tab)}
                     aria-pressed={settingsTab === tab}
                   >
-                    {tab === 'providers' ? 'Providers' : tab === 'computer' ? 'Computer' : 'General'}
+                    {tab === 'providers' ? 'Providers' : tab === 'computer' ? 'Computer' : tab === 'skills' ? 'Skills' : 'General'}
                   </button>
                 ))}
               </div>
@@ -1396,10 +1405,165 @@ function App(): React.JSX.Element {
                   </div>
                 </>
               )}
+
+              {/* ═══════════════ TAB: Skills ═══════════════ */}
+              {settingsTab === 'skills' && (
+                <>
+                  <div className="settingsSection">
+                    <div className="settingsLabel">Skill Graph</div>
+                    <SkillGraph skills={skills} />
+                  </div>
+
+                  <div className="settingsSection">
+                    <div className="settingsLabel">Manage Skills</div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        className="btn"
+                        onClick={() => {
+                          setSkillDraft({ name: '', tag: '', description: '', prompt: '' })
+                          setSkillModal('new')
+                        }}
+                      >
+                        Create Skill
+                      </button>
+                      <button
+                        className="btn"
+                        onClick={async () => {
+                          const result = await window.netbot.showOpenFilesDialog()
+                          if (result.canceled || result.filePaths.length === 0) return
+                          try {
+                            for (const fp of result.filePaths) {
+                              const updated = await window.netbot.skillImport(fp)
+                              setSkills(updated)
+                            }
+                          } catch (e) {
+                            setError(`Import failed: ${e instanceof Error ? e.message : String(e)}`)
+                          }
+                        }}
+                      >
+                        Import JSON
+                      </button>
+                    </div>
+                    {skills.length > 0 && (
+                      <div className="capList">
+                        {skills.map((s) => (
+                          <button
+                            key={s.id}
+                            className={`cap ${s.enabled ? 'on' : 'off'}`}
+                            onClick={async () => {
+                              const updated = await window.netbot.skillToggle(s.id)
+                              setSkills(updated)
+                            }}
+                          >
+                            <div className="capLeft">
+                              <div className="capTitle">{s.name}</div>
+                              <div className="capDesc">{s.tag}</div>
+                            </div>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                              <span
+                                style={{ fontSize: 12, cursor: 'pointer', color: 'var(--nb-muted)' }}
+                                onClick={async (e) => {
+                                  e.stopPropagation()
+                                  setSkillDraft({ name: s.name, tag: s.tag, description: s.description, prompt: s.prompt })
+                                  setSkillModal(s)
+                                }}
+                              >
+                                Edit
+                              </span>
+                              <span
+                                style={{ fontSize: 12, cursor: 'pointer', color: 'var(--nb-muted)' }}
+                                onClick={async (e) => {
+                                  e.stopPropagation()
+                                  const updated = await window.netbot.skillDelete(s.id)
+                                  setSkills(updated)
+                                }}
+                              >
+                                Del
+                              </span>
+                              <div className="capToggle" aria-hidden="true">
+                                <div className="capKnob" />
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
       </section>
+
+      {/* ── Skill modal ───────────────────────────────────────────── */}
+      {skillModal && (
+        <div className="modalBackdrop" onMouseDown={() => setSkillModal(null)}>
+          <div className="modal" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 500 }}>
+            <div className="modalHeader">
+              <div className="modalTitle">{skillModal === 'new' ? 'New Skill' : 'Edit Skill'}</div>
+              <button className="modalClose" onClick={() => setSkillModal(null)} aria-label="Close">&times;</button>
+            </div>
+            <div className="modalBody" style={{ gridTemplateColumns: '1fr' }}>
+              <div className="modalSection">
+                <div className="modalLabel">Name</div>
+                <input
+                  className="apiKeyInput"
+                  value={skillDraft.name}
+                  onChange={(e) => setSkillDraft({ ...skillDraft, name: e.target.value })}
+                  placeholder="e.g. Polymarket Trader"
+                />
+              </div>
+              <div className="modalSection">
+                <div className="modalLabel">Tag</div>
+                <input
+                  className="apiKeyInput"
+                  value={skillDraft.tag}
+                  onChange={(e) => setSkillDraft({ ...skillDraft, tag: e.target.value })}
+                  placeholder="e.g. trading, excel, research"
+                />
+              </div>
+              <div className="modalSection">
+                <div className="modalLabel">Description</div>
+                <input
+                  className="apiKeyInput"
+                  value={skillDraft.description}
+                  onChange={(e) => setSkillDraft({ ...skillDraft, description: e.target.value })}
+                  placeholder="Short description"
+                />
+              </div>
+              <div className="modalSection">
+                <div className="modalLabel">Prompt / Instructions</div>
+                <textarea
+                  className="apiKeyInput"
+                  style={{ minHeight: 120, resize: 'vertical', fontFamily: 'inherit' }}
+                  value={skillDraft.prompt}
+                  onChange={(e) => setSkillDraft({ ...skillDraft, prompt: e.target.value })}
+                  placeholder="Instructions the agent should follow for this skill..."
+                />
+              </div>
+            </div>
+            <div className="modalFooter">
+              <button
+                className="btn"
+                disabled={!skillDraft.name.trim() || !skillDraft.prompt.trim()}
+                onClick={async () => {
+                  const payload = {
+                    ...skillDraft,
+                    enabled: true,
+                    ...(skillModal !== 'new' ? { id: skillModal.id } : {})
+                  }
+                  const updated = await window.netbot.skillSave(payload)
+                  setSkills(updated)
+                  setSkillModal(null)
+                }}
+              >
+                {skillModal === 'new' ? 'Create' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Trading secrets modal ─────────────────────────────────── */}
       {tradingModal === 'polymarket' && (

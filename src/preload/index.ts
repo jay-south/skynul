@@ -125,6 +125,18 @@ const netbot = {
   setTaskMemoryEnabled: (enabled: boolean): Promise<PolicyState> =>
     ipcRenderer.invoke(IPC.setTaskMemoryEnabled, enabled),
 
+  // ── Skills ──────────────────────────────────────────────────────────
+  skillList: (): Promise<import('../shared/skill').Skill[]> =>
+    ipcRenderer.invoke(IPC.skillList),
+  skillSave: (skill: Record<string, unknown>): Promise<import('../shared/skill').Skill[]> =>
+    ipcRenderer.invoke(IPC.skillSave, skill),
+  skillDelete: (id: string): Promise<import('../shared/skill').Skill[]> =>
+    ipcRenderer.invoke(IPC.skillDelete, id),
+  skillToggle: (id: string): Promise<import('../shared/skill').Skill[]> =>
+    ipcRenderer.invoke(IPC.skillToggle, id),
+  skillImport: (filePath: string): Promise<import('../shared/skill').Skill[]> =>
+    ipcRenderer.invoke(IPC.skillImport, filePath),
+
   // ── Telegram ─────────────────────────────────────────────────────────
   telegramGetSettings: (): Promise<{
     enabled: boolean

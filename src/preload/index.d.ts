@@ -52,6 +52,13 @@ declare global {
 
       setTaskMemoryEnabled: (enabled: boolean) => Promise<PolicyState>
 
+      // Skills
+      skillList: () => Promise<import('../shared/skill').Skill[]>
+      skillSave: (skill: Record<string, unknown>) => Promise<import('../shared/skill').Skill[]>
+      skillDelete: (id: string) => Promise<import('../shared/skill').Skill[]>
+      skillToggle: (id: string) => Promise<import('../shared/skill').Skill[]>
+      skillImport: (filePath: string) => Promise<import('../shared/skill').Skill[]>
+
       // Telegram
       telegramGetSettings: () => Promise<{
         enabled: boolean

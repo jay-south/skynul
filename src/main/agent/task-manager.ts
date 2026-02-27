@@ -18,6 +18,7 @@ import type { PolicyState } from '../../shared/policy'
 import { TaskRunner } from './task-runner'
 import type { CdpRelay } from './cdp-relay'
 import { saveMemory, searchMemories, formatMemoriesForPrompt, closeMemoryDb } from './task-memory'
+import { loadSkills, getActiveSkillPrompts } from '../skill-store'
 
 const DEFAULT_MAX_STEPS = 200
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000 // 30 minutes
@@ -107,9 +108,13 @@ export class TaskManager extends EventEmitter {
     const memories = memoryEnabled ? searchMemories(task.prompt) : []
     const memoryContext = formatMemoriesForPrompt(memories)
 
+    // Load active skills
+    const skills = await loadSkills()
+    const skillContext = getActiveSkillPrompts(skills, task.prompt)
+
     const runner = new TaskRunner(
       task,
-      { provider, openaiModel, cdpRelay: this.cdpRelay, memoryContext },
+      { provider, openaiModel, cdpRelay: this.cdpRelay, memoryContext: memoryContext + skillContext },
       {
         onUpdate: (updated) => {
           this.tasks.set(updated.id, updated)

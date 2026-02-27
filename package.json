@@ -25,6 +25,7 @@
     "@electron-toolkit/utils": "^4.0.0",
     "@polymarket/clob-client": "^5.2.4",
     "@supabase/supabase-js": "^2.97.0",
+    "@xyflow/react": "^12.10.1",
     "better-sqlite3": "^12.6.2",
     "ethers": "^6.16.0",
     "exceljs": "^4.4.0",

@@ -36,6 +36,13 @@ export const IPC = {
 
   setTaskMemoryEnabled: 'netbot:policy:setTaskMemoryEnabled',
 
+  // ── Skills ──────────────────────────────────────────────────────────
+  skillList: 'netbot:skill:list',
+  skillSave: 'netbot:skill:save',
+  skillDelete: 'netbot:skill:delete',
+  skillToggle: 'netbot:skill:toggle',
+  skillImport: 'netbot:skill:import',
+
   // ── Telegram ────────────────────────────────────────────────────────
   telegramGetSettings: 'netbot:telegram:getSettings',
   telegramSetEnabled: 'netbot:telegram:setEnabled',

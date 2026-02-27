@@ -38,6 +38,8 @@ import { deepseekRespond } from './providers/deepseek'
 import { kimiRespond } from './providers/kimi'
 import type { TaskManager } from './agent/task-manager'
 import type { TelegramBot } from './telegram/telegram-bot'
+import type { Skill } from '../shared/skill'
+import { loadSkills, saveSkills, createSkillId } from './skill-store'
 
 let policy = DEFAULT_POLICY
 
@@ -426,6 +428,55 @@ export function registerIpcHandlers(opts: {
   ipcMain.handle(IPC.taskDelete, async (_evt, req: { taskId: string }) => {
     tm.delete(req.taskId)
     return true
+  })
+
+  // ── Skills ──────────────────────────────────────────────────────────
+
+  ipcMain.handle(IPC.skillList, async () => loadSkills())
+
+  ipcMain.handle(IPC.skillSave, async (_evt, skill: Omit<Skill, 'id' | 'createdAt'> & { id?: string }) => {
+    const skills = await loadSkills()
+    if (skill.id) {
+      const idx = skills.findIndex((s) => s.id === skill.id)
+      if (idx !== -1) {
+        skills[idx] = { ...skills[idx], ...skill } as Skill
+      }
+    } else {
+      skills.push({ ...skill, id: createSkillId(), createdAt: Date.now() } as Skill)
+    }
+    await saveSkills(skills)
+    return skills
+  })
+
+  ipcMain.handle(IPC.skillDelete, async (_evt, id: string) => {
+    const skills = (await loadSkills()).filter((s) => s.id !== id)
+    await saveSkills(skills)
+    return skills
+  })
+
+  ipcMain.handle(IPC.skillToggle, async (_evt, id: string) => {
+    const skills = await loadSkills()
+    const s = skills.find((sk) => sk.id === id)
+    if (s) s.enabled = !s.enabled
+    await saveSkills(skills)
+    return skills
+  })
+
+  ipcMain.handle(IPC.skillImport, async (_evt, filePath: string) => {
+    const raw = await readFile(filePath, 'utf8')
+    const parsed = JSON.parse(raw) as Record<string, unknown>
+    const skills = await loadSkills()
+    skills.push({
+      id: createSkillId(),
+      name: String(parsed.name ?? 'Imported'),
+      tag: String(parsed.tag ?? parsed.category ?? ''),
+      description: String(parsed.description ?? ''),
+      prompt: String(parsed.prompt ?? ''),
+      enabled: true,
+      createdAt: Date.now()
+    })
+    await saveSkills(skills)
+    return skills
   })
 
   // ── Telegram ────────────────────────────────────────────────────────
