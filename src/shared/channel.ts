@@ -9,5 +9,10 @@ export type ChannelSettings = {
   paired: boolean
   pairingCode: string | null
   error: string | null
+  hasCredentials: boolean
   meta: Record<string, unknown>
+}
+
+export type ChannelGlobalSettings = {
+  autoApprove: boolean
 }

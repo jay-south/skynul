@@ -1,10 +1,29 @@
 import { useEffect, useState, useCallback } from 'react'
 import type { ChannelId, ChannelSettings as ChannelSettingsType } from '../../../shared/channel'
 
-const CHANNEL_INFO: Record<ChannelId, { label: string; icon: string; desc: string; credentialField: string; credentialLabel: string; credentialPlaceholder: string; credentialField2?: string; credentialLabel2?: string; credentialPlaceholder2?: string }> = {
+import discordIcon from '../assets/discord.svg'
+import signalIcon from '../assets/signal.svg'
+import slackIcon from '../assets/slack.svg'
+import telegramIcon from '../assets/telegram.svg'
+import whatsappIcon from '../assets/whatsapp.svg'
+
+const CHANNEL_INFO: Record<
+  ChannelId,
+  {
+    label: string
+    iconSrc: string
+    desc: string
+    credentialField: string
+    credentialLabel: string
+    credentialPlaceholder: string
+    credentialField2?: string
+    credentialLabel2?: string
+    credentialPlaceholder2?: string
+  }
+> = {
   telegram: {
     label: 'Telegram',
-    icon: '✈',
+    iconSrc: telegramIcon,
     desc: 'Bot token from @BotFather',
     credentialField: 'token',
     credentialLabel: 'Bot Token',
@@ -12,7 +31,7 @@ const CHANNEL_INFO: Record<ChannelId, { label: string; icon: string; desc: strin
   },
   whatsapp: {
     label: 'WhatsApp',
-    icon: '💬',
+    iconSrc: whatsappIcon,
     desc: 'QR-based auth via whatsapp-web.js',
     credentialField: '',
     credentialLabel: '',
@@ -20,7 +39,7 @@ const CHANNEL_INFO: Record<ChannelId, { label: string; icon: string; desc: strin
   },
   discord: {
     label: 'Discord',
-    icon: '🎮',
+    iconSrc: discordIcon,
     desc: 'Bot token from Discord Developer Portal',
     credentialField: 'token',
     credentialLabel: 'Bot Token',
@@ -28,7 +47,7 @@ const CHANNEL_INFO: Record<ChannelId, { label: string; icon: string; desc: strin
   },
   signal: {
     label: 'Signal',
-    icon: '🔒',
+    iconSrc: signalIcon,
     desc: 'signal-cli REST API',
     credentialField: 'apiUrl',
     credentialLabel: 'API URL',
@@ -36,7 +55,7 @@ const CHANNEL_INFO: Record<ChannelId, { label: string; icon: string; desc: strin
   },
   slack: {
     label: 'Slack',
-    icon: '#',
+    iconSrc: slackIcon,
     desc: 'Socket Mode — Bot Token + App Token',
     credentialField: 'botToken',
     credentialLabel: 'Bot Token',
@@ -61,11 +80,16 @@ export function ChannelSettings(): React.JSX.Element {
   const [credDraft2, setCredDraft2] = useState('')
   const [busy, setBusy] = useState<ChannelId | null>(null)
   const [error, setError] = useState('')
+  const [autoApprove, setAutoApprove] = useState(true)
 
   const loadChannels = useCallback(async () => {
     try {
-      const all = await window.skynul.channelGetAll()
+      const [all, global] = await Promise.all([
+        window.skynul.channelGetAll(),
+        window.skynul.channelGetGlobal()
+      ])
       setChannels(all)
+      setAutoApprove(global.autoApprove)
     } catch {
       // not available
     }
@@ -114,9 +138,7 @@ export function ChannelSettings(): React.JSX.Element {
     setError('')
     try {
       const code = await window.skynul.channelGeneratePairing(channelId)
-      setChannels((prev) =>
-        prev.map((c) => (c.id === channelId ? { ...c, pairingCode: code } : c))
-      )
+      setChannels((prev) => prev.map((c) => (c.id === channelId ? { ...c, pairingCode: code } : c)))
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -137,10 +159,37 @@ export function ChannelSettings(): React.JSX.Element {
     }
   }
 
+  const handleAutoApproveToggle = async (): Promise<void> => {
+    try {
+      const updated = await window.skynul.channelSetAutoApprove(!autoApprove)
+      setAutoApprove(updated.autoApprove)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
   return (
     <div className="settingsSection">
       <div className="settingsLabel">Messaging Channels</div>
       {error && <div className="composerError">{error}</div>}
+
+      <button
+        className={`cap ${autoApprove ? 'on' : 'off'}`}
+        onClick={() => void handleAutoApproveToggle()}
+        style={{ marginBottom: 12 }}
+      >
+        <div className="capLeft">
+          <div className="capTitle">Aprobar tareas automáticamente</div>
+          <div className="capDesc">
+            {autoApprove
+              ? 'Las tareas de canales se ejecutan sin confirmación'
+              : 'Las tareas quedan pendientes hasta que las apruebes'}
+          </div>
+        </div>
+        <div className="capToggle" aria-hidden="true">
+          <div className="capKnob" />
+        </div>
+      </button>
 
       <div className="channelGrid">
         {channels.map((ch) => {
@@ -155,7 +204,9 @@ export function ChannelSettings(): React.JSX.Element {
                 className="channelCardHeader"
                 onClick={() => setExpandedId(isExpanded ? null : ch.id)}
               >
-                <span className="channelIcon">{info.icon}</span>
+                <span className="channelIcon" aria-hidden="true">
+                  <img className="channelIconImg" src={info.iconSrc} alt="" />
+                </span>
                 <span className="channelName">{info.label}</span>
                 <span
                   className="channelStatusDot"
@@ -172,32 +223,48 @@ export function ChannelSettings(): React.JSX.Element {
                   {/* Credentials input */}
                   {info.credentialField && (
                     <div className="channelCredRow" style={{ flexDirection: 'column', gap: 6 }}>
-                      <input
-                        type="password"
-                        className="apiKeyInput"
-                        placeholder={info.credentialPlaceholder}
-                        value={credDraft}
-                        onChange={(e) => setCredDraft(e.target.value)}
-                        aria-label={info.credentialLabel}
-                      />
-                      {info.credentialField2 && (
-                        <input
-                          type="password"
-                          className="apiKeyInput"
-                          placeholder={info.credentialPlaceholder2}
-                          value={credDraft2}
-                          onChange={(e) => setCredDraft2(e.target.value)}
-                          aria-label={info.credentialLabel2}
-                        />
+                      {ch.hasCredentials && !credDraft && (
+                        <div className="channelSavedCred">
+                          <span className="credMask">••••••••••••••••</span>
+                          <button
+                            type="button"
+                            className="btn btnSmall"
+                            onClick={() => setCredDraft(' ')}
+                          >
+                            Change
+                          </button>
+                        </div>
                       )}
-                      <button
-                        type="button"
-                        className="btn"
-                        onClick={() => void handleSaveCredentials(ch.id)}
-                        disabled={isBusy || !credDraft.trim()}
-                      >
-                        {isBusy ? '...' : 'Save'}
-                      </button>
+                      {(!ch.hasCredentials || credDraft) && (
+                        <>
+                          <input
+                            type="password"
+                            className="apiKeyInput"
+                            placeholder={info.credentialPlaceholder}
+                            value={credDraft}
+                            onChange={(e) => setCredDraft(e.target.value)}
+                            aria-label={info.credentialLabel}
+                          />
+                          {info.credentialField2 && (
+                            <input
+                              type="password"
+                              className="apiKeyInput"
+                              placeholder={info.credentialPlaceholder2}
+                              value={credDraft2}
+                              onChange={(e) => setCredDraft2(e.target.value)}
+                              aria-label={info.credentialLabel2}
+                            />
+                          )}
+                          <button
+                            type="button"
+                            className="btn"
+                            onClick={() => void handleSaveCredentials(ch.id)}
+                            disabled={isBusy || !credDraft.trim()}
+                          >
+                            {isBusy ? '...' : 'Save'}
+                          </button>
+                        </>
+                      )}
                     </div>
                   )}
 
@@ -224,13 +291,19 @@ export function ChannelSettings(): React.JSX.Element {
                       {ch.pairingCode ? (
                         <div className="settingsFieldHint">
                           {ch.id === 'telegram' && (
-                            <>Send <code>/pair {ch.pairingCode}</code> to your bot in Telegram</>
+                            <>
+                              Send <code>/pair {ch.pairingCode}</code> to your bot in Telegram
+                            </>
                           )}
                           {ch.id === 'discord' && (
-                            <>Send <code>/pair {ch.pairingCode}</code> to your bot in Discord</>
+                            <>
+                              Send <code>/pair {ch.pairingCode}</code> to your bot in Discord
+                            </>
                           )}
                           {ch.id === 'slack' && (
-                            <>Send <code>/pair {ch.pairingCode}</code> to the bot in Slack</>
+                            <>
+                              Send <code>/pair {ch.pairingCode}</code> to the bot in Slack
+                            </>
                           )}
                           {ch.id === 'whatsapp' && <>Scan QR code in WhatsApp</>}
                           {ch.id === 'signal' && <>Link device via Signal</>}
@@ -252,8 +325,12 @@ export function ChannelSettings(): React.JSX.Element {
                     <div className="channelPaired">
                       <div className="settingsFieldHint">
                         {ch.id === 'telegram' && <>Paired to chat {String(ch.meta.pairedChatId)}</>}
-                        {ch.id === 'discord' && <>Paired to channel {String(ch.meta.pairedChannelId)}</>}
-                        {ch.id === 'slack' && <>Paired to channel {String(ch.meta.pairedChannelId)}</>}
+                        {ch.id === 'discord' && (
+                          <>Paired to channel {String(ch.meta.pairedChannelId)}</>
+                        )}
+                        {ch.id === 'slack' && (
+                          <>Paired to channel {String(ch.meta.pairedChannelId)}</>
+                        )}
                         {ch.id === 'whatsapp' && <>Paired to {String(ch.meta.phoneNumber)}</>}
                         {ch.id === 'signal' && <>Paired to {String(ch.meta.phoneNumber)}</>}
                       </div>
@@ -267,9 +344,7 @@ export function ChannelSettings(): React.JSX.Element {
                     </div>
                   )}
 
-                  {ch.error && (
-                    <div className="composerError">{ch.error}</div>
-                  )}
+                  {ch.error && <div className="composerError">{ch.error}</div>}
                 </div>
               )}
             </div>

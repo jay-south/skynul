@@ -11,49 +11,73 @@ const TICK_MS = 60_000 // 1 minute
 
 /**
  * Compute the next occurrence of a cron expression AFTER `afterMs`.
- * Supports a minimal subset: "M H * * *" (daily) and "M H * * D" (weekly DOW 0-6).
- * For anything more advanced the user supplies `frequency: 'custom'` and we brute-force
- * minute-by-minute from `afterMs` (max 7 days forward).
+ * Supports a practical subset used by the UI:
+ * - minute: number | * | * / N step syntax
+ * - hour:   number | * | * / N step syntax | a,b
+ * - dow:    * | number | a-b
+ *
+ * We brute-force minute-by-minute from `afterMs` (max 14 days forward).
  */
 export function nextCronTime(cronExpr: string, afterMs: number): number {
   const parts = cronExpr.trim().split(/\s+/)
-  if (parts.length !== 5) return afterMs + 86_400_000 // fallback: +1 day
-
+  if (parts.length !== 5) return afterMs + 86_400_000
   const [minStr, hourStr, , , dowStr] = parts
-  const minute = parseInt(minStr, 10)
-  const hour = parseInt(hourStr, 10)
 
-  if (isNaN(minute) || isNaN(hour)) return afterMs + 86_400_000
+  const parseField = (field: string, min: number, max: number): Set<number> => {
+    const out = new Set<number>()
+    const f = field.trim()
+    if (!f || f === '*') {
+      for (let i = min; i <= max; i++) out.add(i)
+      return out
+    }
 
-  const after = new Date(afterMs)
-
-  // Weekly case: specific day-of-week
-  if (dowStr !== '*') {
-    const targetDow = parseInt(dowStr, 10) // 0 = Sunday
-    if (isNaN(targetDow)) return afterMs + 86_400_000
-
-    for (let dayOff = 0; dayOff <= 7; dayOff++) {
-      const candidate = new Date(after)
-      candidate.setDate(candidate.getDate() + dayOff)
-      candidate.setHours(hour, minute, 0, 0)
-      if (candidate.getDay() === targetDow && candidate.getTime() > afterMs) {
-        return candidate.getTime()
+    const stepMatch = f.match(/^\*\/(\d+)$/)
+    if (stepMatch) {
+      const step = parseInt(stepMatch[1], 10)
+      if (!isNaN(step) && step > 0) {
+        for (let i = min; i <= max; i += step) out.add(i)
+        return out
       }
     }
-    // Shouldn't reach here, but fallback
-    return afterMs + 7 * 86_400_000
+
+    for (const part of f.split(',')) {
+      const p = part.trim()
+      if (!p) continue
+      const range = p.match(/^(\d+)-(\d+)$/)
+      if (range) {
+        const a = parseInt(range[1], 10)
+        const b = parseInt(range[2], 10)
+        if (isNaN(a) || isNaN(b)) continue
+        const start = Math.max(min, Math.min(a, b))
+        const end = Math.min(max, Math.max(a, b))
+        for (let i = start; i <= end; i++) out.add(i)
+        continue
+      }
+
+      const n = parseInt(p, 10)
+      if (!isNaN(n) && n >= min && n <= max) out.add(n)
+    }
+    return out
   }
 
-  // Daily case: "M H * * *"
-  const today = new Date(after)
-  today.setHours(hour, minute, 0, 0)
-  if (today.getTime() > afterMs) return today.getTime()
+  const minutes = parseField(minStr, 0, 59)
+  const hours = parseField(hourStr, 0, 23)
+  const dows = dowStr === '*' ? null : parseField(dowStr, 0, 6)
 
-  // Tomorrow
-  const tomorrow = new Date(after)
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  tomorrow.setHours(hour, minute, 0, 0)
-  return tomorrow.getTime()
+  const start = new Date(afterMs)
+  start.setSeconds(0, 0)
+  start.setMinutes(start.getMinutes() + 1)
+
+  const maxMinutes = 14 * 24 * 60
+  for (let i = 0; i < maxMinutes; i++) {
+    const c = new Date(start.getTime() + i * 60_000)
+    if (!minutes.has(c.getMinutes())) continue
+    if (!hours.has(c.getHours())) continue
+    if (dows && !dows.has(c.getDay())) continue
+    return c.getTime()
+  }
+
+  return afterMs + 86_400_000
 }
 
 export class ScheduleRunner {

@@ -22,7 +22,7 @@ type AnthropicMessage = {
 export async function kimiVisionRespond(opts: {
   systemPrompt: string
   messages: VisionMessage[]
-}): Promise<string> {
+}): Promise<{ text: string; usage?: { inputTokens: number; outputTokens: number } }> {
   const apiKey = await getSecret('kimi.apiKey')
   if (!apiKey) throw new Error('Kimi API key is not set. Configure it in Settings.')
 
@@ -99,11 +99,22 @@ export async function kimiVisionRespond(opts: {
     usage?: { input_tokens?: number; output_tokens?: number }
   }
 
-  console.log('[Kimi Vision] usage:', JSON.stringify(data.usage))
-
   const content = data.content?.find((c) => c.type === 'text')?.text ?? ''
-  console.log('[Kimi Vision] response length:', content.length, 'first 300 chars:', content.slice(0, 300))
+  console.log(
+    '[Kimi Vision] response length:',
+    content.length,
+    'first 300 chars:',
+    content.slice(0, 300)
+  )
 
   if (!content.trim()) throw new Error('Kimi returned an empty response')
-  return content
+
+  const inputTokens = data.usage?.input_tokens
+  const outputTokens = data.usage?.output_tokens
+  const usage =
+    typeof inputTokens === 'number' && typeof outputTokens === 'number'
+      ? { inputTokens, outputTokens }
+      : undefined
+
+  return { text: content, usage }
 }

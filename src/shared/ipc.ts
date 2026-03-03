@@ -1,5 +1,6 @@
 export const IPC = {
   ping: 'skynul:app:ping',
+  runtimeGetStats: 'skynul:app:runtime:getStats',
   getPolicy: 'skynul:policy:get',
   pickWorkspace: 'skynul:workspace:pick',
   setCapability: 'skynul:policy:setCapability',
@@ -52,6 +53,8 @@ export const IPC = {
   channelSetCredentials: 'skynul:channel:setCredentials',
   channelGeneratePairing: 'skynul:channel:generatePairing',
   channelUnpair: 'skynul:channel:unpair',
+  channelGetGlobal: 'skynul:channel:getGlobal',
+  channelSetAutoApprove: 'skynul:channel:setAutoApprove',
 
   // ── Schedules ──────────────────────────────────────────────────────
   scheduleList: 'skynul:schedule:list',

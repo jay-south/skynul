@@ -94,6 +94,7 @@ export class DiscordChannel extends Channel {
       paired: this.state.paired,
       pairingCode: this.state.pairingCode,
       error: this.lastError,
+      hasCredentials: false,
       meta: {
         pairedUserId: this.state.pairedUserId,
         pairedChannelId: this.state.pairedChannelId
@@ -150,11 +151,11 @@ export class DiscordChannel extends Channel {
     if (content.startsWith('/pair ')) {
       const code = content.slice(6).trim()
       if (!this.state.pairingCode) {
-        await msg.reply('No pairing code active. Generate one from Skynul settings.')
+        await msg.reply('No hay código de vinculación activo. Generá uno desde los ajustes de Skynul.')
         return
       }
       if (code !== this.state.pairingCode) {
-        await msg.reply('Invalid pairing code.')
+        await msg.reply('Código inválido.')
         return
       }
       this.state.paired = true
@@ -162,7 +163,7 @@ export class DiscordChannel extends Channel {
       this.state.pairedChannelId = msg.channelId
       this.state.pairingCode = null
       await this.saveState()
-      await msg.reply('Paired! Send any message to create a task.')
+      await msg.reply('\u2705 Vinculado! Mandame un mensaje para crear una tarea.')
       return
     }
 
@@ -179,7 +180,7 @@ export class DiscordChannel extends Channel {
       const taskId = content.slice(8).trim()
       try {
         this.taskManager.cancel(taskId)
-        await msg.reply(`Task \`${taskId}\` cancelled.`)
+        await msg.reply(`\u26d4 Tarea cancelada.`)
       } catch (e) {
         await msg.reply(`Error: ${e instanceof Error ? e.message : String(e)}`)
       }
@@ -190,7 +191,7 @@ export class DiscordChannel extends Channel {
       const taskId = content.slice(8).trim()
       const task = this.taskManager.get(taskId)
       if (!task) {
-        await msg.reply('Task not found.')
+        await msg.reply('\u{1f50d} Tarea no encontrada.')
         return
       }
       await msg.reply(formatTaskSummary(task))
@@ -199,7 +200,7 @@ export class DiscordChannel extends Channel {
 
     if (content.startsWith('/unpair')) {
       await this.unpair()
-      await msg.reply('Unpaired.')
+      await msg.reply('Desvinculado.')
       return
     }
 
@@ -208,7 +209,7 @@ export class DiscordChannel extends Channel {
       const task = await this.createTaskFromMessage(content)
       await msg.reply(this.formatSummary(task))
     } catch (e) {
-      await msg.reply(`Failed: ${e instanceof Error ? e.message : String(e)}`)
+      await msg.reply(`No se pudo crear la tarea: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
 

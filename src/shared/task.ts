@@ -103,13 +103,19 @@ export type TaskStep = {
 
 // ── Task (the top-level entity) ───────────────────────────────────────────────
 
+export type TaskSource = 'desktop' | 'telegram' | 'discord' | 'slack' | 'whatsapp' | 'signal'
+
 export type Task = {
   id: string
+  /** If present, this task was spawned from another task (sub-agent). */
+  parentTaskId?: string
   prompt: string
   status: TaskStatus
   mode: TaskMode
   capabilities: TaskCapabilityId[]
   steps: TaskStep[]
+  /** Best-effort token usage (only available for some providers). */
+  usage?: { inputTokens: number; outputTokens: number }
   createdAt: number
   updatedAt: number
   /** Max steps before auto-stopping. */
@@ -120,6 +126,8 @@ export type Task = {
   error?: string
   /** Summary from the model when done. */
   summary?: string
+  /** Where the task was created from. Channels only notify for their own tasks. */
+  source?: TaskSource
 }
 
 // ── IPC payloads ──────────────────────────────────────────────────────────────
@@ -132,6 +140,8 @@ export type TaskCreateRequest = {
   mode?: TaskMode
   maxSteps?: number
   timeoutMs?: number
+  source?: TaskSource
+  parentTaskId?: string
 }
 
 export type TaskCreateResponse = {

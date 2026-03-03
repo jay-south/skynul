@@ -2,6 +2,26 @@ import { useEffect, useRef, useState } from 'react'
 import type { Task, TaskStep, TaskCapabilityId } from '../../../shared/task'
 import { ALL_TASK_CAPABILITIES } from '../../../shared/task'
 
+/** Convert URLs in text to clickable <a> tags, preserving the rest as text */
+function renderLinked(text: string): (string | React.ReactElement)[] {
+  const parts: (string | React.ReactElement)[] = []
+  const re = /(https?:\/\/[^\s<]+)/g
+  let last = 0
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) parts.push(text.slice(last, m.index))
+    const url = m[1]
+    parts.push(
+      <a key={m.index} href={url} target="_blank" rel="noopener noreferrer" style={{ color: '#58a6ff', wordBreak: 'break-all' }}>
+        {url.length > 60 ? url.slice(0, 57) + '…' : url}
+      </a>
+    )
+    last = re.lastIndex
+  }
+  if (last < text.length) parts.push(text.slice(last))
+  return parts
+}
+
 /** User-friendly label for the action. Returns null for technical actions that should be hidden. */
 function formatAction(step: TaskStep): string | null {
   const a = step.action as Record<string, unknown>
@@ -176,10 +196,10 @@ export function ChatFeed(props: {
 
       {/* Terminal */}
       {isTerminal && (
-        <div className={`feedStatus ${task.status}`}>
-          {task.status === 'completed' && (task.summary || 'Task completed')}
-          {task.status === 'failed' && (task.error || 'Task failed')}
-          {task.status === 'cancelled' && 'Task cancelled'}
+        <div className={`feedStatus ${task.status}`} style={{ whiteSpace: 'pre-wrap' }}>
+          {task.status === 'completed' && renderLinked(task.summary || 'Tarea completada')}
+          {task.status === 'failed' && renderLinked(task.error || 'Tarea fallida')}
+          {task.status === 'cancelled' && 'Tarea cancelada'}
         </div>
       )}
     </div>

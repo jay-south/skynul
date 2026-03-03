@@ -1,10 +1,12 @@
 import type { CapabilityId, LanguageCode, PolicyState, ThemeMode } from '../shared/policy'
 import type { Task, TaskCapabilityId, TaskCreateResponse, TaskListResponse } from '../shared/task'
+import type { RuntimeStats } from '../shared/runtime'
 
 declare global {
   interface Window {
     skynul: {
       ping: () => Promise<string>
+      runtimeGetStats: () => Promise<RuntimeStats>
       openExternal: (url: string) => Promise<void>
       authOpen: (url: string) => Promise<void>
       getPolicy: () => Promise<PolicyState>
@@ -63,15 +65,31 @@ declare global {
 
       // Channels
       channelGetAll: () => Promise<import('../shared/channel').ChannelSettings[]>
-      channelGetSettings: (channelId: import('../shared/channel').ChannelId) => Promise<import('../shared/channel').ChannelSettings>
-      channelSetEnabled: (channelId: import('../shared/channel').ChannelId, enabled: boolean) => Promise<import('../shared/channel').ChannelSettings>
-      channelSetCredentials: (channelId: import('../shared/channel').ChannelId, creds: Record<string, string>) => Promise<import('../shared/channel').ChannelSettings>
+      channelGetSettings: (
+        channelId: import('../shared/channel').ChannelId
+      ) => Promise<import('../shared/channel').ChannelSettings>
+      channelSetEnabled: (
+        channelId: import('../shared/channel').ChannelId,
+        enabled: boolean
+      ) => Promise<import('../shared/channel').ChannelSettings>
+      channelSetCredentials: (
+        channelId: import('../shared/channel').ChannelId,
+        creds: Record<string, string>
+      ) => Promise<import('../shared/channel').ChannelSettings>
       channelGeneratePairing: (channelId: import('../shared/channel').ChannelId) => Promise<string>
-      channelUnpair: (channelId: import('../shared/channel').ChannelId) => Promise<import('../shared/channel').ChannelSettings>
+      channelUnpair: (
+        channelId: import('../shared/channel').ChannelId
+      ) => Promise<import('../shared/channel').ChannelSettings>
+      channelGetGlobal: () => Promise<import('../shared/channel').ChannelGlobalSettings>
+      channelSetAutoApprove: (
+        val: boolean
+      ) => Promise<import('../shared/channel').ChannelGlobalSettings>
 
       // Schedules
       scheduleList: () => Promise<import('../shared/schedule').Schedule[]>
-      scheduleSave: (sched: Record<string, unknown>) => Promise<import('../shared/schedule').Schedule[]>
+      scheduleSave: (
+        sched: Record<string, unknown>
+      ) => Promise<import('../shared/schedule').Schedule[]>
       scheduleDelete: (id: string) => Promise<import('../shared/schedule').Schedule[]>
       scheduleToggle: (id: string) => Promise<import('../shared/schedule').Schedule[]>
 
@@ -80,7 +98,9 @@ declare global {
 
       // Browser Snapshots
       browserSnapshotList: () => Promise<import('../main/browser-snapshots').BrowserSnapshot[]>
-      browserSnapshotSave: (name: string) => Promise<import('../main/browser-snapshots').BrowserSnapshot>
+      browserSnapshotSave: (
+        name: string
+      ) => Promise<import('../main/browser-snapshots').BrowserSnapshot>
       browserSnapshotRestore: (id: string) => Promise<{ success: boolean }>
       browserSnapshotDelete: (id: string) => Promise<boolean>
 
