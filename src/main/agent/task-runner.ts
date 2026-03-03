@@ -43,6 +43,7 @@ export class TaskRunner {
   private lastScrapeData = ''
   /** When true, next CDP turn includes a screenshot (for after launch/native app interaction). */
   private cdpNeedsScreenshot = false
+  private activeFrameId: string | undefined = undefined
   /** Scale factors from last CDP screenshot — needed to convert screenshot coords to native coords. */
   private cdpScaleX = 1
   private cdpScaleY = 1
@@ -127,7 +128,35 @@ export class TaskRunner {
 
         if (browserBridge) {
           try {
-            const pageInfo = await browserBridge.getPageInfo()
+            let pageInfo = await browserBridge.getPageInfo()
+
+            // If main frame has no interactive elements, check iframes
+            this.activeFrameId = undefined
+            const tryIframes = async (): Promise<boolean> => {
+              try {
+                const frames = await browserBridge.getFrames()
+                const childFrames = frames.filter((f) => f.parentId !== null && f.url.startsWith('http'))
+                for (const frame of childFrames.slice(0, 3)) {
+                  const frameInfo = await browserBridge.getPageInfo(frame.id)
+                  if (frameInfo.elements.length > 0) {
+                    pageInfo = frameInfo
+                    this.activeFrameId = frame.id
+                    return true
+                  }
+                }
+              } catch { /* ignore */ }
+              return false
+            }
+
+            if (pageInfo.elements.length === 0) {
+              if (!(await tryIframes())) {
+                // SPA may still be mounting — wait once and retry
+                await this.sleep(2500)
+                pageInfo = await browserBridge.getPageInfo()
+                if (pageInfo.elements.length === 0) await tryIframes()
+              }
+            }
+
             pageUrl = pageInfo.url
             pageTitle = pageInfo.title
             pageText = pageInfo.text.slice(0, 2800)
@@ -625,6 +654,7 @@ export class TaskRunner {
     switch (type) {
       case 'navigate':
         await bridge.navigate(raw.url as string)
+        this.activeFrameId = undefined
         break
       case 'click':
         if (raw.x != null && raw.y != null) {
@@ -635,12 +665,12 @@ export class TaskRunner {
           await wb.click(nx, ny, (raw.button as 'left' | 'right') ?? 'left')
           this.cdpNeedsScreenshot = true
         } else {
-          await bridge.click(raw.selector as string)
+          await bridge.click(raw.selector as string, this.activeFrameId)
         }
         break
       case 'type':
         if (raw.selector) {
-          await bridge.type(raw.selector as string, raw.text as string)
+          await bridge.type(raw.selector as string, raw.text as string, this.activeFrameId)
         } else {
           // No selector → type via screen bridge (after launch)
           const wb = await this.getScreenBridge()
@@ -669,7 +699,7 @@ export class TaskRunner {
         }
         break
       case 'evaluate': {
-        const evalResult = await bridge.evaluate(raw.script as string)
+        const evalResult = await bridge.evaluate(raw.script as string, this.activeFrameId)
         // If evaluate returns TSV data, accumulate into lastScrapeData so save_to_excel can use it
         if (evalResult && evalResult.includes('\t')) {
           if (this.lastScrapeData) {

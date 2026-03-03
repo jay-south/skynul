@@ -2962,3 +2962,77 @@ code {
 .schedCancelLink:hover {
   color: var(--nb-text);
 }
+
+/* ── Schedule detail (center panel) ───────────────────────────────── */
+
+.schedDetail {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.schedDetailBack {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--nb-muted);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  align-self: flex-start;
+}
+.schedDetailBack:hover { color: var(--nb-text); }
+
+.schedDetailPrompt {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--nb-text);
+  line-height: 1.4;
+}
+
+.schedDetailGrid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  font-size: 13px;
+  color: var(--nb-text);
+  align-items: center;
+}
+
+.schedDetailLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--nb-muted);
+}
+
+.schedDetailCode {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: var(--nb-panel-2);
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-size: 12px;
+}
+
+.schedDetailActions {
+  display: flex;
+  gap: 8px;
+}
+
+.schedDetailBtn {
+  font-size: 12px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--nb-border);
+  background: var(--nb-surface-2);
+  color: var(--nb-text);
+  cursor: pointer;
+}
+.schedDetailBtn:hover { background: var(--nb-panel-2); }
+.schedDetailBtn.danger { color: var(--nb-danger, #e55); }
+.schedDetailBtn.danger:hover { background: color-mix(in srgb, var(--nb-danger, #e55), transparent 90%); }

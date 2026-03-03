@@ -922,8 +922,8 @@ function App(): React.JSX.Element {
                   activeScheduleId={activeScheduleId}
                   onToggle={(id) => void handleToggleSchedule(id)}
                   onDelete={(id) => void handleDeleteSchedule(id)}
-                  onSelect={(id) => setActiveScheduleId(id)}
-                  onNewSchedule={() => setShowNewSchedule(true)}
+                  onSelect={(id) => { setActiveScheduleId(id); setShowNewSchedule(false) }}
+                  onNewSchedule={() => { setShowNewSchedule(true); setActiveScheduleId(null) }}
                 />
               )}
             </>

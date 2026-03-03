@@ -187,6 +187,18 @@ export class TelegramChannel extends Channel {
     }
   }
 
+  protected async sendFile(filePath: string): Promise<void> {
+    if (!this.state.pairedChatId || !this.bot) return
+    try {
+      await this.bot.api.sendDocument(
+        this.state.pairedChatId,
+        new InputFile(filePath, basename(filePath))
+      )
+    } catch (e) {
+      console.warn('[TelegramChannel] sendFile failed:', e)
+    }
+  }
+
   private registerCommands(): void {
     if (!this.bot) return
 
