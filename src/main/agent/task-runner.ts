@@ -74,6 +74,9 @@ export class TaskRunner {
    * CDP text-based agent loop (no screenshots).
    */
   private async runCdp(): Promise<Task> {
+    // Set initial status immediately, before any validation
+    this.pushStatus(`Connecting to ${this.getProviderDisplayName()}...`)
+
     // Check if this task actually needs the browser (CDP)
     const needsBrowser =
       this.task.capabilities.includes('browser.cdp') ||
@@ -81,14 +84,30 @@ export class TaskRunner {
     let browserBridge: BrowserBridge | null = null
 
     if (needsBrowser) {
+      // Check if aborted before validating CDP relay
+      if (this.aborted) {
+        return this.finish('cancelled')
+      }
+
       const relay = this.opts.cdpRelay
       if (!relay) {
         return this.finish('failed', 'CDP relay not available')
       }
       browserBridge = new BrowserBridge(relay)
+
+      // Check if aborted before checking connection
+      if (this.aborted) {
+        return this.finish('cancelled')
+      }
+
       if (!browserBridge.isConnected) {
         return this.finish('failed', 'Chrome extension not connected to CDP relay')
       }
+      // Check if aborted before creating task tab
+      if (this.aborted) {
+        return this.finish('cancelled')
+      }
+
       // Always create a new tab for the task; never close or reuse the user's current tab
       try {
         await browserBridge.ensureTaskTab()
@@ -98,15 +117,16 @@ export class TaskRunner {
           `Could not create task tab: ${e instanceof Error ? e.message : String(e)}`
         )
       }
+
+      // Browser bridge is ready
+      this.pushStatus('Setting up browser bridge...')
     }
 
     this.timeoutHandle = setTimeout(() => {
       this.abort('Task timed out')
     }, this.task.timeoutMs)
 
-    this.pushStatus(
-      needsBrowser ? 'CDP browser bridge ready. Starting agent loop...' : 'Starting agent loop...'
-    )
+    this.pushStatus(needsBrowser ? 'Preparing agent loop...' : 'Starting agent loop...')
 
     const systemPrompt = buildCdpSystemPrompt(this.task.capabilities)
     const history: VisionMessage[] = []
@@ -278,11 +298,19 @@ export class TaskRunner {
    * Uses shell commands and API actions only.
    */
   private async runCode(): Promise<Task> {
+    // Set initial status immediately
+    this.pushStatus(`Connecting to ${this.getProviderDisplayName()}...`)
+
+    // Check if aborted before setting up timeout
+    if (this.aborted) {
+      return this.finish('cancelled')
+    }
+
     this.timeoutHandle = setTimeout(() => {
       this.abort('Task timed out')
     }, this.task.timeoutMs)
 
-    this.pushStatus('Code mode — starting text-only agent loop...')
+    this.pushStatus('Preparing agent loop...')
 
     const systemPrompt = buildCodeSystemPrompt()
     const history: VisionMessage[] = []
@@ -962,5 +990,14 @@ export class TaskRunner {
 
   getTask(): Task {
     return { ...this.task }
+  }
+
+  /**
+   * Get a user-friendly display name for the provider.
+   * Capitalizes the provider ID (e.g., 'kimi' -> 'Kimi', 'claude' -> 'Claude')
+   */
+  private getProviderDisplayName(): string {
+    const provider = this.opts.provider
+    return provider.charAt(0).toUpperCase() + provider.slice(1)
   }
 }
