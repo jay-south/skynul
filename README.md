@@ -1,4 +1,4 @@
-# Netbot
+# Skynul
 
 Local-first desktop agent with explicit permissions.
 

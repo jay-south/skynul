@@ -62,11 +62,15 @@ function TemplateIcon(props: { id: TaskTemplateId }): React.JSX.Element {
   }
 }
 
+export type TaskMode = 'screen' | 'code'
+
 export function TaskTemplates(props: {
   lang: LanguageCode
   onPick: (id: TaskTemplateId) => void
+  mode: TaskMode
+  onModeChange: (mode: TaskMode) => void
 }): React.JSX.Element {
-  const { lang } = props
+  const { lang, mode, onModeChange } = props
 
   const templates: Array<{
     id: TaskTemplateId
@@ -88,6 +92,26 @@ export function TaskTemplates(props: {
       <div className="taskTemplatesHeader">
         <div className="taskTemplatesTitle">{t(lang, 'tasks_templates_title')}</div>
         <div className="taskTemplatesSubtitle">{t(lang, 'tasks_templates_subtitle')}</div>
+      </div>
+
+      <div className="seg seg--2col" style={{ marginBottom: 4 }}>
+        <button
+          className={`segBtn ${mode === 'screen' ? 'active' : ''}`}
+          onClick={() => onModeChange('screen')}
+        >
+          Screen Mode
+        </button>
+        <button
+          className={`segBtn ${mode === 'code' ? 'active' : ''}`}
+          onClick={() => onModeChange('code')}
+        >
+          Headless Mode
+        </button>
+      </div>
+      <div className="settingsFieldHint" style={{ textAlign: 'center', marginBottom: 8 }}>
+        {mode === 'screen'
+          ? 'The agent sees your screen via screenshots and interacts visually'
+          : 'The agent works in the background — commands only, no screen needed'}
       </div>
 
       <div className="taskTemplatesGrid">

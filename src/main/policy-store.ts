@@ -29,7 +29,8 @@ export async function loadPolicy(): Promise<PolicyState> {
         active: activeProvider as ProviderId,
         openaiModel: parsed.provider?.openaiModel ?? DEFAULT_POLICY.provider.openaiModel
       },
-      taskMemoryEnabled: parsed.taskMemoryEnabled ?? DEFAULT_POLICY.taskMemoryEnabled
+      taskMemoryEnabled: parsed.taskMemoryEnabled ?? DEFAULT_POLICY.taskMemoryEnabled,
+      taskAutoApprove: parsed.taskAutoApprove ?? DEFAULT_POLICY.taskAutoApprove
     }
   } catch {
     return DEFAULT_POLICY

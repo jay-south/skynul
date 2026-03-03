@@ -113,7 +113,7 @@ function convertMessages(messages: VisionMessage[]): InputItem[] {
       type: 'message',
       role: 'assistant',
       status: 'completed',
-      id: `msg_netbot_${++_msgCounter}`,
+      id: `msg_skynul_${++_msgCounter}`,
       content: msg.content
         .filter((p) => p.type === 'output_text' || p.type === 'input_text')
         .map((p) => ({

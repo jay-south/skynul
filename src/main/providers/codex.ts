@@ -49,7 +49,7 @@ export function buildAuthorizeUrl(
     id_token_add_organizations: 'true',
     codex_cli_simplified_flow: 'true',
     state,
-    originator: 'netbot'
+    originator: 'skynul'
   })
   return `${ISSUER}/oauth/authorize?${params.toString()}`
 }
@@ -198,7 +198,7 @@ export async function codexRespond(opts: { messages: ChatMessage[] }): Promise<s
   const headers: Record<string, string> = {
     Authorization: `Bearer ${tokens.access}`,
     'Content-Type': 'application/json',
-    originator: 'netbot'
+    originator: 'skynul'
   }
   if (tokens.accountId) {
     headers['ChatGPT-Account-Id'] = tokens.accountId

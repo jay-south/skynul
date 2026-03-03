@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Netbot CDP Relay",
+  "name": "Skynul CDP Relay",
   "version": "1.0.0",
-  "description": "Bridges Chrome DevTools Protocol to Netbot via WebSocket relay — no --remote-debugging-port needed.",
+  "description": "Bridges Chrome DevTools Protocol to Skynul via WebSocket relay — no --remote-debugging-port needed.",
   "permissions": ["debugger", "tabs", "activeTab", "alarms"],
   "background": {
     "service_worker": "background.js"

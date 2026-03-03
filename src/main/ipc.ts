@@ -37,9 +37,16 @@ import { claudeRespond } from './providers/claude'
 import { deepseekRespond } from './providers/deepseek'
 import { kimiRespond } from './providers/kimi'
 import type { TaskManager } from './agent/task-manager'
-import type { TelegramBot } from './telegram/telegram-bot'
+import type { ChannelManager } from './channels/channel-manager'
+import type { CdpRelay } from './agent/cdp-relay'
+import { BrowserBridge } from './agent/browser-bridge'
+import { loadSnapshots, saveSnapshot, deleteSnapshot } from './browser-snapshots'
+import type { BrowserSnapshot } from './browser-snapshots'
+import type { ChannelId } from '../shared/channel'
 import type { Skill } from '../shared/skill'
 import { loadSkills, saveSkills, createSkillId } from './skill-store'
+import type { Schedule } from '../shared/schedule'
+import { loadSchedules, saveSchedules, createScheduleId } from './schedule-store'
 
 let policy = DEFAULT_POLICY
 
@@ -98,9 +105,9 @@ export async function tryHandleChatGPTCallback(
   try {
     const tokens = await exchangeCodeForTokens(code, redirectUri, verifier)
     await saveTokens(tokens)
-    mainWindow.webContents.send('netbot:chatgpt:auth:success')
+    mainWindow.webContents.send('skynul:chatgpt:auth:success')
   } catch (e) {
-    mainWindow.webContents.send('netbot:chatgpt:auth:error', {
+    mainWindow.webContents.send('skynul:chatgpt:auth:error', {
       message: e instanceof Error ? e.message : String(e)
     })
   }
@@ -111,7 +118,8 @@ export async function tryHandleChatGPTCallback(
 export function registerIpcHandlers(opts: {
   openAuthUrl: (url: string) => void
   taskManager: TaskManager
-  telegramBot: TelegramBot
+  channelManager: ChannelManager
+  cdpRelay: CdpRelay
 }): void {
   // Give TaskManager access to current policy (provider, model, etc.)
   opts.taskManager.setPolicyGetter(() => policy)
@@ -266,6 +274,12 @@ export function registerIpcHandlers(opts: {
 
   ipcMain.handle(IPC.setTaskMemoryEnabled, async (_evt, enabled: boolean) => {
     policy = { ...policy, taskMemoryEnabled: !!enabled }
+    await savePolicy(policy)
+    return policy
+  })
+
+  ipcMain.handle(IPC.setTaskAutoApprove, async (_evt, enabled: boolean) => {
+    policy = { ...policy, taskAutoApprove: !!enabled }
     await savePolicy(policy)
     return policy
   })
@@ -430,6 +444,11 @@ export function registerIpcHandlers(opts: {
     return true
   })
 
+  ipcMain.handle(IPC.taskSendMessage, async (_evt, req: { taskId: string; message: string }) => {
+    tm.sendMessage(req.taskId, 'user', req.message)
+    return true
+  })
+
   // ── Skills ──────────────────────────────────────────────────────────
 
   ipcMain.handle(IPC.skillList, async () => loadSkills())
@@ -464,14 +483,46 @@ export function registerIpcHandlers(opts: {
 
   ipcMain.handle(IPC.skillImport, async (_evt, filePath: string) => {
     const raw = await readFile(filePath, 'utf8')
-    const parsed = JSON.parse(raw) as Record<string, unknown>
+    const isMarkdown = filePath.endsWith('.md') || filePath.endsWith('.markdown')
+
+    // Default name from filename (without extension)
+    const basename = filePath.split(/[\\/]/).pop() ?? 'Imported'
+    const nameFromFile = basename.replace(/\.(json|md|markdown)$/i, '')
+
+    let name = nameFromFile
+    let tag = ''
+    let description = ''
+    let prompt = raw
+
+    if (isMarkdown) {
+      // Parse YAML frontmatter between --- delimiters
+      const fmMatch = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/)
+      if (fmMatch) {
+        const frontmatter = fmMatch[1]
+        prompt = fmMatch[2].trim()
+        for (const line of frontmatter.split('\n')) {
+          const [key, ...rest] = line.split(':')
+          const val = rest.join(':').trim()
+          if (key.trim() === 'name') name = val
+          else if (key.trim() === 'tag' || key.trim() === 'category') tag = val
+          else if (key.trim() === 'description') description = val
+        }
+      }
+    } else {
+      const parsed = JSON.parse(raw) as Record<string, unknown>
+      name = String(parsed.name ?? nameFromFile)
+      tag = String(parsed.tag ?? parsed.category ?? '')
+      description = String(parsed.description ?? '')
+      prompt = String(parsed.prompt ?? '')
+    }
+
     const skills = await loadSkills()
     skills.push({
       id: createSkillId(),
-      name: String(parsed.name ?? 'Imported'),
-      tag: String(parsed.tag ?? parsed.category ?? ''),
-      description: String(parsed.description ?? ''),
-      prompt: String(parsed.prompt ?? ''),
+      name,
+      tag,
+      description,
+      prompt,
       enabled: true,
       createdAt: Date.now()
     })
@@ -479,29 +530,133 @@ export function registerIpcHandlers(opts: {
     return skills
   })
 
-  // ── Telegram ────────────────────────────────────────────────────────
-  const tg = opts.telegramBot
+  // ── Channels ────────────────────────────────────────────────────────
+  const cm = opts.channelManager
 
-  ipcMain.handle(IPC.telegramGetSettings, async () => {
-    return tg.getSettings()
+  ipcMain.handle(IPC.channelGetAll, async () => {
+    return cm.getAllSettings()
   })
 
-  ipcMain.handle(IPC.telegramSetEnabled, async (_evt, enabled: boolean) => {
-    await tg.setEnabled(enabled)
-    return tg.getSettings()
+  ipcMain.handle(IPC.channelGetSettings, async (_evt, channelId: ChannelId) => {
+    return cm.getChannel(channelId).getSettings()
   })
 
-  ipcMain.handle(IPC.telegramSetToken, async (_evt, token: string) => {
-    await setSecret('telegram.botToken', token.trim())
-    return true
+  ipcMain.handle(IPC.channelSetEnabled, async (_evt, channelId: ChannelId, enabled: boolean) => {
+    return cm.getChannel(channelId).setEnabled(enabled)
   })
 
-  ipcMain.handle(IPC.telegramGeneratePairingCode, async () => {
-    return tg.generatePairingCode()
+  ipcMain.handle(IPC.channelSetCredentials, async (_evt, channelId: ChannelId, creds: Record<string, string>) => {
+    await cm.getChannel(channelId).setCredentials(creds)
+    return cm.getChannel(channelId).getSettings()
   })
 
-  ipcMain.handle(IPC.telegramUnpair, async () => {
-    await tg.unpair()
+  ipcMain.handle(IPC.channelGeneratePairing, async (_evt, channelId: ChannelId) => {
+    return cm.getChannel(channelId).generatePairingCode()
+  })
+
+  ipcMain.handle(IPC.channelUnpair, async (_evt, channelId: ChannelId) => {
+    await cm.getChannel(channelId).unpair()
+    return cm.getChannel(channelId).getSettings()
+  })
+
+  // ── Schedules ─────────────────────────────────────────────────────────
+
+  ipcMain.handle(IPC.scheduleList, async () => loadSchedules())
+
+  ipcMain.handle(
+    IPC.scheduleSave,
+    async (_evt, sched: Omit<Schedule, 'id' | 'createdAt'> & { id?: string }) => {
+      const schedules = await loadSchedules()
+      if (sched.id) {
+        const idx = schedules.findIndex((s) => s.id === sched.id)
+        if (idx !== -1) {
+          schedules[idx] = { ...schedules[idx], ...sched } as Schedule
+        }
+      } else {
+        schedules.push({
+          ...sched,
+          id: createScheduleId(),
+          createdAt: Date.now()
+        } as Schedule)
+      }
+      await saveSchedules(schedules)
+      return schedules
+    }
+  )
+
+  ipcMain.handle(IPC.scheduleDelete, async (_evt, id: string) => {
+    const schedules = (await loadSchedules()).filter((s) => s.id !== id)
+    await saveSchedules(schedules)
+    return schedules
+  })
+
+  ipcMain.handle(IPC.scheduleToggle, async (_evt, id: string) => {
+    const schedules = await loadSchedules()
+    const s = schedules.find((sc) => sc.id === id)
+    if (s) s.enabled = !s.enabled
+    await saveSchedules(schedules)
+    return schedules
+  })
+
+  // ── Audio Transcription ──────────────────────────────────────────────
+
+  ipcMain.handle(IPC.transcribeAudio, async (_evt, audioBuffer: ArrayBuffer) => {
+    const apiKey = await getSecret('openai.apiKey')
+    if (!apiKey) throw new Error('OpenAI API key required for voice input. Set it in Settings → Providers.')
+
+    const blob = new Blob([audioBuffer], { type: 'audio/webm' })
+    const formData = new FormData()
+    formData.append('file', blob, 'voice.webm')
+    formData.append('model', 'whisper-1')
+
+    const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: formData
+    })
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      throw new Error(`Whisper API error ${res.status}: ${text}`)
+    }
+
+    const json = (await res.json()) as { text?: string }
+    return json.text ?? ''
+  })
+
+  // ── Browser Snapshots ────────────────────────────────────────────────
+  const bridge = new BrowserBridge(opts.cdpRelay)
+
+  ipcMain.handle(IPC.browserSnapshotList, async () => loadSnapshots())
+
+  ipcMain.handle(IPC.browserSnapshotSave, async (_evt, name: string) => {
+    const raw = await bridge.saveSnapshot()
+    const snap: BrowserSnapshot = {
+      id: `snap_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      name: name || 'Untitled',
+      url: String(raw.url ?? ''),
+      title: String(raw.title ?? ''),
+      cookies: (raw.cookies as BrowserSnapshot['cookies']) ?? [],
+      localStorage: (raw.localStorage as Record<string, string>) ?? {},
+      sessionStorage: (raw.sessionStorage as Record<string, string>) ?? {},
+      scrollX: Number(raw.scrollX ?? 0),
+      scrollY: Number(raw.scrollY ?? 0),
+      createdAt: Date.now()
+    }
+    await saveSnapshot(snap)
+    return snap
+  })
+
+  ipcMain.handle(IPC.browserSnapshotRestore, async (_evt, snapshotId: string) => {
+    const snapshots = await loadSnapshots()
+    const snap = snapshots.find((s) => s.id === snapshotId)
+    if (!snap) throw new Error('Snapshot not found')
+    await bridge.restoreSnapshot(snap as unknown as Record<string, unknown>)
+    return { success: true }
+  })
+
+  ipcMain.handle(IPC.browserSnapshotDelete, async (_evt, id: string) => {
+    await deleteSnapshot(id)
     return true
   })
 

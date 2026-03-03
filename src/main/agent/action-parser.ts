@@ -196,12 +196,25 @@ const VALID_ACTION_TYPES = new Set([
   'navigate',
   'pressKey',
   'evaluate',
+  // Shell
+  'shell',
+  // Code mode file operations
+  'file_read',
+  'file_write',
+  'file_edit',
+  'file_list',
+  'file_search',
   // Polymarket trading actions
   'polymarket_get_account_summary',
   'polymarket_get_trader_leaderboard',
   'polymarket_search_markets',
   'polymarket_place_order',
-  'polymarket_close_position'
+  'polymarket_close_position',
+  // Inter-task communication
+  'task_list_peers',
+  'task_send',
+  'task_read',
+  'task_message'
 ])
 
 function validateResponse(obj: unknown): ModelResponse {

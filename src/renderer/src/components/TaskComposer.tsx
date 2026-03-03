@@ -11,6 +11,7 @@ import {
   type SavedPrompt
 } from '../task-prompts'
 import type { TaskTemplateId } from './TaskTemplates'
+import type { ScheduleFrequency } from '../../../shared/schedule'
 
 function templateTitleKey(template: TaskTemplateId): Parameters<typeof t>[1] {
   switch (template) {
@@ -25,18 +26,90 @@ function templateTitleKey(template: TaskTemplateId): Parameters<typeof t>[1] {
   }
 }
 
+// ── Schedule presets ──────────────────────────────────────────────────
+
+type SchedPreset = {
+  id: string
+  label: string
+  desc: string
+  frequency: ScheduleFrequency
+  cronExpr: string
+  needsTime: boolean
+  needsDow: boolean
+}
+
+const SCHED_PRESETS: SchedPreset[] = [
+  { id: 'hourly',    label: 'Every hour',      desc: 'Runs at :00 every hour',          frequency: 'custom', cronExpr: '0 * * * *',   needsTime: false, needsDow: false },
+  { id: '4h',        label: 'Every 4 hours',   desc: 'Runs every 4 hours from midnight', frequency: 'custom', cronExpr: '0 */4 * * *', needsTime: false, needsDow: false },
+  { id: '2x_day',    label: 'Twice a day',     desc: '9 AM and 3 PM',                   frequency: 'custom', cronExpr: '0 9,15 * * *', needsTime: false, needsDow: false },
+  { id: 'daily',     label: 'Once a day',      desc: 'Pick a time below',               frequency: 'daily',  cronExpr: '',             needsTime: true,  needsDow: false },
+  { id: 'weekdays',  label: 'Weekdays only',   desc: 'Mon–Fri at a chosen time',        frequency: 'custom', cronExpr: '',             needsTime: true,  needsDow: false },
+  { id: 'weekly',    label: 'Once a week',     desc: 'Pick day + time',                 frequency: 'weekly', cronExpr: '',             needsTime: true,  needsDow: true  },
+  { id: 'custom',    label: 'Custom (cron)',   desc: 'Advanced: write a cron expression', frequency: 'custom', cronExpr: '',           needsTime: false, needsDow: false }
+]
+
+function buildPresetCron(preset: SchedPreset, time: string, dow: number, customCron: string): string {
+  if (preset.id === 'custom') return customCron.trim() || '0 9 * * *'
+  if (!preset.needsTime) return preset.cronExpr
+
+  const [h, m] = time.split(':').map(Number)
+  const hour = isNaN(h) ? 9 : h
+  const minute = isNaN(m) ? 0 : m
+
+  if (preset.id === 'weekdays') return `${minute} ${hour} * * 1-5`
+  if (preset.id === 'weekly') return `${minute} ${hour} * * ${dow}`
+  return `${minute} ${hour} * * *` // daily
+}
+
+function nextCronTimeLocal(cronExpr: string): number {
+  const parts = cronExpr.trim().split(/\s+/)
+  if (parts.length !== 5) return Date.now() + 86_400_000
+  const [minStr, hourStr, , , dowStr] = parts
+  const minute = parseInt(minStr, 10)
+  const hour = parseInt(hourStr, 10)
+  if (isNaN(minute) || isNaN(hour)) return Date.now() + 86_400_000
+
+  const now = new Date()
+
+  if (dowStr !== '*') {
+    const targetDow = parseInt(dowStr, 10)
+    if (isNaN(targetDow)) return Date.now() + 86_400_000
+    for (let off = 0; off <= 7; off++) {
+      const c = new Date(now)
+      c.setDate(c.getDate() + off)
+      c.setHours(hour, minute, 0, 0)
+      if (c.getDay() === targetDow && c.getTime() > Date.now()) return c.getTime()
+    }
+    return Date.now() + 7 * 86_400_000
+  }
+
+  const today = new Date(now)
+  today.setHours(hour, minute, 0, 0)
+  if (today.getTime() > Date.now()) return today.getTime()
+  const tomorrow = new Date(now)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  tomorrow.setHours(hour, minute, 0, 0)
+  return tomorrow.getTime()
+}
+
 export function TaskComposer(props: {
   lang: LanguageCode
   template: TaskTemplateId
   onCancel: () => void
   onSubmit: (prompt: string, caps: TaskCapabilityId[]) => void
+  onSchedule?: (sched: Record<string, unknown>) => void
 }): React.JSX.Element {
   const { lang } = props
   const title = useMemo(() => t(lang, templateTitleKey(props.template)), [lang, props.template])
 
   const [prompt, setPrompt] = useState('')
+  const [runMode, setRunMode] = useState<'once' | 'schedule'>('once')
+  const [schedPresetId, setSchedPresetId] = useState('daily')
+  const [schedTime, setSchedTime] = useState('09:00')
+  const [schedDow, setSchedDow] = useState(1) // Monday
+  const [customCron, setCustomCron] = useState('0 9 * * *')
   const [selectedCaps, setSelectedCaps] = useState<Set<TaskCapabilityId>>(
-    new Set(['screen.read', 'input.mouse', 'input.keyboard'])
+    new Set<TaskCapabilityId>(['browser.cdp'])
   )
   const [savedPrompts, setSavedPrompts] = useState<SavedPrompt[]>(loadSavedPrompts)
   const [savedFeedback, setSavedFeedback] = useState(false)
@@ -73,6 +146,23 @@ export function TaskComposer(props: {
   const submit = (): void => {
     const text = prompt.trim()
     if (!text) return
+
+    if (runMode === 'schedule' && props.onSchedule) {
+      const preset = SCHED_PRESETS.find((p) => p.id === schedPresetId) ?? SCHED_PRESETS[3]
+      const cronExpr = buildPresetCron(preset, schedTime, schedDow, customCron)
+      props.onSchedule({
+        prompt: text,
+        capabilities: [...selectedCaps],
+        mode: 'screen',
+        frequency: preset.frequency,
+        cronExpr,
+        enabled: true,
+        lastRunAt: null,
+        nextRunAt: nextCronTimeLocal(cronExpr)
+      })
+      return
+    }
+
     props.onSubmit(text, [...selectedCaps])
   }
 
@@ -211,6 +301,111 @@ export function TaskComposer(props: {
             ))}
           </div>
         </div>
+
+        {/* ── Run mode: once vs schedule ──────────────────────────── */}
+        {props.onSchedule && (
+          <div className="taskComposerSection">
+            <div className="taskComposerLabel">Run mode</div>
+            <div className="seg seg--2col" style={{ marginBottom: 8 }}>
+              <button
+                className={`segBtn ${runMode === 'once' ? 'active' : ''}`}
+                onClick={() => setRunMode('once')}
+              >
+                Run once
+              </button>
+              <button
+                className={`segBtn ${runMode === 'schedule' ? 'active' : ''}`}
+                onClick={() => setRunMode('schedule')}
+              >
+                Schedule
+              </button>
+            </div>
+
+            {runMode === 'schedule' && (
+              <>
+                <div className="taskCapList" style={{ marginBottom: 8 }}>
+                  {SCHED_PRESETS.map((p) => (
+                    <button
+                      key={p.id}
+                      className={`taskCapChip ${schedPresetId === p.id ? 'on' : ''}`}
+                      onClick={() => setSchedPresetId(p.id)}
+                      title={p.desc}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="settingsFieldHint" style={{ marginBottom: 8, fontSize: 12 }}>
+                  {SCHED_PRESETS.find((p) => p.id === schedPresetId)?.desc}
+                </div>
+
+                {/* Time picker — shown for presets that need it */}
+                {SCHED_PRESETS.find((p) => p.id === schedPresetId)?.needsTime && (
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
+                    <input
+                      type="time"
+                      value={schedTime}
+                      onChange={(e) => setSchedTime(e.target.value)}
+                      style={{
+                        padding: '6px 10px',
+                        borderRadius: 8,
+                        border: '1px solid var(--nb-border)',
+                        background: 'var(--nb-surface-2)',
+                        color: 'var(--nb-text)',
+                        fontSize: 13
+                      }}
+                    />
+
+                    {SCHED_PRESETS.find((p) => p.id === schedPresetId)?.needsDow && (
+                      <select
+                        value={schedDow}
+                        onChange={(e) => setSchedDow(Number(e.target.value))}
+                        style={{
+                          padding: '6px 10px',
+                          borderRadius: 8,
+                          border: '1px solid var(--nb-border)',
+                          background: 'var(--nb-surface-2)',
+                          color: 'var(--nb-text)',
+                          fontSize: 13
+                        }}
+                      >
+                        <option value={0}>Sunday</option>
+                        <option value={1}>Monday</option>
+                        <option value={2}>Tuesday</option>
+                        <option value={3}>Wednesday</option>
+                        <option value={4}>Thursday</option>
+                        <option value={5}>Friday</option>
+                        <option value={6}>Saturday</option>
+                      </select>
+                    )}
+                  </div>
+                )}
+
+                {/* Custom cron input */}
+                {schedPresetId === 'custom' && (
+                  <input
+                    type="text"
+                    value={customCron}
+                    onChange={(e) => setCustomCron(e.target.value)}
+                    placeholder="0 9 * * *"
+                    spellCheck={false}
+                    style={{
+                      padding: '6px 10px',
+                      borderRadius: 8,
+                      border: '1px solid var(--nb-border)',
+                      background: 'var(--nb-surface-2)',
+                      color: 'var(--nb-text)',
+                      fontSize: 13,
+                      fontFamily: 'monospace',
+                      width: '100%'
+                    }}
+                  />
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

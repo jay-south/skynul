@@ -12,7 +12,7 @@ import { randomBytes, createHash } from 'crypto'
  * marker to stdout.
  */
 
-const MARKER = '___NETBOT_END___'
+const MARKER = '___SKYNUL_END___'
 
 /** C# source written to a temp file, then loaded via Add-Type -Path.
  *  This avoids PowerShell heredoc (@"..."@) issues when piped through stdin. */
@@ -23,7 +23,7 @@ using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
-public class NetbotInput {
+public class SkynulInput {
     [DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y);
     [DllImport("user32.dll")] public static extern void mouse_event(uint dwFlags, int dx, int dy, int dwData, IntPtr dwExtraInfo);
     [DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, IntPtr dwExtraInfo);
@@ -150,8 +150,8 @@ const SCREENSHOT_TIMEOUT = 20_000
 
 /** Cached DLL path on the Windows side — survives across tasks in the same session. */
 const CSHARP_HASH = createHash('sha256').update(CSHARP_SOURCE).digest('hex').slice(0, 12)
-const DLL_WIN_PATH = `C:\\Temp\\netbot_input_${CSHARP_HASH}.dll`
-const DLL_WSL_PATH = `/mnt/c/Temp/netbot_input_${CSHARP_HASH}.dll`
+const DLL_WIN_PATH = `C:\\Temp\\skynul_input_${CSHARP_HASH}.dll`
+const DLL_WSL_PATH = `/mnt/c/Temp/skynul_input_${CSHARP_HASH}.dll`
 
 export class WindowsBridge {
   private proc: ChildProcessWithoutNullStreams | null = null
@@ -192,7 +192,7 @@ export class WindowsBridge {
     let csWslPath: string | null = null
     let csWinPath: string | null = null
     if (!dllExists) {
-      const csFileName = `netbot_input_${randomBytes(4).toString('hex')}.cs`
+      const csFileName = `skynul_input_${randomBytes(4).toString('hex')}.cs`
       csWslPath = `${wslTmpDir}/${csFileName}`
       csWinPath = `C:\\Temp\\${csFileName}`
       await writeFile(csWslPath, CSHARP_SOURCE, 'utf8')
@@ -343,7 +343,7 @@ export class WindowsBridge {
    * The caller is responsible for cleanup.
    */
   private async writeScriptFile(content: string): Promise<{ wslPath: string; winPath: string }> {
-    const name = `netbot_ps_${randomBytes(4).toString('hex')}.ps1`
+    const name = `skynul_ps_${randomBytes(4).toString('hex')}.ps1`
     const wslPath = `/mnt/c/Temp/${name}`
     const winPath = `C:\\Temp\\${name}`
     await writeFile(wslPath, content, 'utf8')
@@ -479,9 +479,9 @@ Write-Host '${MARKER}'
   }> {
     const id = randomBytes(8).toString('hex')
     const winTmp = tmpdir().startsWith('/tmp') ? 'C:\\Temp' : tmpdir()
-    const winPath = `${winTmp}\\netbot_ss_${id}.png`
+    const winPath = `${winTmp}\\skynul_ss_${id}.png`
     // Write native dims to a sidecar file so we know the original resolution
-    const dimsPath = `${winTmp}\\netbot_dims_${id}.txt`
+    const dimsPath = `${winTmp}\\skynul_dims_${id}.txt`
     const wslDimsPath = dimsPath.replace(/^C:\\/, '/mnt/c/').replace(/\\/g, '/')
 
     await this.exec(
@@ -518,7 +518,7 @@ $bmp.Dispose()`
       if (!result.ok) throw new Error(result.error ?? 'Screenshot failed')
     } else {
       const result = await this.exec(
-        `$b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds; [System.IO.File]::WriteAllText('${dimsPath}', "$($b.Width),$($b.Height)"); [NetbotInput]::CaptureScreen('${winPath}') | Out-Null`,
+        `$b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds; [System.IO.File]::WriteAllText('${dimsPath}', "$($b.Width),$($b.Height)"); [SkynulInput]::CaptureScreen('${winPath}') | Out-Null`,
         SCREENSHOT_TIMEOUT
       )
       if (!result.ok) throw new Error(result.error ?? 'Screenshot failed')
@@ -548,17 +548,17 @@ $bmp.Dispose()`
   }
 
   async click(x: number, y: number, button: 'left' | 'right' | 'middle' = 'left'): Promise<void> {
-    const result = await this.exec(`[NetbotInput]::Click(${x}, ${y}, '${button}')`)
+    const result = await this.exec(`[SkynulInput]::Click(${x}, ${y}, '${button}')`)
     if (!result.ok) throw new Error(result.error ?? 'Click failed')
   }
 
   async doubleClick(x: number, y: number): Promise<void> {
-    const result = await this.exec(`[NetbotInput]::DoubleClick(${x}, ${y})`)
+    const result = await this.exec(`[SkynulInput]::DoubleClick(${x}, ${y})`)
     if (!result.ok) throw new Error(result.error ?? 'Double click failed')
   }
 
   async moveMouse(x: number, y: number): Promise<void> {
-    const result = await this.exec(`[NetbotInput]::Move(${x}, ${y})`)
+    const result = await this.exec(`[SkynulInput]::Move(${x}, ${y})`)
     if (!result.ok) throw new Error(result.error ?? 'Move failed')
   }
 
@@ -577,7 +577,7 @@ $bmp.Dispose()`
 
     // Windows/Meta key — SendKeys can't do this, use keybd_event via C#
     if (lower === 'meta' || lower === 'win' || lower === 'super') {
-      const result = await this.exec(`[NetbotInput]::PressWinKey()`)
+      const result = await this.exec(`[SkynulInput]::PressWinKey()`)
       if (!result.ok) throw new Error(result.error ?? 'Win key failed')
       return
     }
@@ -589,7 +589,7 @@ $bmp.Dispose()`
       const escaped = sendKey.replace(/'/g, "''")
       // Hold Win, press key via SendKeys, release Win
       const result = await this.exec(
-        `[NetbotInput]::keybd_event(0x5B, 0, 0, [IntPtr]::Zero); Start-Sleep -Milliseconds 50; [System.Windows.Forms.SendKeys]::SendWait('${escaped}'); Start-Sleep -Milliseconds 50; [NetbotInput]::keybd_event(0x5B, 0, 2, [IntPtr]::Zero)`
+        `[SkynulInput]::keybd_event(0x5B, 0, 0, [IntPtr]::Zero); Start-Sleep -Milliseconds 50; [System.Windows.Forms.SendKeys]::SendWait('${escaped}'); Start-Sleep -Milliseconds 50; [SkynulInput]::keybd_event(0x5B, 0, 2, [IntPtr]::Zero)`
       )
       if (!result.ok) throw new Error(result.error ?? 'Win+key combo failed')
       return
@@ -604,7 +604,7 @@ $bmp.Dispose()`
   }
 
   async scroll(x: number, y: number, clicks: number = -3): Promise<void> {
-    const result = await this.exec(`[NetbotInput]::Scroll(${x}, ${y}, ${clicks})`)
+    const result = await this.exec(`[SkynulInput]::Scroll(${x}, ${y}, ${clicks})`)
     if (!result.ok) throw new Error(result.error ?? 'Scroll failed')
   }
 
@@ -640,9 +640,9 @@ $proc = Get-Process | Where-Object {
 } | Select-Object -First 1
 if ($proc) {
   $sig = '[DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);[DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);'
-  Add-Type -MemberDefinition $sig -Name WinFocus -Namespace NetbotFocus -ErrorAction SilentlyContinue
-  [NetbotFocus.WinFocus]::ShowWindow($proc.MainWindowHandle, 9) | Out-Null
-  [NetbotFocus.WinFocus]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null
+  Add-Type -MemberDefinition $sig -Name WinFocus -Namespace SkynulFocus -ErrorAction SilentlyContinue
+  [SkynulFocus.WinFocus]::ShowWindow($proc.MainWindowHandle, 9) | Out-Null
+  [SkynulFocus.WinFocus]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null
   'focused'
 } else {
   'not_found'

@@ -3,7 +3,7 @@ import type { Task, TaskCapabilityId, TaskCreateResponse, TaskListResponse } fro
 
 declare global {
   interface Window {
-    netbot: {
+    skynul: {
       ping: () => Promise<string>
       openExternal: (url: string) => Promise<void>
       authOpen: (url: string) => Promise<void>
@@ -38,7 +38,7 @@ declare global {
       taskCreate: (
         prompt: string,
         capabilities: TaskCapabilityId[],
-        opts?: { maxSteps?: number; timeoutMs?: number }
+        opts?: { mode?: 'browser' | 'code'; maxSteps?: number; timeoutMs?: number }
       ) => Promise<TaskCreateResponse>
       taskApprove: (taskId: string) => Promise<Task>
       taskCancel: (taskId: string) => Promise<Task>
@@ -47,10 +47,12 @@ declare global {
       taskGet: (taskId: string) => Promise<Task>
       taskList: () => Promise<TaskListResponse>
       taskDelete: (taskId: string) => Promise<boolean>
+      taskSendMessage: (taskId: string, message: string) => Promise<boolean>
       onTaskUpdate: (cb: (task: Task) => void) => () => void
       onWindowMaximized: (cb: (maximized: boolean) => void) => () => void
 
       setTaskMemoryEnabled: (enabled: boolean) => Promise<PolicyState>
+      setTaskAutoApprove: (enabled: boolean) => Promise<PolicyState>
 
       // Skills
       skillList: () => Promise<import('../shared/skill').Skill[]>
@@ -59,20 +61,28 @@ declare global {
       skillToggle: (id: string) => Promise<import('../shared/skill').Skill[]>
       skillImport: (filePath: string) => Promise<import('../shared/skill').Skill[]>
 
-      // Telegram
-      telegramGetSettings: () => Promise<{
-        enabled: boolean
-        pairedChatId: number | null
-        pairingCode: string | null
-      }>
-      telegramSetEnabled: (enabled: boolean) => Promise<{
-        enabled: boolean
-        pairedChatId: number | null
-        pairingCode: string | null
-      }>
-      telegramSetToken: (token: string) => Promise<boolean>
-      telegramGeneratePairingCode: () => Promise<string>
-      telegramUnpair: () => Promise<boolean>
+      // Channels
+      channelGetAll: () => Promise<import('../shared/channel').ChannelSettings[]>
+      channelGetSettings: (channelId: import('../shared/channel').ChannelId) => Promise<import('../shared/channel').ChannelSettings>
+      channelSetEnabled: (channelId: import('../shared/channel').ChannelId, enabled: boolean) => Promise<import('../shared/channel').ChannelSettings>
+      channelSetCredentials: (channelId: import('../shared/channel').ChannelId, creds: Record<string, string>) => Promise<import('../shared/channel').ChannelSettings>
+      channelGeneratePairing: (channelId: import('../shared/channel').ChannelId) => Promise<string>
+      channelUnpair: (channelId: import('../shared/channel').ChannelId) => Promise<import('../shared/channel').ChannelSettings>
+
+      // Schedules
+      scheduleList: () => Promise<import('../shared/schedule').Schedule[]>
+      scheduleSave: (sched: Record<string, unknown>) => Promise<import('../shared/schedule').Schedule[]>
+      scheduleDelete: (id: string) => Promise<import('../shared/schedule').Schedule[]>
+      scheduleToggle: (id: string) => Promise<import('../shared/schedule').Schedule[]>
+
+      // Audio Transcription
+      transcribeAudio: (audioBuffer: ArrayBuffer) => Promise<string>
+
+      // Browser Snapshots
+      browserSnapshotList: () => Promise<import('../main/browser-snapshots').BrowserSnapshot[]>
+      browserSnapshotSave: (name: string) => Promise<import('../main/browser-snapshots').BrowserSnapshot>
+      browserSnapshotRestore: (id: string) => Promise<{ success: boolean }>
+      browserSnapshotDelete: (id: string) => Promise<boolean>
 
       // Secrets
       getSecret: (key: string) => Promise<string | null>

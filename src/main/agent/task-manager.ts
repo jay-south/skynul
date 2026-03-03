@@ -22,11 +22,17 @@ import { loadSkills, getActiveSkillPrompts } from '../skill-store'
 
 const DEFAULT_MAX_STEPS = 200
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000 // 30 minutes
-const MAX_CONCURRENT_TASKS = 3
+
+/** Per-mode concurrency limits */
+const MAX_CONCURRENT: Record<import('../../shared/task').TaskMode, number> = {
+  browser: 5,
+  code: 10
+}
 
 export class TaskManager extends EventEmitter {
   private tasks = new Map<string, Task>()
   private runners = new Map<string, TaskRunner>()
+  private inboxes = new Map<string, Array<{ from: string; message: string }>>()
   private mainWindow: BrowserWindow | null = null
   private persistPath: string
   private persistTimer: ReturnType<typeof setTimeout> | null = null
@@ -63,6 +69,7 @@ export class TaskManager extends EventEmitter {
       id,
       prompt: req.prompt,
       status: 'pending_approval',
+      mode: req.mode ?? 'browser',
       capabilities: req.capabilities,
       steps: [],
       createdAt: Date.now(),
@@ -84,10 +91,20 @@ export class TaskManager extends EventEmitter {
       throw new Error(`Cannot approve task in status: ${task.status}`)
     }
 
-    // Rate limit: max concurrent running tasks
-    const running = [...this.runners.values()].length
-    if (running >= MAX_CONCURRENT_TASKS) {
-      throw new Error(`Max ${MAX_CONCURRENT_TASKS} concurrent tasks. Wait for one to finish.`)
+    // Rate limit: per-mode concurrency
+    const running = [...this.runners.entries()].reduce(
+      (acc, [id]) => {
+        const t = this.tasks.get(id)
+        if (!t) return acc
+        acc[t.mode] = (acc[t.mode] ?? 0) + 1
+        return acc
+      },
+      {} as Record<string, number>
+    )
+    const limit = MAX_CONCURRENT[task.mode]
+    const current = running[task.mode] ?? 0
+    if (current >= limit) {
+      throw new Error(`Max ${limit} concurrent ${task.mode} tasks. Wait for one to finish.`)
     }
 
     task.status = 'approved'
@@ -114,7 +131,7 @@ export class TaskManager extends EventEmitter {
 
     const runner = new TaskRunner(
       task,
-      { provider, openaiModel, cdpRelay: this.cdpRelay, memoryContext: memoryContext + skillContext },
+      { provider, openaiModel, cdpRelay: this.cdpRelay, memoryContext: memoryContext + skillContext, taskManager: this, taskId: task.id },
       {
         onUpdate: (updated) => {
           this.tasks.set(updated.id, updated)
@@ -146,6 +163,80 @@ export class TaskManager extends EventEmitter {
     })
 
     return task
+  }
+
+  /**
+   * Spawn a sub-task, auto-approve it, and wait for completion.
+   * Returns the finished task's id + summary. Timeout 10 min.
+   */
+  async spawnAndWait(
+    prompt: string,
+    parentCapabilities: import('../../shared/task').TaskCapabilityId[]
+  ): Promise<{ taskId: string; summary: string }> {
+    const task = this.create({ prompt, capabilities: parentCapabilities })
+
+    // Auto-approve (starts the runner internally)
+    await this.approve(task.id)
+
+    // Wait for terminal status via EventEmitter
+    const result = await new Promise<Task>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        this.cancel(task.id)
+        reject(new Error('Sub-task timed out after 10 minutes'))
+      }, 10 * 60 * 1000)
+
+      const onUpdate = (updated: Task): void => {
+        if (updated.id !== task.id) return
+        if (updated.status === 'completed' || updated.status === 'failed' || updated.status === 'cancelled') {
+          clearTimeout(timeout)
+          this.removeListener('taskUpdate', onUpdate)
+          resolve(updated)
+        }
+      }
+      this.on('taskUpdate', onUpdate)
+    })
+
+    return {
+      taskId: result.id,
+      summary: result.summary ?? result.error ?? `Sub-task ${result.status}`
+    }
+  }
+
+  /**
+   * Send a message to a running task's inbox. It will see it on its next step.
+   */
+  sendMessage(targetTaskId: string, fromTaskId: string, message: string): void {
+    const target = this.tasks.get(targetTaskId)
+    if (!target) throw new Error(`Task not found: ${targetTaskId}`)
+    if (target.status !== 'running') throw new Error(`Task ${targetTaskId} is not running (status: ${target.status})`)
+
+    let inbox = this.inboxes.get(targetTaskId)
+    if (!inbox) {
+      inbox = []
+      this.inboxes.set(targetTaskId, inbox)
+    }
+    inbox.push({ from: fromTaskId, message })
+
+    // Add as visible step in the task so it shows in the feed
+    const task = this.tasks.get(targetTaskId)!
+    task.steps.push({
+      index: task.steps.length,
+      timestamp: Date.now(),
+      screenshotBase64: '',
+      action: { type: 'user_message' as const, text: message }
+    })
+    task.updatedAt = Date.now()
+    this.pushUpdate(task)
+  }
+
+  /**
+   * Drain and return all pending messages for a task. Returns empty array if none.
+   */
+  drainMessages(taskId: string): Array<{ from: string; message: string }> {
+    const inbox = this.inboxes.get(taskId)
+    if (!inbox || inbox.length === 0) return []
+    this.inboxes.set(taskId, [])
+    return inbox
   }
 
   /**
@@ -247,7 +338,7 @@ export class TaskManager extends EventEmitter {
 
   private pushUpdate(task: Task): void {
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-      this.mainWindow.webContents.send('netbot:task:update', { task })
+      this.mainWindow.webContents.send('skynul:task:update', { task })
     }
     this.emit('taskUpdate', task)
   }

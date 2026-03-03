@@ -23,7 +23,7 @@ import type {
   TaskUpdateEvent
 } from '../shared/task'
 
-const netbot = {
+const skynul = {
   ping: (): Promise<string> => ipcRenderer.invoke(IPC.ping),
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke(IPC.openExternal, url),
   authOpen: (url: string): Promise<void> => ipcRenderer.invoke(IPC.authOpen, url),
@@ -61,8 +61,8 @@ const netbot = {
   },
   onAuthCallback: (cb: (url: string) => void): (() => void) => {
     const handler = (_evt: unknown, payload: { url: string }): void => cb(payload.url)
-    ipcRenderer.on('netbot:auth:callback', handler)
-    return () => ipcRenderer.off('netbot:auth:callback', handler)
+    ipcRenderer.on('skynul:auth:callback', handler)
+    return () => ipcRenderer.off('skynul:auth:callback', handler)
   },
 
   // ── ChatGPT OAuth ──────────────────────────────────────────────────────
@@ -85,20 +85,20 @@ const netbot = {
   chatgptSignOut: (): Promise<boolean> => ipcRenderer.invoke(IPC.chatgptSignOut),
   onChatGPTAuthSuccess: (cb: () => void): (() => void) => {
     const handler = (): void => cb()
-    ipcRenderer.on('netbot:chatgpt:auth:success', handler)
-    return () => ipcRenderer.off('netbot:chatgpt:auth:success', handler)
+    ipcRenderer.on('skynul:chatgpt:auth:success', handler)
+    return () => ipcRenderer.off('skynul:chatgpt:auth:success', handler)
   },
   onChatGPTAuthError: (cb: (message: string) => void): (() => void) => {
     const handler = (_evt: unknown, payload: { message: string }): void => cb(payload.message)
-    ipcRenderer.on('netbot:chatgpt:auth:error', handler)
-    return () => ipcRenderer.off('netbot:chatgpt:auth:error', handler)
+    ipcRenderer.on('skynul:chatgpt:auth:error', handler)
+    return () => ipcRenderer.off('skynul:chatgpt:auth:error', handler)
   },
 
   // ── Task Agent ──────────────────────────────────────────────────────
   taskCreate: (
     prompt: string,
     capabilities: TaskCapabilityId[],
-    opts?: { maxSteps?: number; timeoutMs?: number }
+    opts?: { mode?: 'browser' | 'code'; maxSteps?: number; timeoutMs?: number }
   ): Promise<TaskCreateResponse> => {
     const req: TaskCreateRequest = { prompt, capabilities, ...opts }
     return ipcRenderer.invoke(IPC.taskCreate, req)
@@ -117,13 +117,17 @@ const netbot = {
     ipcRenderer.invoke(IPC.taskList),
   taskDelete: (taskId: string): Promise<boolean> =>
     ipcRenderer.invoke(IPC.taskDelete, { taskId }),
+  taskSendMessage: (taskId: string, message: string): Promise<boolean> =>
+    ipcRenderer.invoke(IPC.taskSendMessage, { taskId, message }),
   onTaskUpdate: (cb: (task: Task) => void): (() => void) => {
     const handler = (_evt: unknown, payload: TaskUpdateEvent): void => cb(payload.task)
-    ipcRenderer.on('netbot:task:update', handler)
-    return () => ipcRenderer.off('netbot:task:update', handler)
+    ipcRenderer.on('skynul:task:update', handler)
+    return () => ipcRenderer.off('skynul:task:update', handler)
   },
   setTaskMemoryEnabled: (enabled: boolean): Promise<PolicyState> =>
     ipcRenderer.invoke(IPC.setTaskMemoryEnabled, enabled),
+  setTaskAutoApprove: (enabled: boolean): Promise<PolicyState> =>
+    ipcRenderer.invoke(IPC.setTaskAutoApprove, enabled),
 
   // ── Skills ──────────────────────────────────────────────────────────
   skillList: (): Promise<import('../shared/skill').Skill[]> =>
@@ -137,23 +141,43 @@ const netbot = {
   skillImport: (filePath: string): Promise<import('../shared/skill').Skill[]> =>
     ipcRenderer.invoke(IPC.skillImport, filePath),
 
-  // ── Telegram ─────────────────────────────────────────────────────────
-  telegramGetSettings: (): Promise<{
-    enabled: boolean
-    pairedChatId: number | null
-    pairingCode: string | null
-  }> => ipcRenderer.invoke(IPC.telegramGetSettings),
-  telegramSetEnabled: (enabled: boolean): Promise<{
-    enabled: boolean
-    pairedChatId: number | null
-    pairingCode: string | null
-  }> => ipcRenderer.invoke(IPC.telegramSetEnabled, enabled),
-  telegramSetToken: (token: string): Promise<boolean> =>
-    ipcRenderer.invoke(IPC.telegramSetToken, token),
-  telegramGeneratePairingCode: (): Promise<string> =>
-    ipcRenderer.invoke(IPC.telegramGeneratePairingCode),
-  telegramUnpair: (): Promise<boolean> =>
-    ipcRenderer.invoke(IPC.telegramUnpair),
+  // ── Channels ────────────────────────────────────────────────────────
+  channelGetAll: (): Promise<import('../shared/channel').ChannelSettings[]> =>
+    ipcRenderer.invoke(IPC.channelGetAll),
+  channelGetSettings: (channelId: import('../shared/channel').ChannelId): Promise<import('../shared/channel').ChannelSettings> =>
+    ipcRenderer.invoke(IPC.channelGetSettings, channelId),
+  channelSetEnabled: (channelId: import('../shared/channel').ChannelId, enabled: boolean): Promise<import('../shared/channel').ChannelSettings> =>
+    ipcRenderer.invoke(IPC.channelSetEnabled, channelId, enabled),
+  channelSetCredentials: (channelId: import('../shared/channel').ChannelId, creds: Record<string, string>): Promise<import('../shared/channel').ChannelSettings> =>
+    ipcRenderer.invoke(IPC.channelSetCredentials, channelId, creds),
+  channelGeneratePairing: (channelId: import('../shared/channel').ChannelId): Promise<string> =>
+    ipcRenderer.invoke(IPC.channelGeneratePairing, channelId),
+  channelUnpair: (channelId: import('../shared/channel').ChannelId): Promise<import('../shared/channel').ChannelSettings> =>
+    ipcRenderer.invoke(IPC.channelUnpair, channelId),
+
+  // ── Schedules ────────────────────────────────────────────────────────
+  scheduleList: (): Promise<import('../shared/schedule').Schedule[]> =>
+    ipcRenderer.invoke(IPC.scheduleList),
+  scheduleSave: (sched: Record<string, unknown>): Promise<import('../shared/schedule').Schedule[]> =>
+    ipcRenderer.invoke(IPC.scheduleSave, sched),
+  scheduleDelete: (id: string): Promise<import('../shared/schedule').Schedule[]> =>
+    ipcRenderer.invoke(IPC.scheduleDelete, id),
+  scheduleToggle: (id: string): Promise<import('../shared/schedule').Schedule[]> =>
+    ipcRenderer.invoke(IPC.scheduleToggle, id),
+
+  // ── Audio Transcription ──────────────────────────────────────────────
+  transcribeAudio: (audioBuffer: ArrayBuffer): Promise<string> =>
+    ipcRenderer.invoke(IPC.transcribeAudio, audioBuffer),
+
+  // ── Browser Snapshots ────────────────────────────────────────────────
+  browserSnapshotList: (): Promise<import('../main/browser-snapshots').BrowserSnapshot[]> =>
+    ipcRenderer.invoke(IPC.browserSnapshotList),
+  browserSnapshotSave: (name: string): Promise<import('../main/browser-snapshots').BrowserSnapshot> =>
+    ipcRenderer.invoke(IPC.browserSnapshotSave, name),
+  browserSnapshotRestore: (id: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke(IPC.browserSnapshotRestore, id),
+  browserSnapshotDelete: (id: string): Promise<boolean> =>
+    ipcRenderer.invoke(IPC.browserSnapshotDelete, id),
 
   // ── Secrets ──────────────────────────────────────────────────────────
   getSecret: (key: string): Promise<string | null> =>
@@ -163,13 +187,13 @@ const netbot = {
 
   onWindowMaximized: (cb: (maximized: boolean) => void): (() => void) => {
     const handler = (_evt: unknown, maximized: boolean): void => cb(maximized)
-    ipcRenderer.on('netbot:window:maximized', handler)
-    return () => ipcRenderer.off('netbot:window:maximized', handler)
+    ipcRenderer.on('skynul:window:maximized', handler)
+    return () => ipcRenderer.off('skynul:window:maximized', handler)
   }
 }
 
 if (!process.contextIsolated) {
-  throw new Error('Netbot requires contextIsolation')
+  throw new Error('Skynul requires contextIsolation')
 }
 
-contextBridge.exposeInMainWorld('netbot', netbot)
+contextBridge.exposeInMainWorld('skynul', skynul)

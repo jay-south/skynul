@@ -13,15 +13,17 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_COLORS: Record<string, string> = {
   pending_approval: 'var(--nb-muted)',
-  approved: 'var(--nb-accent)',
+  approved: 'var(--nb-accent-2)',
   running: 'var(--nb-accent-2)',
-  completed: 'var(--nb-accent)',
+  completed: 'var(--nb-accent-2)',
   failed: 'var(--nb-danger)',
   cancelled: 'var(--nb-muted)'
 }
 
 function TaskDropdown(props: {
   anchorEl: HTMLElement
+  isRunning: boolean
+  onStop: () => void
   onDelete: () => void
   onClose: () => void
 }): React.JSX.Element {
@@ -53,6 +55,17 @@ function TaskDropdown(props: {
         zIndex: 9999
       }}
     >
+      {props.isRunning && (
+        <button
+          className="rbDropdownItem"
+          onClick={() => {
+            props.onStop()
+            props.onClose()
+          }}
+        >
+          Stop
+        </button>
+      )}
       <button
         className="rbDropdownItem danger"
         onClick={() => {
@@ -72,6 +85,7 @@ export function TaskPanel(props: {
   activeTaskId: string | null
   onSelectTask: (id: string) => void
   onNewTask: () => void
+  onStopTask: (id: string) => void
   onDeleteTask: (id: string) => void
 }): React.JSX.Element {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
@@ -134,6 +148,8 @@ export function TaskPanel(props: {
       {menuOpenId && menuAnchor && (
         <TaskDropdown
           anchorEl={menuAnchor}
+          isRunning={props.tasks.find((t) => t.id === menuOpenId)?.status === 'running'}
+          onStop={() => props.onStopTask(menuOpenId)}
           onDelete={() => props.onDeleteTask(menuOpenId)}
           onClose={closeMenu}
         />

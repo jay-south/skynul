@@ -6,12 +6,14 @@ import { initPolicy, registerIpcHandlers, tryHandleChatGPTCallback } from './ipc
 import { startAuthCallbackServer } from './auth-callback-server'
 import { TaskManager } from './agent/task-manager'
 import { CdpRelay } from './agent/cdp-relay'
-import { TelegramBot } from './telegram/telegram-bot'
+import { ChannelManager } from './channels/channel-manager'
+import { ScheduleRunner } from './schedule-runner'
 
 let authServer: { close: () => Promise<void> } | null = null
 let authWindow: BrowserWindow | null = null
 let taskManager: TaskManager | null = null
-let telegramBot: TelegramBot | null = null
+let channelManager: ChannelManager | null = null
+let scheduleRunner: ScheduleRunner | null = null
 
 // WSL/VMs often fail GPU init; disable to avoid crashes/noise.
 app.disableHardwareAcceleration()
@@ -49,10 +51,10 @@ function createWindow(): BrowserWindow {
   mainWindow.on('maximize', () => {
     const { workArea } = screen.getDisplayMatching(mainWindow.getBounds())
     mainWindow.setBounds(workArea)
-    mainWindow.webContents.send('netbot:window:maximized', true)
+    mainWindow.webContents.send('skynul:window:maximized', true)
   })
   mainWindow.on('unmaximize', () => {
-    mainWindow.webContents.send('netbot:window:maximized', false)
+    mainWindow.webContents.send('skynul:window:maximized', false)
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -141,7 +143,7 @@ function openAuthUrl(parent: BrowserWindow, url: string): void {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
   // Set app user model id for windows
-  electronApp.setAppUserModelId('com.netbot.app')
+  electronApp.setAppUserModelId('com.skynul.app')
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -161,9 +163,12 @@ app.whenReady().then(() => {
   taskManager = new TaskManager()
   taskManager.setMainWindow(win)
 
-  telegramBot = new TelegramBot(taskManager)
-  void telegramBot.start().catch((e) => {
-    console.warn('[TelegramBot] Failed to start:', e)
+  scheduleRunner = new ScheduleRunner(taskManager)
+  scheduleRunner.start()
+
+  channelManager = new ChannelManager(taskManager)
+  void channelManager.startAll().catch((e) => {
+    console.warn('[ChannelManager] Failed to start:', e)
   })
 
   // Start CDP relay for browser extension tasks
@@ -177,7 +182,8 @@ app.whenReady().then(() => {
   registerIpcHandlers({
     openAuthUrl: (url) => openAuthUrl(win, url),
     taskManager,
-    telegramBot
+    channelManager,
+    cdpRelay
   })
 
   // Local callback server used for OAuth redirects.
@@ -208,8 +214,9 @@ app.whenReady().then(() => {
 })
 
 app.on('before-quit', () => {
+  scheduleRunner?.stop()
   taskManager?.destroyAll()
-  void telegramBot?.stop()
+  void channelManager?.stopAll()
   void authServer?.close()
 })
 

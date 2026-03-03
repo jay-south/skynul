@@ -1,11 +1,8 @@
 // ── Task Capability IDs ───────────────────────────────────────────────────────
 
 export type TaskCapabilityId =
-  | 'screen.read'
-  | 'input.mouse'
-  | 'input.keyboard'
-  | 'app.launch'
   | 'browser.cdp'
+  | 'app.launch'
   | 'polymarket.trading'
   | 'office.professional'
 
@@ -14,11 +11,8 @@ export const ALL_TASK_CAPABILITIES: Array<{
   title: string
   desc: string
 }> = [
-  { id: 'screen.read', title: 'Screen Capture', desc: 'Take screenshots of your display.' },
-  { id: 'input.mouse', title: 'Mouse Control', desc: 'Click, scroll, and move the cursor.' },
-  { id: 'input.keyboard', title: 'Keyboard Input', desc: 'Type text and send key combos.' },
+  { id: 'browser.cdp', title: 'Browser', desc: 'Control Chrome via CDP extension.' },
   { id: 'app.launch', title: 'Launch Apps', desc: 'Open applications on your computer.' },
-  { id: 'browser.cdp', title: 'Browser (CDP)', desc: 'Control Chrome via extension relay (no screenshots).' },
   {
     id: 'polymarket.trading',
     title: 'Polymarket Trading',
@@ -56,8 +50,10 @@ export type TaskAction =
   | { type: 'wait'; ms: number }
   | { type: 'web_scrape'; url: string; instruction: string }
   | { type: 'save_to_excel'; filename: string; filter?: string }
+  | { type: 'shell'; command: string; cwd?: string; timeout?: number }
   | { type: 'done'; summary: string }
   | { type: 'fail'; reason: string }
+  | { type: 'user_message'; text: string }
   // Polymarket trading actions (require polymarket.trading capability)
   | { type: 'polymarket_get_account_summary' }
   | { type: 'polymarket_get_trader_leaderboard' }
@@ -76,6 +72,17 @@ export type TaskAction =
       tokenId: string
       size?: number
     }
+  // Code mode file operations
+  | { type: 'file_read'; path: string; offset?: number; limit?: number; cwd?: string }
+  | { type: 'file_write'; path: string; content: string; cwd?: string }
+  | { type: 'file_edit'; path: string; old_string: string; new_string: string; cwd?: string }
+  | { type: 'file_list'; pattern: string; cwd?: string }
+  | { type: 'file_search'; pattern: string; path?: string; glob?: string; cwd?: string }
+  // Inter-task communication
+  | { type: 'task_list_peers' }
+  | { type: 'task_send'; prompt: string }
+  | { type: 'task_read'; taskId: string }
+  | { type: 'task_message'; taskId: string; message: string }
 
 // ── Task Step (one turn of the agent loop) ────────────────────────────────────
 
@@ -100,6 +107,7 @@ export type Task = {
   id: string
   prompt: string
   status: TaskStatus
+  mode: TaskMode
   capabilities: TaskCapabilityId[]
   steps: TaskStep[]
   createdAt: number
@@ -116,9 +124,12 @@ export type Task = {
 
 // ── IPC payloads ──────────────────────────────────────────────────────────────
 
+export type TaskMode = 'browser' | 'code'
+
 export type TaskCreateRequest = {
   prompt: string
   capabilities: TaskCapabilityId[]
+  mode?: TaskMode
   maxSteps?: number
   timeoutMs?: number
 }

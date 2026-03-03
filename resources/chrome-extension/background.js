@@ -1,15 +1,15 @@
 /**
- * Netbot CDP Relay — Chrome Extension Service Worker (Manifest V3)
+ * Skynul CDP Relay — Chrome Extension Service Worker (Manifest V3)
  *
- * Connects to Netbot's local WebSocket relay server and executes
- * chrome.debugger commands on behalf of the Netbot agent.
+ * Connects to Skynul's local WebSocket relay server and executes
+ * chrome.debugger commands on behalf of the Skynul agent.
  *
  * MV3 service workers die after ~30s of inactivity. We use chrome.alarms
  * as a keepalive to ensure the WS connection stays up.
  */
 
 const RELAY_URL = 'ws://localhost:19222'
-const KEEPALIVE_ALARM = 'netbot-keepalive'
+const KEEPALIVE_ALARM = 'skynul-keepalive'
 const KEEPALIVE_INTERVAL_MIN = 0.5 // 30 seconds — minimum chrome.alarms allows
 
 /** @type {WebSocket | null} */
@@ -28,7 +28,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     // This fires every 30s, waking the SW if it slept.
     // Reconnect if WS is dead.
     if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
-      console.log('[Netbot] Alarm keepalive — reconnecting')
+      console.log('[Skynul] Alarm keepalive — reconnecting')
       connect()
     }
   }
@@ -46,7 +46,7 @@ function connect() {
   }
 
   ws.onopen = () => {
-    console.log('[Netbot] Connected to relay')
+    console.log('[Skynul] Connected to relay')
     ws.send(JSON.stringify({ type: 'hello', extensionId: chrome.runtime.id }))
   }
 
@@ -54,12 +54,12 @@ function connect() {
     try {
       await handleCommand(JSON.parse(event.data))
     } catch (e) {
-      console.warn('[Netbot] Bad message:', e)
+      console.warn('[Skynul] Bad message:', e)
     }
   }
 
   ws.onclose = () => {
-    console.log('[Netbot] Relay disconnected')
+    console.log('[Skynul] Relay disconnected')
     ws = null
     taskTabId = null
     detachAll()
@@ -107,6 +107,12 @@ async function handleCommand(msg) {
       case 'cdp':
         result = await sendCDP(method, params)
         break
+      case 'snapshotSave':
+        result = await snapshotSave()
+        break
+      case 'snapshotRestore':
+        result = await snapshotRestore(msg.snapshot)
+        break
       case 'ping':
         result = { pong: true }
         break
@@ -135,7 +141,7 @@ async function getActiveTabId() {
   let [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
   if (tab?.id)
     return tab.id
-  // Fallback: active tab in any window (Netbot may have focus, not Chrome)
+  // Fallback: active tab in any window (Skynul may have focus, not Chrome)
   ;[tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
   if (tab?.id) return tab.id
   // Last resort: any non-chrome tab
@@ -382,6 +388,100 @@ async function captureScreenshot() {
   await ensureAttached(tabId)
   const result = await sendCDP('Page.captureScreenshot', { format: 'png' }, tabId)
   return { data: result.data }
+}
+
+// ── Snapshot helpers ────────────────────────────────────────────
+
+async function snapshotSave() {
+  const tabId = await getActiveTabId()
+  await ensureAttached(tabId)
+
+  // Get all cookies
+  const cookieResult = await sendCDP('Network.getAllCookies', {}, tabId)
+  const cookies = (cookieResult?.cookies ?? []).map((c) => ({
+    name: c.name,
+    value: c.value,
+    domain: c.domain,
+    path: c.path,
+    secure: c.secure,
+    httpOnly: c.httpOnly,
+    sameSite: c.sameSite,
+    expires: c.expires
+  }))
+
+  // Get localStorage, sessionStorage, URL, title, scroll
+  const stateResult = await sendCDP(
+    'Runtime.evaluate',
+    {
+      expression: `(() => {
+        const ls = {};
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          ls[k] = localStorage.getItem(k);
+        }
+        const ss = {};
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const k = sessionStorage.key(i);
+          ss[k] = sessionStorage.getItem(k);
+        }
+        return {
+          url: location.href,
+          title: document.title,
+          localStorage: ls,
+          sessionStorage: ss,
+          scrollX: window.scrollX,
+          scrollY: window.scrollY
+        };
+      })()`,
+      returnByValue: true
+    },
+    tabId
+  )
+
+  const state = stateResult?.result?.value ?? {}
+  return {
+    url: state.url ?? '',
+    title: state.title ?? '',
+    cookies,
+    localStorage: state.localStorage ?? {},
+    sessionStorage: state.sessionStorage ?? {},
+    scrollX: state.scrollX ?? 0,
+    scrollY: state.scrollY ?? 0
+  }
+}
+
+async function snapshotRestore(snapshot) {
+  const tabId = await getActiveTabId()
+  await ensureAttached(tabId)
+
+  // Navigate to the saved URL
+  await sendCDP('Page.navigate', { url: snapshot.url }, tabId)
+  await new Promise((r) => setTimeout(r, 3000))
+
+  // Set cookies
+  if (snapshot.cookies?.length > 0) {
+    await sendCDP('Network.setCookies', { cookies: snapshot.cookies }, tabId)
+  }
+
+  // Inject localStorage + sessionStorage
+  const lsJson = JSON.stringify(snapshot.localStorage ?? {})
+  const ssJson = JSON.stringify(snapshot.sessionStorage ?? {})
+  await sendCDP(
+    'Runtime.evaluate',
+    {
+      expression: `(() => {
+        const ls = ${lsJson};
+        for (const [k, v] of Object.entries(ls)) localStorage.setItem(k, v);
+        const ss = ${ssJson};
+        for (const [k, v] of Object.entries(ss)) sessionStorage.setItem(k, v);
+        window.scrollTo(${snapshot.scrollX ?? 0}, ${snapshot.scrollY ?? 0});
+      })()`,
+      returnByValue: true
+    },
+    tabId
+  )
+
+  return { success: true }
 }
 
 // ── Lifecycle ───────────────────────────────────────────────────────

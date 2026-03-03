@@ -326,10 +326,92 @@ code {
   background: var(--nb-bg-hover, rgba(255, 255, 255, 0.06));
 }
 .sbFooterSettingsBtn.active {
-  color: var(--nb-accent, #6b9fff);
+  color: var(--nb-accent-2);
   background: var(--nb-bg-hover, rgba(255, 255, 255, 0.06));
 }
 
+/* ── Profile button + dropdown ────────────────────────────────────────── */
+
+.profileBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--nb-text);
+  cursor: pointer;
+  font-size: 12px;
+  text-align: left;
+  transition: background 0.12s;
+}
+.profileBtn:hover {
+  background: var(--nb-bg-hover, rgba(255, 255, 255, 0.06));
+}
+
+.profileAvatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--nb-accent-2);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: -0.5px;
+}
+
+.profileEmail {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--nb-text-muted, #999);
+}
+
+.profileDropdown {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: var(--nb-surface-2, #1e1e1e);
+  border: 1px solid var(--nb-border);
+  border-radius: 10px;
+  padding: 4px;
+  z-index: 100;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.profileDropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--nb-text);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+.profileDropdownItem:hover {
+  background: var(--nb-bg-hover, rgba(255, 255, 255, 0.06));
+}
+.profileDropdownItem.danger {
+  color: var(--nb-danger, #ff6b6b);
+}
+.profileDropdownItem.danger:hover {
+  background: rgba(255, 107, 107, 0.1);
+}
 
 .rbPill {
   display: inline-flex;
@@ -386,6 +468,17 @@ code {
 
 .btn:active {
   transform: translateY(0px);
+}
+
+.btnFilled {
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 78%);
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 45%);
+  padding: 10px 20px;
+}
+
+.btnFilled:hover {
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 68%);
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 30%);
 }
 
 .capList {
@@ -1338,6 +1431,246 @@ code {
   color: var(--nb-muted);
 }
 
+/* ── Dashboard ───────────────────────────────────────────────────────── */
+
+.dashWrap {
+  height: 100%;
+  overflow-y: auto;
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.dashHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 28px;
+}
+
+.dashTitle {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--nb-text);
+}
+
+.dashSubtitle {
+  font-size: 13px;
+  color: var(--nb-muted);
+  margin-top: 3px;
+}
+
+.dashStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.dashStatCard {
+  background: var(--nb-surface-2);
+  border-radius: 12px;
+  padding: 20px 20px 16px;
+  border: 1px solid var(--nb-border);
+  text-align: center;
+}
+
+.dashStatValue {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.dashStatLabel {
+  font-size: 11px;
+  color: var(--nb-muted);
+  margin-top: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 500;
+}
+
+.dashStatSub {
+  font-size: 11px;
+  color: var(--nb-muted);
+  margin-top: 3px;
+}
+
+/* ── Dashboard input ────────────────────────────────────────────────── */
+
+.composerHeading {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--nb-text);
+  margin-bottom: 24px;
+  letter-spacing: -0.5px;
+  text-align: center;
+}
+
+.dashInputSection {
+  margin-bottom: 28px;
+}
+
+.dashInputWrap {
+  background: var(--nb-surface-2);
+  border: 1px solid var(--nb-border);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.dashInput {
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--nb-text);
+  font-size: 15px;
+  font-family: inherit;
+  resize: none;
+  outline: none;
+  padding: 4px 0;
+  line-height: 1.5;
+}
+
+.dashInput::placeholder {
+  color: var(--nb-muted);
+}
+
+.dashInputActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.dashInputLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.seg--sm .segBtn {
+  padding: 5px 10px;
+  font-size: 11px;
+}
+
+.dashCapsToggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--nb-border);
+  background: none;
+  color: var(--nb-muted);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+}
+
+.dashCapsToggle:hover {
+  color: var(--nb-text);
+  border-color: var(--nb-text);
+}
+
+.dashModeBar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.dashModeHint {
+  font-size: 12px;
+  color: var(--nb-muted);
+  text-align: center;
+}
+
+.dashCapsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.dashAutoHint {
+  font-size: 11px;
+  color: var(--nb-muted);
+  margin-top: 8px;
+}
+
+.dashSection {
+  margin-bottom: 20px;
+}
+
+.dashSectionTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--nb-text);
+  margin-bottom: 10px;
+}
+
+.dashEmpty {
+  font-size: 13px;
+  color: var(--nb-muted);
+  padding: 16px 0;
+}
+
+.dashRecentList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dashRecentItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: none;
+  border: none;
+  color: var(--nb-text);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  font: inherit;
+  transition: background 0.12s;
+}
+
+.dashRecentItem:hover {
+  background: var(--nb-surface-2);
+}
+
+.dashRecentDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dashRecentContent {
+  min-width: 0;
+  flex: 1;
+}
+
+.dashRecentTitle {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dashRecentMeta {
+  font-size: 11px;
+  color: var(--nb-muted);
+  margin-top: 1px;
+}
+
 /* ── Main panel center (templates/composer in main area) ────────────── */
 
 .mainPanelCenter {
@@ -1367,6 +1700,30 @@ code {
   display: flex;
   flex-direction: column;
   gap: 24px;
+}
+
+.settingsBackBar {
+  margin-bottom: 12px;
+}
+
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 14px 8px 8px;
+  border-radius: 10px;
+  border: none;
+  background: var(--nb-surface-2);
+  color: var(--nb-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.12s, color 0.12s;
+}
+
+.backBtn:hover {
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 85%);
+  color: var(--nb-text);
 }
 
 .settingsPanelTitle {
@@ -1699,4 +2056,624 @@ code {
   .modalBody {
     grid-template-columns: 1fr;
   }
+}
+
+/* ── Channel Settings ──────────────────────────────────────────── */
+
+.channelGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.channelCard {
+  border: 1px solid var(--nb-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--nb-panel);
+}
+
+.channelCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--nb-text);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.channelCardHeader:hover {
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 92%);
+}
+
+.channelIcon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.channelName {
+  flex: 1;
+}
+
+.channelStatusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.channelCardBody {
+  padding: 0 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.channelCredRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.channelCredRow .apiKeyInput {
+  flex: 1;
+}
+
+.channelPairing,
+.channelPaired {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Chat Feed UI
+   ══════════════════════════════════════════════════════════════════════ */
+
+.chatFeedLayout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.chatFeed {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px 24px 16px;
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  scrollbar-gutter: stable;
+}
+
+.chatFeedLayout > .chatFeed {
+  max-width: none;
+  padding-right: 0;
+}
+
+.chatFeedLayout > .chatFeed > * {
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+/* ── Thin transparent scrollbar ────────────────────────────────────── */
+
+.chatFeed::-webkit-scrollbar {
+  width: 6px;
+}
+.chatFeed::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chatFeed::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+.chatFeed::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.chatFeedCentered {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  max-width: 680px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.chatFeedCentered .inputBar {
+  border-top: none;
+  padding-top: 0;
+}
+
+/* ── Feed bubbles ─────────────────────────────────────────────────── */
+
+.feedBubble {
+  max-width: 90%;
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.feedBubbleUser {
+  align-self: flex-end;
+  background: color-mix(in srgb, var(--nb-accent-2), #000 30%);
+  color: #fff;
+}
+
+.feedBubbleBot {
+  align-self: flex-start;
+  color: var(--nb-text);
+}
+
+.feedBubbleContent {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.feedThinking {
+  color: var(--nb-muted);
+  font-style: italic;
+}
+
+/* ── Steps block (all steps in one bot block) ────────────────────── */
+
+.feedStepsBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  background: none;
+}
+
+.feedStep {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--nb-border);
+}
+
+.feedStep:last-child {
+  border-bottom: none;
+}
+
+.feedStepTime {
+  font-size: 11px;
+  color: var(--nb-muted);
+  margin-right: 6px;
+}
+
+.feedStepThought {
+  font-size: 13px;
+  color: var(--nb-text);
+  line-height: 1.4;
+  margin-bottom: 2px;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.feedStepAction {
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace;
+  color: var(--nb-muted);
+  line-height: 1.4;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.feedStepResult {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--nb-muted);
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.feedStepResult.clickable {
+  cursor: pointer;
+}
+.feedResultToggle {
+  font-size: 9px;
+  opacity: 0.5;
+}
+
+.feedStepErr {
+  font-size: 12px;
+  color: var(--nb-danger);
+  margin-top: 2px;
+}
+
+.feedStepError .feedStepAction {
+  color: var(--nb-danger);
+}
+
+/* ── Collapsible screenshot (only on last step) ──────────────────── */
+
+.feedScreenshot {
+  margin-top: 6px;
+  cursor: pointer;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--nb-border);
+  position: relative;
+}
+
+.feedScreenshot img {
+  display: block;
+  width: 100%;
+  max-height: 80px;
+  object-fit: cover;
+  object-position: top;
+  transition: max-height 0.25s ease;
+}
+
+.feedScreenshot.expanded img {
+  max-height: none;
+}
+
+.feedScreenshotOverlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 3px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--nb-muted);
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.5));
+}
+
+/* ── Caps approval (inline) ──────────────────────────────────────── */
+
+.feedCapsLabel {
+  font-size: 12px;
+  color: var(--nb-muted);
+  margin-right: 6px;
+}
+
+.feedCapChip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--nb-border);
+  color: var(--nb-muted);
+  margin-right: 4px;
+}
+
+.feedCapChip.confirmed {
+  opacity: 0.5;
+}
+
+.feedCapsActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.feedBtnAllow {
+  background: var(--nb-accent-2) !important;
+  color: #fff !important;
+  font-weight: 600;
+}
+
+.feedBtnCancel {
+  background: transparent !important;
+  border: 1px solid var(--nb-border) !important;
+  color: var(--nb-muted) !important;
+}
+
+/* ── Terminal status ─────────────────────────────────────────────── */
+
+.feedStatus {
+  font-size: 13px;
+  padding: 6px 0;
+  align-self: flex-start;
+}
+
+.feedStatus.completed {
+  color: var(--nb-accent-2);
+}
+
+.feedStatus.failed {
+  color: var(--nb-danger);
+}
+
+.feedStatus.cancelled {
+  color: var(--nb-muted);
+}
+
+/* ── Input bar (fixed at bottom) ─────────────────────────────────── */
+
+.inputBarWrap {
+  flex-shrink: 0;
+  border-top: 1px solid var(--nb-border);
+}
+
+.inputBar {
+  padding: 10px 24px 12px;
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.inputBarCapsHint {
+  font-size: 11px;
+  color: var(--nb-muted);
+  margin-bottom: 6px;
+  padding-left: 2px;
+}
+
+.inputBarInner {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  background: var(--nb-surface-2);
+  border: 1px solid var(--nb-border);
+  border-radius: 14px;
+  padding: 8px 12px;
+}
+
+.inputBarTextarea {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--nb-text);
+  font-size: 14px;
+  font-family: inherit;
+  resize: none;
+  outline: none;
+  line-height: 1.5;
+  min-height: 21px;
+  max-height: 120px;
+}
+
+.inputBarTextarea::placeholder {
+  color: var(--nb-muted);
+}
+
+.inputBarActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.inputBarModeToggle {
+  display: flex;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--nb-border);
+}
+
+.inputBarModeBtn {
+  padding: 4px 6px;
+  background: none;
+  border: none;
+  color: var(--nb-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, color 0.12s;
+}
+
+.inputBarModeBtn.active {
+  background: var(--nb-accent-2);
+  color: #fff;
+}
+
+.inputBarModeBtn:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.inputBarMicBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: none;
+  color: var(--nb-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.12s;
+}
+
+.inputBarMicBtn:hover {
+  color: var(--nb-text);
+}
+
+.inputBarMicBtn.recording {
+  color: var(--nb-danger);
+  animation: micPulse 1s infinite;
+}
+
+@keyframes micPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.inputBarSendBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--nb-accent-2);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.12s;
+}
+
+.inputBarSendBtn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.inputBarSendBtn:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.inputBarStopBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: none;
+  color: var(--nb-danger);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+  transition: opacity 0.12s;
+}
+.inputBarStopBtn:hover { opacity: 1; }
+
+.feedDontAsk {
+  margin-top: 4px;
+  background: none;
+  border: none;
+  color: var(--nb-muted);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.feedDontAsk:hover {
+  color: var(--nb-text);
+  text-decoration: underline;
+}
+
+.inputBarModeBar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.inputBarModeHint {
+  font-size: 12px;
+  color: var(--nb-muted);
+  text-align: center;
+}
+
+/* ── Schedule form ─────────────────────────────────────────────────── */
+
+.schedNewBtn {
+  width: 100%;
+  padding: 8px;
+  border: 1px dashed var(--nb-border);
+  border-radius: 8px;
+  background: none;
+  color: var(--nb-muted);
+  font-size: 13px;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+.schedNewBtn:hover { color: var(--nb-text); border-color: var(--nb-text); }
+
+.schedNewForm {
+  padding: 10px;
+  border: 1px solid var(--nb-border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.schedNewPrompt {
+  width: 100%;
+  background: none;
+  border: 1px solid var(--nb-border);
+  border-radius: 6px;
+  color: var(--nb-text);
+  font-size: 13px;
+  font-family: inherit;
+  padding: 6px 8px;
+  resize: none;
+  outline: none;
+}
+.schedNewPrompt:focus { border-color: var(--nb-accent-2); }
+
+.schedPresets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.schedPresetChip {
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  border: 1px solid var(--nb-border);
+  background: none;
+  color: var(--nb-muted);
+  cursor: pointer;
+}
+.schedPresetChip.active {
+  border-color: var(--nb-accent-2);
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 88%);
+  color: var(--nb-text);
+}
+
+.schedTimeRow {
+  display: flex;
+  gap: 6px;
+}
+
+.schedTimeInput, .schedDowSelect {
+  background: none;
+  border: 1px solid var(--nb-border);
+  border-radius: 6px;
+  color: var(--nb-text);
+  font-size: 12px;
+  padding: 4px 6px;
+}
+
+.schedFormActions {
+  display: flex;
+  gap: 6px;
+}
+
+.schedSaveBtn {
+  flex: 1;
+  background: var(--nb-accent-2) !important;
+  color: #fff !important;
+  font-size: 12px;
+}
+.schedSaveBtn:disabled { opacity: 0.4; }
+
+.schedCancelBtn {
+  background: none !important;
+  border: 1px solid var(--nb-border) !important;
+  color: var(--nb-muted) !important;
+  font-size: 12px;
 }

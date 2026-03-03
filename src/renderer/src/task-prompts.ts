@@ -1,6 +1,6 @@
 export type SavedPrompt = { id: string; text: string }
 
-export const SAVED_PROMPTS_KEY = 'netbot.savedTaskPrompts.v1'
+export const SAVED_PROMPTS_KEY = 'skynul.savedTaskPrompts.v1'
 
 export function loadSavedPrompts(): SavedPrompt[] {
   try {

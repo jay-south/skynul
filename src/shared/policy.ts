@@ -16,6 +16,7 @@ export type PolicyState = {
     openaiModel: string
   }
   taskMemoryEnabled: boolean
+  taskAutoApprove: boolean
 }
 
 export const DEFAULT_POLICY: PolicyState = {
@@ -32,7 +33,8 @@ export const DEFAULT_POLICY: PolicyState = {
     active: 'chatgpt',
     openaiModel: 'gpt-4.1-mini'
   },
-  taskMemoryEnabled: true
+  taskMemoryEnabled: true,
+  taskAutoApprove: false
 }
 
 export type SetLanguageRequest = {

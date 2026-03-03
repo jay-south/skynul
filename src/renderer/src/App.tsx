@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import type {
   CapabilityId,
-  ChatMessage,
   LanguageCode,
   PolicyState,
   ProviderId,
@@ -10,13 +9,15 @@ import type {
 import type { Task, TaskCapabilityId } from '../../shared/task'
 import { OAUTH_REDIRECT_TO, supabase, SUPABASE_CONFIGURED } from './supabase'
 import { TaskPanel } from './components/TaskPanel'
-import { TaskDetailView } from './components/TaskDetailView'
-import { TaskApprovalDialog } from './components/TaskApprovalDialog'
-import { TaskTemplates, type TaskTemplateId } from './components/TaskTemplates'
-import { TaskComposer } from './components/TaskComposer'
+import { ChatFeed } from './components/ChatFeed'
+import { InputBar } from './components/InputBar'
+import { TaskDashboard } from './components/TaskDashboard'
+import { SchedulePanel } from './components/SchedulePanel'
 import { t } from './i18n'
 import { SkillGraph } from './components/SkillGraph'
+import { ChannelSettings } from './components/ChannelSettings'
 import type { Skill } from '../../shared/skill'
+import type { Schedule } from '../../shared/schedule'
 
 import chatgptIcon from './assets/chatgpt.svg'
 import claudeIcon from './assets/claude-logo.svg'
@@ -59,46 +60,133 @@ const PROVIDERS: Array<{
   { id: 'kimi', label: 'Kimi', icon: kimiIcon, desc: 'API key · api.kimi.com (Kimi for Coding)' }
 ]
 
-type Conversation = {
+type SidebarTab = 'tasks' | 'settings' | 'dashboard'
+
+type SnapshotEntry = {
   id: string
+  name: string
+  url: string
   title: string
-  messages: ChatMessage[]
+  createdAt: number
 }
 
-type SidebarTab = 'chats' | 'tasks' | 'settings'
+function BrowserSnapshotsSection(): React.JSX.Element {
+  const [snapshots, setSnapshots] = useState<SnapshotEntry[]>([])
+  const [snapName, setSnapName] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-const STORAGE_KEY = 'netbot.conversations.v1'
-
-const DEFAULT_BOOT_MESSAGES = new Set<string>([
-  'Welcome to Netbot. Pick a workspace and enable only the capabilities you need. Nothing executes without explicit permissions.',
-  'Bienvenido a Netbot. Elegi un workspace y habilita solo las capabilities que necesites. Aca nada se ejecuta sin permisos.'
-])
-
-function newConversation(): Conversation {
-  const id = `c_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
-  return {
-    id,
-    title: 'New chat',
-    messages: []
-  }
-}
-
-function sanitizeConversations(input: Conversation[]): Conversation[] {
-  return input.map((c) => {
-    if (c.messages.length === 0) return c
-    const first = c.messages[0]
-    if (first.role === 'assistant' && DEFAULT_BOOT_MESSAGES.has(first.content)) {
-      return { ...c, messages: c.messages.slice(1) }
+  const refresh = useCallback(async () => {
+    try {
+      const list = await window.skynul.browserSnapshotList()
+      setSnapshots(list.map((s) => ({ id: s.id, name: s.name, url: s.url, title: s.title, createdAt: s.createdAt })))
+    } catch {
+      // extension might not be connected
     }
-    return c
-  })
+  }, [])
+
+  useEffect(() => { void refresh() }, [refresh])
+
+  const handleSave = async (): Promise<void> => {
+    setBusy(true)
+    setError(null)
+    try {
+      await window.skynul.browserSnapshotSave(snapName || 'Untitled')
+      setSnapName('')
+      await refresh()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleRestore = async (id: string): Promise<void> => {
+    setBusy(true)
+    setError(null)
+    try {
+      await window.skynul.browserSnapshotRestore(id)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleDelete = async (id: string): Promise<void> => {
+    await window.skynul.browserSnapshotDelete(id)
+    await refresh()
+  }
+
+  return (
+    <div className="settingsSection">
+      <div className="settingsLabel">Browser Snapshots</div>
+      <div className="settingsField" style={{ gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input
+            type="text"
+            className="settingsInput"
+            placeholder="Snapshot name..."
+            value={snapName}
+            onChange={(e) => setSnapName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && void handleSave()}
+            style={{ flex: 1 }}
+          />
+          <button className="btn" onClick={() => void handleSave()} disabled={busy}>
+            {busy ? 'Saving…' : 'Save Current'}
+          </button>
+        </div>
+        {error && <div style={{ color: '#ff6b6b', fontSize: 12 }}>{error}</div>}
+        {snapshots.length === 0 && (
+          <div style={{ color: '#888', fontSize: 13 }}>No snapshots saved yet</div>
+        )}
+        {snapshots.map((s) => (
+          <div
+            key={s.id}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '6px 8px',
+              background: 'rgba(255,255,255,0.04)',
+              borderRadius: 6,
+              fontSize: 13
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {s.name}
+              </div>
+              <div style={{ color: '#888', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {s.url} · {new Date(s.createdAt).toLocaleDateString()}
+              </div>
+            </div>
+            <button
+              className="btn"
+              style={{ fontSize: 11, padding: '2px 8px' }}
+              onClick={() => void handleRestore(s.id)}
+              disabled={busy}
+            >
+              Restore
+            </button>
+            <button
+              className="btn"
+              style={{ fontSize: 11, padding: '2px 8px', opacity: 0.7 }}
+              onClick={() => void handleDelete(s.id)}
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function App(): React.JSX.Element {
   const [policy, setPolicy] = useState<PolicyState | null>(null)
   const [error, setError] = useState<string>('')
 
-  const [draft, setDraft] = useState<string>('')
   const [accountEmail, setAccountEmail] = useState<string>('')
   const [accountConnected, setAccountConnected] = useState<boolean>(false)
   const [accountBusy, setAccountBusy] = useState<boolean>(false)
@@ -110,27 +198,17 @@ function App(): React.JSX.Element {
   const [apiKeyDraft, setApiKeyDraft] = useState<string>('')
   const [apiKeyBusy, setApiKeyBusy] = useState<boolean>(false)
   const [hasApiKey, setHasApiKey] = useState<boolean>(false)
-  const [isThinking, setIsThinking] = useState<boolean>(false)
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
-  const [isRecording, setIsRecording] = useState<boolean>(false)
   const [isMaximized, setIsMaximized] = useState<boolean>(false)
-  const recognitionRef = useRef<InstanceType<typeof SpeechRecognition> | null>(null)
 
   // ── Settings tab ────────────────────────────────────────────────────
-  const [settingsTab, setSettingsTab] = useState<'general' | 'providers' | 'computer' | 'skills'>('general')
+  const [settingsTab, setSettingsTab] = useState<'general' | 'providers' | 'computer' | 'channels' | 'skills' | 'developer'>('general')
 
   // ── Skills ─────────────────────────────────────────────────────────
   const [skills, setSkills] = useState<Skill[]>([])
   const [skillModal, setSkillModal] = useState<Skill | 'new' | null>(null)
   const [skillDraft, setSkillDraft] = useState({ name: '', tag: '', description: '', prompt: '' })
 
-  // ── Telegram bot ────────────────────────────────────────────────────
-  const [tgEnabled, setTgEnabled] = useState(false)
-  const [tgPairedChatId, setTgPairedChatId] = useState<number | null>(null)
-  const [tgPairingCode, setTgPairingCode] = useState<string | null>(null)
-  const [tgTokenDraft, setTgTokenDraft] = useState('')
-  const [tgBusy, setTgBusy] = useState(false)
-  const [tgHasToken, setTgHasToken] = useState(false)
 
   // ── Trading secrets modal ────────────────────────────────────────────
   const [tradingModal, setTradingModal] = useState<'polymarket' | 'binance' | null>(null)
@@ -139,16 +217,22 @@ function App(): React.JSX.Element {
   const [polymarketConfigured, setPolymarketConfigured] = useState(false)
 
   // ── Sidebar tab ──────────────────────────────────────────────────────
-  const [sidebarTab, setSidebarTab] = useState<SidebarTab>('chats')
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>('tasks')
 
   // ── Task state ───────────────────────────────────────────────────────
   const [tasks, setTasks] = useState<Task[]>([])
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
-  const [approvalTask, setApprovalTask] = useState<Task | null>(null)
 
   // ── Task template flow (renders in main panel) ─────────────────────
-  const [showTemplates, setShowTemplates] = useState(false)
-  const [selectedTemplate, setSelectedTemplate] = useState<TaskTemplateId | null>(null)
+  const [taskSubTab, setTaskSubTab] = useState<'tasks' | 'scheduled'>('tasks')
+  const [schedules, setSchedules] = useState<Schedule[]>([])
+
+  // ── Composer state (inline in main panel) ──────────────────────────
+  const [composerPrompt, setComposerPrompt] = useState('')
+  const [composerCapsOverride, setComposerCapsOverride] = useState<Set<TaskCapabilityId> | null>(null)
+
+  // ── Profile dropdown ───────────────────────────────────────────────
+  const [profileOpen, setProfileOpen] = useState(false)
 
   const activeTask = useMemo(
     () => tasks.find((t) => t.id === activeTaskId) ?? null,
@@ -157,23 +241,6 @@ function App(): React.JSX.Element {
 
   const lang: LanguageCode = policy?.language ?? 'en'
 
-  const [conversations, setConversations] = useState<Conversation[]>(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY)
-      if (!raw) return [newConversation()]
-      const parsed = JSON.parse(raw) as Conversation[]
-      if (!Array.isArray(parsed) || parsed.length === 0) return [newConversation()]
-      return sanitizeConversations(parsed)
-    } catch {
-      return [newConversation()]
-    }
-  })
-
-  const [activeId, setActiveId] = useState<string>(
-    () => conversations[0]?.id ?? newConversation().id
-  )
-  const scrollRef = useRef<HTMLDivElement | null>(null)
-
   const workspaceLabel = useMemo(() => {
     if (!policy?.workspaceRoot) return 'No workspace'
     return policy.workspaceRoot
@@ -181,19 +248,11 @@ function App(): React.JSX.Element {
 
   const themeMode = policy?.themeMode
 
-  const activeConversation = useMemo(() => {
-    return conversations.find((c) => c.id === activeId) ?? conversations[0]
-  }, [activeId, conversations])
-
-  const messages = useMemo(() => {
-    return activeConversation?.messages ?? []
-  }, [activeConversation])
-
   useEffect(() => {
     let alive = true
     ;(async () => {
       try {
-        const p = await window.netbot.getPolicy()
+        const p = await window.skynul.getPolicy()
         if (!alive) return
         setPolicy(p)
       } catch (e) {
@@ -208,16 +267,28 @@ function App(): React.JSX.Element {
 
   // ── Maximize state listener ──────────────────────────────────────────
   useEffect(() => {
-    return window.netbot.onWindowMaximized(setIsMaximized)
+    return window.skynul.onWindowMaximized(setIsMaximized)
   }, [])
+
+  // ── ESC key: back to tasks dashboard ──────────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return
+      if (sidebarTab === 'settings') {
+        setSidebarTab('tasks')
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [sidebarTab])
 
   // ── Task update listener ─────────────────────────────────────────────
   useEffect(() => {
     // Load existing tasks
-    void window.netbot.taskList().then(({ tasks: list }) => setTasks(list))
+    void window.skynul.taskList().then(({ tasks: list }) => setTasks(list))
 
     // Listen for push updates
-    const off = window.netbot.onTaskUpdate((updated) => {
+    const off = window.skynul.onTaskUpdate((updated) => {
       setTasks((prev) => {
         const idx = prev.findIndex((t) => t.id === updated.id)
         if (idx === -1) return [updated, ...prev]
@@ -229,20 +300,16 @@ function App(): React.JSX.Element {
     return off
   }, [])
 
-  // ── Telegram settings loader ───────────────────────────────────────
+  // ── Settings loader ────────────────────────────────────────────────
   useEffect(() => {
     void (async () => {
       try {
-        const s = await window.netbot.telegramGetSettings()
-        setTgEnabled(s.enabled)
-        setTgPairedChatId(s.pairedChatId)
-        setTgPairingCode(s.pairingCode)
-        const has = await window.netbot.getSecret('telegram.botToken')
-        setTgHasToken(Boolean(has))
-        const pmKey = await window.netbot.getSecret('POLYMARKET_PRIVATE_KEY')
+        const pmKey = await window.skynul.getSecret('POLYMARKET_PRIVATE_KEY')
         setPolymarketConfigured(Boolean(pmKey))
-        const sk = await window.netbot.skillList()
+        const sk = await window.skynul.skillList()
         setSkills(sk)
+        const sc = await window.skynul.scheduleList()
+        setSchedules(sc)
       } catch {
         // not available
       }
@@ -282,7 +349,7 @@ function App(): React.JSX.Element {
     if (sidebarTab !== 'settings') return
     const ids: ProviderId[] = ['kimi', 'claude', 'deepseek']
     let alive = true
-    void Promise.all(ids.map((id) => window.netbot.hasProviderApiKey(id).then((has) => [id, has] as const))).then(
+    void Promise.all(ids.map((id) => window.skynul.hasProviderApiKey(id).then((has) => [id, has] as const))).then(
       (pairs) => {
         if (alive) setProviderApiKeys(Object.fromEntries(pairs))
       }
@@ -298,7 +365,7 @@ function App(): React.JSX.Element {
     if (apiKeyProvider !== 'kimi' && apiKeyProvider !== 'claude' && apiKeyProvider !== 'deepseek') return
     setApiKeyDraft('')
     let alive = true
-    void window.netbot.hasProviderApiKey(apiKeyProvider).then((has) => {
+    void window.skynul.hasProviderApiKey(apiKeyProvider).then((has) => {
       if (alive) setHasApiKey(has)
     })
     return () => {
@@ -307,19 +374,19 @@ function App(): React.JSX.Element {
   }, [apiKeyProvider])
 
   useEffect(() => {
-    void window.netbot.chatgptHasAuth().then(async (connected) => {
+    void window.skynul.chatgptHasAuth().then(async (connected) => {
       setChatgptConnected(connected)
       if (connected) {
-        const next = await window.netbot.setActiveProvider('chatgpt')
+        const next = await window.skynul.setActiveProvider('chatgpt')
         setPolicy(next)
       }
     })
-    const offSuccess = window.netbot.onChatGPTAuthSuccess(() => {
+    const offSuccess = window.skynul.onChatGPTAuthSuccess(() => {
       setChatgptConnected(true)
       setChatgptBusy(false)
-      void window.netbot.setActiveProvider('chatgpt').then(setPolicy)
+      void window.skynul.setActiveProvider('chatgpt').then(setPolicy)
     })
-    const offError = window.netbot.onChatGPTAuthError((msg) => {
+    const offError = window.skynul.onChatGPTAuthError((msg) => {
       setError(msg)
       setChatgptBusy(false)
     })
@@ -330,7 +397,7 @@ function App(): React.JSX.Element {
   }, [])
 
   useEffect(() => {
-    const off = window.netbot.onAuthCallback((callbackUrl) => {
+    const off = window.skynul.onAuthCallback((callbackUrl) => {
       if (!SUPABASE_CONFIGURED || !supabase) {
         setError('Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.')
         return
@@ -383,42 +450,30 @@ function App(): React.JSX.Element {
     return () => mq.removeEventListener('change', apply)
   }, [themeMode])
 
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
-  }, [messages, isThinking])
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations))
-    } catch {
-      // ignore
-    }
-  }, [conversations])
-
   const pickWorkspace = async (): Promise<void> => {
     setError('')
-    const next = await window.netbot.pickWorkspace()
+    const next = await window.skynul.pickWorkspace()
     setPolicy(next)
   }
 
   const toggle = async (id: CapabilityId): Promise<void> => {
     if (!policy) return
     setError('')
-    const next = await window.netbot.setCapability(id, !policy.capabilities[id])
+    const next = await window.skynul.setCapability(id, !policy.capabilities[id])
     setPolicy(next)
   }
 
   const setTheme = async (themeMode: ThemeMode): Promise<void> => {
     if (!policy) return
     setError('')
-    const next = await window.netbot.setTheme(themeMode)
+    const next = await window.skynul.setTheme(themeMode)
     setPolicy(next)
   }
 
   const setLanguage = async (language: LanguageCode): Promise<void> => {
     if (!policy) return
     setError('')
-    const next = await window.netbot.setLanguage(language)
+    const next = await window.skynul.setLanguage(language)
     setPolicy(next)
   }
 
@@ -433,7 +488,7 @@ function App(): React.JSX.Element {
     setError('')
     setApiKeyBusy(true)
     try {
-      await window.netbot.setProviderApiKey(active, key)
+      await window.skynul.setProviderApiKey(active, key)
       setApiKeyDraft('')
       setHasApiKey(true)
       setProviderApiKeys((prev) => ({ ...prev, [active]: true }))
@@ -462,7 +517,7 @@ function App(): React.JSX.Element {
       setError('Provider change timed out. Try again.')
     }, timeoutMs)
     try {
-      const next = await window.netbot.setActiveProvider(target)
+      const next = await window.skynul.setActiveProvider(target)
       setPolicy(next)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -470,59 +525,6 @@ function App(): React.JSX.Element {
       window.clearTimeout(timeoutId)
       setProviderSwitchBusy(false)
     }
-  }
-
-  const send = async (): Promise<void> => {
-    const text = draft.trim()
-    if (!text) return
-    setDraft('')
-    setError('')
-
-    if (!policy?.capabilities['net.http']) {
-      setError('Network Access capability is disabled.')
-      return
-    }
-
-    const userMsg: ChatMessage = { role: 'user', content: text }
-
-    setConversations((prev) =>
-      prev.map((c) => {
-        if (c.id !== activeId) return c
-        const nextMessages = [...c.messages, userMsg]
-        const nextTitle = c.title === 'New chat' ? text.slice(0, 32) || 'New chat' : c.title
-        return { ...c, title: nextTitle, messages: nextMessages }
-      })
-    )
-
-    try {
-      const currentMessages = (activeConversation?.messages ?? []).concat(userMsg)
-      setIsThinking(true)
-      let content: string
-
-      // All providers (ChatGPT, Kimi, Claude, DeepSeek) go through main process:
-      // ChatGPT uses Codex OAuth; others use stored API keys and their APIs (e.g. Kimi at api.kimi.com/coding/v1).
-      const res = await window.netbot.chatSend(currentMessages)
-      content = res.content
-
-      const assistantMsg: ChatMessage = { role: 'assistant', content }
-
-      setConversations((prev) =>
-        prev.map((c) => {
-          if (c.id !== activeId) return c
-          return { ...c, messages: [...c.messages, assistantMsg] }
-        })
-      )
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setIsThinking(false)
-    }
-  }
-
-  const createChat = (): void => {
-    const c = newConversation()
-    setConversations((prev) => [c, ...prev])
-    setActiveId(c.id)
   }
 
   const signIn = async (): Promise<void> => {
@@ -543,7 +545,7 @@ function App(): React.JSX.Element {
       })
       if (error) throw error
       if (!data?.url) throw new Error('No OAuth URL returned')
-      await window.netbot.openExternal(data.url)
+      await window.skynul.openExternal(data.url)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -571,68 +573,11 @@ function App(): React.JSX.Element {
     return () => document.removeEventListener('click', close)
   }, [menuOpenId])
 
-  const deleteConversation = useCallback(
-    (id: string): void => {
-      setMenuOpenId(null)
-      setConversations((prev) => {
-        const next = prev.filter((c) => c.id !== id)
-        if (next.length === 0) {
-          const fresh = newConversation()
-          setActiveId(fresh.id)
-          return [fresh]
-        }
-        if (id === activeId) setActiveId(next[0].id)
-        return next
-      })
-    },
-    [activeId]
-  )
-
-  const modelLabel = useMemo(() => {
-    if (!policy) return ''
-    const p = PROVIDERS.find((pr) => pr.id === policy.provider.active)
-    return p?.label ?? policy.provider.active
-  }, [policy])
-
-  const toggleMic = (): void => {
-    if (isRecording) {
-      recognitionRef.current?.stop()
-      return
-    }
-
-    const SR = window.SpeechRecognition ?? window.webkitSpeechRecognition
-    if (!SR) {
-      setError('Speech recognition is not supported in this environment.')
-      return
-    }
-
-    const rec = new SR()
-    rec.lang = lang === 'es' ? 'es-AR' : 'en-US'
-    rec.interimResults = true
-    rec.continuous = true
-
-    const baseText = draft.trim()
-
-    rec.onstart = (): void => setIsRecording(true)
-    rec.onend = (): void => setIsRecording(false)
-    rec.onerror = (): void => setIsRecording(false)
-    rec.onresult = (e: SpeechRecognitionEvent): void => {
-      const transcript = Array.from(e.results)
-        .map((r) => r[0].transcript)
-        .join(' ')
-        .trim()
-      setDraft(baseText ? `${baseText} ${transcript}` : transcript)
-    }
-
-    recognitionRef.current = rec
-    rec.start()
-  }
-
   const chatgptConnect = async (): Promise<void> => {
     setError('')
     setChatgptBusy(true)
     try {
-      await window.netbot.chatgptOAuthStart()
+      await window.skynul.chatgptOAuthStart()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
       setChatgptBusy(false)
@@ -643,7 +588,7 @@ function App(): React.JSX.Element {
     setError('')
     setChatgptBusy(true)
     try {
-      await window.netbot.chatgptSignOut()
+      await window.skynul.chatgptSignOut()
       setChatgptConnected(false)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -654,14 +599,14 @@ function App(): React.JSX.Element {
 
   // ── Task handlers ────────────────────────────────────────────────────
 
-  const handleNewTask = async (prompt: string, caps: TaskCapabilityId[]): Promise<void> => {
+  const handleNewTask = async (prompt: string, caps: TaskCapabilityId[], mode?: 'browser' | 'code'): Promise<void> => {
     try {
-      const { task } = await window.netbot.taskCreate(prompt, caps)
+      const { task } = await window.skynul.taskCreate(prompt, caps, { mode: mode ?? 'browser' })
       setTasks((prev) => [task, ...prev])
       setActiveTaskId(task.id)
-      setApprovalTask(task)
-      setShowTemplates(false)
-      setSelectedTemplate(null)
+      if (policy?.taskAutoApprove) {
+        void handleApproveTask(task.id)
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     }
@@ -669,8 +614,7 @@ function App(): React.JSX.Element {
 
   const handleApproveTask = async (taskId: string): Promise<void> => {
     try {
-      setApprovalTask(null)
-      const updated = await window.netbot.taskApprove(taskId)
+      const updated = await window.skynul.taskApprove(taskId)
       setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -679,8 +623,7 @@ function App(): React.JSX.Element {
 
   const handleCancelTask = async (taskId: string): Promise<void> => {
     try {
-      setApprovalTask(null)
-      const updated = await window.netbot.taskCancel(taskId)
+      const updated = await window.skynul.taskCancel(taskId)
       setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -691,10 +634,39 @@ function App(): React.JSX.Element {
     (taskId: string): void => {
       setTasks((prev) => prev.filter((t) => t.id !== taskId))
       if (activeTaskId === taskId) setActiveTaskId(null)
-      void window.netbot.taskDelete(taskId).catch(() => {})
+      void window.skynul.taskDelete(taskId).catch(() => {})
     },
     [activeTaskId]
   )
+
+  // ── Schedule handlers ─────────────────────────────────────────────────
+
+  const handleToggleSchedule = useCallback(async (id: string) => {
+    try {
+      const updated = await window.skynul.scheduleToggle(id)
+      setSchedules(updated)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }, [])
+
+  const handleDeleteSchedule = useCallback(async (id: string) => {
+    try {
+      const updated = await window.skynul.scheduleDelete(id)
+      setSchedules(updated)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }, [])
+
+  const handleSaveSchedule = useCallback(async (data: Record<string, unknown>) => {
+    try {
+      const updated = await window.skynul.scheduleSave(data)
+      setSchedules(updated)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }, [])
 
   // ── Trading secrets helpers ──────────────────────────────────────────
   const POLYMARKET_KEYS = ['POLYMARKET_PRIVATE_KEY', 'POLYMARKET_FUNDER_ADDRESS', 'POLYMARKET_SIGNATURE_TYPE'] as const
@@ -704,7 +676,7 @@ function App(): React.JSX.Element {
     if (platform === 'polymarket') {
       const vals: Record<string, string> = {}
       for (const k of POLYMARKET_KEYS) {
-        const v = await window.netbot.getSecret(k)
+        const v = await window.skynul.getSecret(k)
         vals[k] = v ?? ''
       }
       setTradingSecrets(vals)
@@ -715,7 +687,7 @@ function App(): React.JSX.Element {
     setTradingSaving(true)
     try {
       for (const [k, v] of Object.entries(tradingSecrets)) {
-        if (v) await window.netbot.setSecret(k, v)
+        if (v) await window.skynul.setSecret(k, v)
       }
       if (tradingSecrets['POLYMARKET_PRIVATE_KEY']) setPolymarketConfigured(true)
       setTradingModal(null)
@@ -724,28 +696,73 @@ function App(): React.JSX.Element {
     }
   }, [tradingSecrets])
 
-  // ── Determine what to show in the main panel for tasks tab ─────────
-  const taskMainView = useMemo(() => {
-    if (activeTask) return 'detail' as const
-    if (selectedTemplate) return 'composer' as const
-    if (showTemplates) return 'templates' as const
-    return 'empty' as const
-  }, [activeTask, selectedTemplate, showTemplates])
+  // ── Composer helpers ────────────────────────────────────────────────
+  const composerAutoCaps = useMemo(() => {
+    const lower = composerPrompt.toLowerCase()
+    const CAP_KEYWORDS: Array<{ cap: TaskCapabilityId; words: string[] }> = [
+      { cap: 'browser.cdp', words: ['browser', 'webpage', 'website', 'scrape', 'navigate', 'url', 'busca', 'search', 'googl', 'precio', 'price', 'compr', 'buy', 'reserv', 'book', 'flight', 'vuelo', 'hotel', 'viaj', 'travel', 'paquete', 'package', 'oferta', 'deal', 'tienda', 'store', 'shop', 'amazon', 'mercadolibre', 'airbnb', 'despegar', 'download', 'descargar', 'open', 'web'] },
+      { cap: 'app.launch', words: ['launch', 'whatsapp', 'telegram', 'discord', 'slack', 'spotify'] },
+      { cap: 'polymarket.trading', words: ['polymarket', 'trade', 'bet', 'position', 'market', 'odds'] },
+      { cap: 'office.professional', words: ['excel', 'word', 'powerpoint', 'spreadsheet', 'document', 'formatting'] }
+    ]
+    const detected = new Set<TaskCapabilityId>()
+    for (const { cap, words } of CAP_KEYWORDS) {
+      if (words.some((w) => lower.includes(w))) detected.add(cap)
+    }
+    // Default: always include browser.cdp unless it's purely code mode
+    if (detected.size === 0) detected.add('browser.cdp')
+    return [...detected]
+  }, [composerPrompt])
+
+  const composerActiveCaps = composerCapsOverride ?? new Set(composerAutoCaps)
+
+  // ── Profile dropdown close on outside click ────────────────────────
+  useEffect(() => {
+    if (!profileOpen) return
+    const close = (e: MouseEvent): void => {
+      const target = e.target as HTMLElement
+      if (!target.closest('.profileBtn') && !target.closest('.profileDropdown')) {
+        setProfileOpen(false)
+      }
+    }
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [profileOpen])
+
+  const isActiveTaskRunning = activeTask?.status === 'running'
+
+  const handleInputSubmit = (text: string): void => {
+    if (activeTask && isActiveTaskRunning) {
+      void window.skynul.taskSendMessage(activeTask.id, text)
+      return
+    }
+    // Create new task — detect mode from prompt
+    const caps = [...composerActiveCaps]
+    let detectedMode: 'browser' | 'code' = 'browser'
+    // Only use code mode if no browser/polymarket caps are needed
+    if (!caps.includes('browser.cdp') && !caps.includes('polymarket.trading')) {
+      const codeWords = ['command', 'script', 'headless', 'fetch', 'curl', 'code', 'git', 'build', 'deploy']
+      if (codeWords.some((w) => text.toLowerCase().includes(w))) detectedMode = 'code'
+    }
+    void handleNewTask(text, caps, detectedMode)
+    setComposerPrompt('')
+    setComposerCapsOverride(null)
+  }
 
   return (
     <div className={`layout${isMaximized ? ' maximized' : ''}`}>
       <div className="titleBar">
-        <button className="winBtn" onClick={() => void window.netbot.windowMinimize()} aria-label="Minimize">
+        <button className="winBtn" onClick={() => void window.skynul.windowMinimize()} aria-label="Minimize">
           <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
             <rect x="4" y="11" width="16" height="2" rx="1" />
           </svg>
         </button>
-        <button className="winBtn" onClick={() => void window.netbot.windowMaximize()} aria-label="Maximize">
+        <button className="winBtn" onClick={() => void window.skynul.windowMaximize()} aria-label="Maximize">
           <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2">
             <rect x="4" y="4" width="16" height="16" rx="2" />
           </svg>
         </button>
-        <button className="winBtn close" onClick={() => void window.netbot.windowClose()} aria-label="Close">
+        <button className="winBtn close" onClick={() => void window.skynul.windowClose()} aria-label="Close">
           <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
             <path d="M6.225 4.811a1 1 0 0 0-1.414 1.414L10.586 12l-5.775 5.775a1 1 0 1 0 1.414 1.414L12 13.414l5.775 5.775a1 1 0 0 0 1.414-1.414L13.414 12l5.775-5.775a1 1 0 0 0-1.414-1.414L12 10.586 6.225 4.811Z" />
           </svg>
@@ -753,88 +770,47 @@ function App(): React.JSX.Element {
       </div>
 
       <aside className="sidebar">
-        {/* ── Tab switcher ─────────────────────────────────────────── */}
-        <div className="sidebarTabs">
-          <button
-            className={`sidebarTab ${sidebarTab === 'chats' ? 'active' : ''}`}
-            onClick={() => setSidebarTab('chats')}
-          >
-            {t(lang, 'sidebar_chats')}
-          </button>
-          <button
-            className={`sidebarTab ${sidebarTab === 'tasks' ? 'active' : ''}`}
-            onClick={() => {
-              setSidebarTab('tasks')
-              // Mostrar las cards de templates en el centro (igual que "New task") cuando no hay tarea seleccionada
-              if (!activeTaskId && !selectedTemplate) setShowTemplates(true)
-            }}
-          >
-            {t(lang, 'sidebar_tasks')}
-          </button>
-        </div>
-
-        {/* ── Chats / Tasks / Settings content ─────────────────────── */}
+        {/* ── Tasks / Settings content ─────────────────────────────── */}
         <div className="sidebarContent">
-          {sidebarTab === 'chats' && (
+          {sidebarTab === 'tasks' && (
             <>
-              <div className="rbTop">
-                <div className="rbTitle">{t(lang, 'chats_title')}</div>
-                <button className="rbNew" onClick={createChat} title={t(lang, 'chats_new_title')}>
-                  {t(lang, 'chats_new')}
+              <div className="seg seg--2col" style={{ margin: '0 8px 4px' }}>
+                <button
+                  className={`segBtn ${taskSubTab === 'tasks' ? 'active' : ''}`}
+                  onClick={() => setTaskSubTab('tasks')}
+                >
+                  Tasks
+                </button>
+                <button
+                  className={`segBtn ${taskSubTab === 'scheduled' ? 'active' : ''}`}
+                  onClick={() => setTaskSubTab('scheduled')}
+                >
+                  Scheduled
                 </button>
               </div>
-
-              <div className="rbList" role="tablist" aria-label="Chats">
-                {conversations.map((c) => (
-                  <div
-                    key={c.id}
-                    className={`rbItem ${c.id === activeId ? 'active' : ''}`}
-                    role="tab"
-                    aria-selected={c.id === activeId}
-                  >
-                    <div className="rbItemContent" onClick={() => setActiveId(c.id)}>
-                      <div className="rbItemTitle">{c.title}</div>
-                      <div className="rbItemMeta">{c.messages.length} messages</div>
-                    </div>
-                    <button
-                      className="rbMenuBtn"
-                      aria-label="Chat options"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setMenuOpenId(menuOpenId === c.id ? null : c.id)
-                      }}
-                    >
-                      ···
-                    </button>
-                    {menuOpenId === c.id && (
-                      <div className="rbDropdown" onClick={(e) => e.stopPropagation()}>
-                        <button className="rbDropdownItem danger" onClick={() => deleteConversation(c.id)}>
-                          {t(lang, 'common_delete')}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+              {taskSubTab === 'tasks' && (
+                <TaskPanel
+                  tasks={tasks}
+                  activeTaskId={activeTaskId}
+                  onSelectTask={(id) => {
+                    setActiveTaskId(id)
+                  }}
+                  onNewTask={() => {
+                    setActiveTaskId(null)
+                  }}
+                  onStopTask={(id) => void handleCancelTask(id)}
+                  onDeleteTask={handleDeleteTask}
+                />
+              )}
+              {taskSubTab === 'scheduled' && (
+                <SchedulePanel
+                  schedules={schedules}
+                  onToggle={(id) => void handleToggleSchedule(id)}
+                  onDelete={(id) => void handleDeleteSchedule(id)}
+                  onSave={(data) => void handleSaveSchedule(data)}
+                />
+              )}
             </>
-          )}
-
-          {sidebarTab === 'tasks' && (
-            <TaskPanel
-              tasks={tasks}
-              activeTaskId={activeTaskId}
-              onSelectTask={(id) => {
-                setActiveTaskId(id)
-                setShowTemplates(false)
-                setSelectedTemplate(null)
-              }}
-              onNewTask={() => {
-                setActiveTaskId(null)
-                setShowTemplates(true)
-                setSelectedTemplate(null)
-              }}
-              onDeleteTask={handleDeleteTask}
-            />
           )}
 
           {sidebarTab === 'settings' && (
@@ -845,173 +821,116 @@ function App(): React.JSX.Element {
         </div>
 
         <div className="rbFooter">
-          <div className="sbFooterRow">
-            <div className="sbFooterBrand">
-              <img src={skynulLogo} alt="Netbot" className="sbFooterLogo" />
-            </div>
+          <div className="sbFooterBrand" style={{ marginBottom: 8 }}>
+            <img src={skynulLogo} alt="Skynul" className="sbFooterLogo" />
+          </div>
+          <div style={{ position: 'relative' }}>
             <button
-              className={`sbFooterSettingsBtn ${sidebarTab === 'settings' ? 'active' : ''}`}
-              onClick={() => setSidebarTab('settings')}
-              aria-label={t(lang, 'settings_open_title')}
-              title={t(lang, 'settings_open_title')}
+              className="profileBtn"
+              onClick={() => setProfileOpen(!profileOpen)}
             >
-              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                <path
-                  d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.2 7.2 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 1h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.22-1.13.52-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 7.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.41 1.05.73 1.63.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .44-.18.49-.42l.36-2.54c.58-.22 1.13-.52 1.63-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"
-                  fill="currentColor"
-                />
+              <div className="profileAvatar">
+                {(accountEmail || 'U').slice(0, 2).toUpperCase()}
+              </div>
+              <span className="profileEmail">{accountEmail || 'Not signed in'}</span>
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" style={{ flexShrink: 0, opacity: 0.5 }}>
+                <path d={profileOpen ? 'M7 14l5-5 5 5z' : 'M7 10l5 5 5-5z'} />
               </svg>
             </button>
+            {profileOpen && (
+              <div className="profileDropdown">
+                <button
+                  className="profileDropdownItem"
+                  onClick={() => { setSidebarTab('dashboard'); setProfileOpen(false) }}
+                >
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+                  Dashboard
+                </button>
+                <button
+                  className="profileDropdownItem"
+                  onClick={() => { setSidebarTab('settings'); setProfileOpen(false) }}
+                >
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.2 7.2 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 1h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.22-1.13.52-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 7.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.41 1.05.73 1.63.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .44-.18.49-.42l.36-2.54c.58-.22 1.13-.52 1.63-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"/></svg>
+                  Settings
+                </button>
+                <button
+                  className="profileDropdownItem danger"
+                  onClick={() => { void signOut(); setProfileOpen(false) }}
+                >
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+                  Log out
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </aside>
 
       <section className="main">
-        {/* ── Chat view: input centrado si no hay mensajes; abajo cuando ya hay conversación ── */}
-        {sidebarTab === 'chats' && (() => {
-          const chatEmpty = messages.length === 0 && !isThinking
-          const composerEl = (
-            <footer className="composer">
-              {error ? <div className="composerError">{error}</div> : null}
-              <div className="composerRow">
-                <div className="promptWrap">
-                  {modelLabel ? <div className="modelBadge">{modelLabel}</div> : null}
-                  <textarea
-                    className="prompt"
-                    placeholder={t(lang, 'composer_placeholder')}
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    rows={3}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault()
-                        void send()
-                      }
-                    }}
-                  />
-                  <div className="promptActionsLeft">
-                    <button
-                      type="button"
-                      className="attachBtn"
-                      onClick={async () => {
-                        const { canceled, filePaths } = await window.netbot.showOpenFilesDialog()
-                        if (!canceled && filePaths.length) {
-                          // TODO: adjuntar filePaths al mensaje y enviar con el chat
-                        }
-                      }}
-                      aria-label={t(lang, 'composer_attach_label')}
-                      title={t(lang, 'composer_attach_label')}
-                    >
-                      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden>
-                        <path d="M12 4a1 1 0 0 1 1 1v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6V5a1 1 0 0 1 1-1Z" />
-                      </svg>
-                    </button>
-                  </div>
-                  <div className="promptActions">
-                    <button
-                      className={`micBtn${isRecording ? ' recording' : ''}`}
-                      onClick={toggleMic}
-                      aria-label={isRecording ? 'Stop recording' : 'Voice input'}
-                      title={isRecording ? 'Stop recording' : 'Voice input'}
-                    >
-                      {isRecording ? (
-                        <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
-                          <rect x="6" y="6" width="12" height="12" rx="2" />
-                        </svg>
-                      ) : (
-                        <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
-                          <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4Zm6.5 9a.5.5 0 0 1 .5.5 7 7 0 0 1-6.5 6.97V19h2a.5.5 0 0 1 0 1h-5a.5.5 0 0 1 0-1h2v-1.53A7 7 0 0 1 5 10.5a.5.5 0 0 1 1 0 6 6 0 0 0 12 0 .5.5 0 0 1 .5-.5Z" />
-                        </svg>
-                      )}
-                    </button>
-                    <button
-                      className="send"
-                      onClick={() => void send()}
-                      disabled={!draft.trim() || isThinking}
-                      aria-label="Send"
-                    >
-                      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                        <path d="M12 4a.75.75 0 0 1 .53.22l7 7a.75.75 0 0 1-1.06 1.06L12.75 6.81V19.25a.75.75 0 0 1-1.5 0V6.81l-5.72 5.47a.75.75 0 0 1-1.06-1.06l7-7A.75.75 0 0 1 12 4Z" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div className="composerNote">{t(lang, 'composer_note')}</div>
-            </footer>
+        {/* ── Chat-feed task view ─────────────────────────────────── */}
+        {sidebarTab === 'tasks' && (
+          activeTask ? (
+            <div className="chatFeedLayout">
+              <ChatFeed
+                task={activeTask}
+                onApprove={() => void handleApproveTask(activeTask.id)}
+                onCancel={() => void handleCancelTask(activeTask.id)}
+                onDontAskAgain={() => void window.skynul.setTaskAutoApprove(true).then(setPolicy)}
+              />
+              <InputBar
+                lang={lang}
+                autoCaps={composerAutoCaps}
+                compact={true}
+                onSubmit={handleInputSubmit}
+                onStop={isActiveTaskRunning ? () => void handleCancelTask(activeTask.id) : undefined}
+                onTextChange={(t) => {
+                  setComposerPrompt(t)
+                  if (composerCapsOverride) setComposerCapsOverride(null)
+                }}
+              />
+            </div>
+          ) : (
+            <div className="chatFeedCentered">
+              <div className="composerHeading">Automate anything.</div>
+              <InputBar
+                lang={lang}
+                autoCaps={composerAutoCaps}
+                compact={false}
+                onSubmit={handleInputSubmit}
+                onTextChange={(t) => {
+                  setComposerPrompt(t)
+                  if (composerCapsOverride) setComposerCapsOverride(null)
+                }}
+              />
+            </div>
           )
-          if (chatEmpty) {
-            return (
-              <div className="chatMain chatMain--centered">
-                <div className="chatComposerCenter">
-                  <div className="chatEmptyGreeting">{t(lang, 'chat_greeting_empty')}</div>
-                  {composerEl}
-                </div>
+        )}
+
+        {/* ── Dashboard panel (stats + recent) ─────────────────────────── */}
+        {sidebarTab === 'dashboard' && (
+          <div className="settingsPanel">
+            <div className="settingsPanelInner">
+              <div className="settingsBackBar">
+                <button
+                  className="backBtn"
+                  onClick={() => setSidebarTab('tasks')}
+                  aria-label="Back to tasks"
+                  title="Back to tasks"
+                >
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                    <path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+                  </svg>
+                  <span>Back</span>
+                </button>
               </div>
-            )
-          }
-          return (
-            <>
-              <div className="chatScroll" ref={scrollRef}>
-                <div className="chat">
-                  {messages.map((m, idx) => (
-                    <div key={idx} className={`msg ${m.role}`}>
-                      <div className="msgBody">{m.content}</div>
-                    </div>
-                  ))}
-                  {isThinking ? (
-                    <div className="typingBubble">
-                      <div className="typingDot" />
-                      <div className="typingDot" />
-                      <div className="typingDot" />
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-              {composerEl}
-            </>
-          )
-        })()}
-
-        {/* ── Task views in main panel ─────────────────────────────── */}
-        {sidebarTab === 'tasks' && taskMainView === 'detail' && activeTask && (
-          <TaskDetailView
-            task={activeTask}
-            onApprove={() => void handleApproveTask(activeTask.id)}
-            onCancel={() => void handleCancelTask(activeTask.id)}
-          />
-        )}
-
-        {sidebarTab === 'tasks' && taskMainView === 'templates' && (
-          <div className="mainPanelCenter">
-            <TaskTemplates
-              lang={lang}
-              onPick={(id) => {
-                setSelectedTemplate(id)
-                setShowTemplates(false)
-              }}
-            />
-          </div>
-        )}
-
-        {sidebarTab === 'tasks' && taskMainView === 'composer' && selectedTemplate && (
-          <div className="mainPanelCenter">
-            <TaskComposer
-              lang={lang}
-              template={selectedTemplate}
-              onCancel={() => {
-                setSelectedTemplate(null)
-                setShowTemplates(true)
-              }}
-              onSubmit={(text, caps) => void handleNewTask(text, caps)}
-            />
-          </div>
-        )}
-
-        {sidebarTab === 'tasks' && taskMainView === 'empty' && (
-          <div className="taskEmptyMain">
-            <div className="taskEmptyMainText">
-              {t(lang, 'task_empty_main')}
+              <TaskDashboard
+                tasks={tasks}
+                schedules={schedules}
+                onSelectTask={(id) => {
+                  setActiveTaskId(id)
+                  setSidebarTab('tasks')
+                }}
+              />
             </div>
           </div>
         )}
@@ -1020,18 +939,31 @@ function App(): React.JSX.Element {
         {sidebarTab === 'settings' && (
           <div className="settingsPanel">
             <div className="settingsPanelInner">
+              <div className="settingsBackBar">
+                <button
+                  className="backBtn"
+                  onClick={() => setSidebarTab('tasks')}
+                  aria-label="Back to tasks"
+                  title="Back to tasks (Esc)"
+                >
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                    <path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+                  </svg>
+                  <span>Back</span>
+                </button>
+              </div>
               <h2 className="settingsPanelTitle">{t(lang, 'settings_title')}</h2>
 
               {/* ── Settings tabs ─────────────────────────────── */}
               <div className="seg">
-                {(['general', 'providers', 'computer', 'skills'] as const).map((tab) => (
+                {(['general', 'providers', 'computer', 'channels', 'developer', 'skills'] as const).map((tab) => (
                   <button
                     key={tab}
                     className={`segBtn ${settingsTab === tab ? 'active' : ''}`}
                     onClick={() => setSettingsTab(tab)}
                     aria-pressed={settingsTab === tab}
                   >
-                    {tab === 'providers' ? 'Providers' : tab === 'computer' ? 'Computer' : tab === 'skills' ? 'Skills' : 'General'}
+                    {{general: 'General', providers: 'Providers', computer: 'Computer', channels: 'Channels', developer: 'Developer', skills: 'Skills'}[tab]}
                   </button>
                 ))}
               </div>
@@ -1149,7 +1081,7 @@ function App(): React.JSX.Element {
                       className={`cap ${policy?.taskMemoryEnabled ? 'on' : 'off'}`}
                       onClick={async () => {
                         const next = !policy?.taskMemoryEnabled
-                        const p = await window.netbot.setTaskMemoryEnabled(next)
+                        const p = await window.skynul.setTaskMemoryEnabled(next)
                         setPolicy(p)
                       }}
                       disabled={!policy}
@@ -1157,6 +1089,23 @@ function App(): React.JSX.Element {
                       <div className="capLeft">
                         <div className="capTitle">Learn from Tasks</div>
                         <div className="capDesc">Remember past results to improve future tasks</div>
+                      </div>
+                      <div className="capToggle" aria-hidden="true">
+                        <div className="capKnob" />
+                      </div>
+                    </button>
+                    <button
+                      className={`cap ${policy?.taskAutoApprove ? 'on' : 'off'}`}
+                      onClick={async () => {
+                        const next = !policy?.taskAutoApprove
+                        const p = await window.skynul.setTaskAutoApprove(next)
+                        setPolicy(p)
+                      }}
+                      disabled={!policy}
+                    >
+                      <div className="capLeft">
+                        <div className="capTitle">Auto-Approve Tasks</div>
+                        <div className="capDesc">Skip capability confirmation and run immediately</div>
                       </div>
                       <div className="capToggle" aria-hidden="true">
                         <div className="capKnob" />
@@ -1202,133 +1151,15 @@ function App(): React.JSX.Element {
                     </div>
                   </div>
 
-                  {/* ── Telegram Bot ────────────────────────────────── */}
-                  <div className="settingsSection">
-                    <div className="settingsLabel">
-                      Telegram Bot
-                      {tgPairedChatId && <span className="settingsBadge" style={{ marginLeft: 8 }}>Paired</span>}
-                    </div>
-                    <div className="settingsField">
-                      <div className="settingsFieldHint">
-                        {tgHasToken
-                          ? 'Bot token configured'
-                          : 'Paste your bot token from @BotFather'}
-                      </div>
-                      <input
-                        type="password"
-                        className="apiKeyInput"
-                        placeholder="123456:ABC-DEF1234..."
-                        value={tgTokenDraft}
-                        onChange={(e) => setTgTokenDraft(e.target.value)}
-                        aria-label="Telegram bot token"
-                      />
-                      <button
-                        type="button"
-                        className="btn"
-                        onClick={async () => {
-                          if (!tgTokenDraft.trim()) return
-                          setTgBusy(true)
-                          try {
-                            await window.netbot.telegramSetToken(tgTokenDraft)
-                            setTgHasToken(true)
-                            setTgTokenDraft('')
-                          } catch (e) {
-                            setError(e instanceof Error ? e.message : String(e))
-                          } finally {
-                            setTgBusy(false)
-                          }
-                        }}
-                        disabled={tgBusy || !tgTokenDraft.trim()}
-                      >
-                        {tgBusy ? '...' : 'Save Token'}
-                      </button>
+                  {/* ── Browser Snapshots ──────────────────────────── */}
+                  <BrowserSnapshotsSection />
 
-                      {tgHasToken && (
-                        <button
-                          className={`cap ${tgEnabled ? 'on' : 'off'}`}
-                          onClick={async () => {
-                            setTgBusy(true)
-                            try {
-                              const s = await window.netbot.telegramSetEnabled(!tgEnabled)
-                              setTgEnabled(s.enabled)
-                              setTgPairedChatId(s.pairedChatId)
-                              setTgPairingCode(s.pairingCode)
-                            } catch (e) {
-                              setError(e instanceof Error ? e.message : String(e))
-                            } finally {
-                              setTgBusy(false)
-                            }
-                          }}
-                          disabled={tgBusy}
-                        >
-                          <div className="capLeft">
-                            <div className="capTitle">Bot Active</div>
-                            <div className="capDesc">
-                              {tgEnabled ? 'Listening for messages' : 'Bot is off'}
-                            </div>
-                          </div>
-                          <div className="capToggle" aria-hidden="true">
-                            <div className="capKnob" />
-                          </div>
-                        </button>
-                      )}
-
-                      {tgEnabled && !tgPairedChatId && (
-                        <>
-                          {tgPairingCode ? (
-                            <div className="settingsFieldHint">
-                              Send <code>/pair {tgPairingCode}</code> to your bot in Telegram
-                            </div>
-                          ) : (
-                            <button
-                              className="btn"
-                              onClick={async () => {
-                                setTgBusy(true)
-                                try {
-                                  const code = await window.netbot.telegramGeneratePairingCode()
-                                  setTgPairingCode(code)
-                                } catch (e) {
-                                  setError(e instanceof Error ? e.message : String(e))
-                                } finally {
-                                  setTgBusy(false)
-                                }
-                              }}
-                              disabled={tgBusy}
-                            >
-                              Generate Pairing Code
-                            </button>
-                          )}
-                        </>
-                      )}
-
-                      {tgEnabled && tgPairedChatId && (
-                        <>
-                          <div className="settingsFieldHint">
-                            Paired to chat {tgPairedChatId}
-                          </div>
-                          <button
-                            className="btn"
-                            onClick={async () => {
-                              setTgBusy(true)
-                              try {
-                                await window.netbot.telegramUnpair()
-                                setTgPairedChatId(null)
-                                setTgPairingCode(null)
-                              } catch (e) {
-                                setError(e instanceof Error ? e.message : String(e))
-                              } finally {
-                                setTgBusy(false)
-                              }
-                            }}
-                            disabled={tgBusy}
-                          >
-                            Unpair
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
                 </>
+              )}
+
+              {/* ═══════════════ TAB: Channels ═══════════════ */}
+              {settingsTab === 'channels' && (
+                <ChannelSettings />
               )}
 
               {/* ═══════════════ TAB: General ═══════════════ */}
@@ -1406,6 +1237,41 @@ function App(): React.JSX.Element {
                 </>
               )}
 
+              {/* ═══════════════ TAB: Developer ═══════════════ */}
+              {settingsTab === 'developer' && (
+                <>
+                  <div className="settingsSection">
+                    <div className="settingsLabel">Shell Access</div>
+                    <button
+                      className={`cap ${policy?.capabilities['cmd.run'] ? 'on' : 'off'}`}
+                      onClick={() => toggle('cmd.run')}
+                      disabled={!policy}
+                    >
+                      <div className="capLeft">
+                        <div className="capTitle">Run Commands</div>
+                        <div className="capDesc">Allow the agent to execute shell commands</div>
+                      </div>
+                      <div className="capToggle" aria-hidden="true">
+                        <div className="capKnob" />
+                      </div>
+                    </button>
+                  </div>
+
+                  <div className="settingsSection">
+                    <div className="settingsLabel">Workspace</div>
+                    <div className="pathBox" title={workspaceLabel}>
+                      {workspaceLabel}
+                    </div>
+                    <button className="btn" onClick={pickWorkspace}>
+                      {t(lang, 'settings_pick_workspace')}
+                    </button>
+                    <div className="settingsFieldHint">
+                      Working directory for shell commands
+                    </div>
+                  </div>
+                </>
+              )}
+
               {/* ═══════════════ TAB: Skills ═══════════════ */}
               {settingsTab === 'skills' && (
                 <>
@@ -1416,9 +1282,9 @@ function App(): React.JSX.Element {
 
                   <div className="settingsSection">
                     <div className="settingsLabel">Manage Skills</div>
-                    <div style={{ display: 'flex', gap: 8 }}>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
                       <button
-                        className="btn"
+                        className="btn btnFilled"
                         onClick={() => {
                           setSkillDraft({ name: '', tag: '', description: '', prompt: '' })
                           setSkillModal('new')
@@ -1427,13 +1293,13 @@ function App(): React.JSX.Element {
                         Create Skill
                       </button>
                       <button
-                        className="btn"
+                        className="btn btnFilled"
                         onClick={async () => {
-                          const result = await window.netbot.showOpenFilesDialog()
+                          const result = await window.skynul.showOpenFilesDialog()
                           if (result.canceled || result.filePaths.length === 0) return
                           try {
                             for (const fp of result.filePaths) {
-                              const updated = await window.netbot.skillImport(fp)
+                              const updated = await window.skynul.skillImport(fp)
                               setSkills(updated)
                             }
                           } catch (e) {
@@ -1441,9 +1307,10 @@ function App(): React.JSX.Element {
                           }
                         }}
                       >
-                        Import JSON
+                        Import Skill
                       </button>
                     </div>
+                    <div className="settingsFieldHint">Supports .json and .md (with YAML frontmatter)</div>
                     {skills.length > 0 && (
                       <div className="capList">
                         {skills.map((s) => (
@@ -1451,7 +1318,7 @@ function App(): React.JSX.Element {
                             key={s.id}
                             className={`cap ${s.enabled ? 'on' : 'off'}`}
                             onClick={async () => {
-                              const updated = await window.netbot.skillToggle(s.id)
+                              const updated = await window.skynul.skillToggle(s.id)
                               setSkills(updated)
                             }}
                           >
@@ -1474,7 +1341,7 @@ function App(): React.JSX.Element {
                                 style={{ fontSize: 12, cursor: 'pointer', color: 'var(--nb-muted)' }}
                                 onClick={async (e) => {
                                   e.stopPropagation()
-                                  const updated = await window.netbot.skillDelete(s.id)
+                                  const updated = await window.skynul.skillDelete(s.id)
                                   setSkills(updated)
                                 }}
                               >
@@ -1553,7 +1420,7 @@ function App(): React.JSX.Element {
                     enabled: true,
                     ...(skillModal !== 'new' ? { id: skillModal.id } : {})
                   }
-                  const updated = await window.netbot.skillSave(payload)
+                  const updated = await window.skynul.skillSave(payload)
                   setSkills(updated)
                   setSkillModal(null)
                 }}
@@ -1598,14 +1465,6 @@ function App(): React.JSX.Element {
         </div>
       )}
 
-      {/* ── Task approval dialog ────────────────────────────────── */}
-      {approvalTask && (
-        <TaskApprovalDialog
-          task={approvalTask}
-          onApprove={() => void handleApproveTask(approvalTask.id)}
-          onCancel={() => setApprovalTask(null)}
-        />
-      )}
     </div>
   )
 }

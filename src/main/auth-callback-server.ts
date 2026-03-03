@@ -8,7 +8,7 @@ export type AuthCallbackServer = {
 }
 
 function html(body: string): string {
-  return `<!doctype html><html><head><meta charset="utf-8" /><title>Netbot</title></head><body style="font-family: system-ui; padding: 24px;">${body}</body></html>`
+  return `<!doctype html><html><head><meta charset="utf-8" /><title>Skynul</title></head><body style="font-family: system-ui; padding: 24px;">${body}</body></html>`
 }
 
 export async function startAuthCallbackServer(opts: {
@@ -41,20 +41,20 @@ export async function startAuthCallbackServer(opts: {
           if (handled) {
             onCallback?.(u.toString())
             res.writeHead(200, { 'Content-Type': 'text/html' })
-            res.end(html('Authorization complete. You can close this tab and return to Netbot.'))
+            res.end(html('Authorization complete. You can close this tab and return to Skynul.'))
             return
           }
         }
 
         // Send the full callback URL to the renderer (Supabase flow).
-        mainWindow.webContents.send('netbot:auth:callback', {
+        mainWindow.webContents.send('skynul:auth:callback', {
           url: u.toString()
         })
 
         onCallback?.(u.toString())
 
         res.writeHead(200, { 'Content-Type': 'text/html' })
-        res.end(html('Login received. You can close this tab and go back to Netbot.'))
+        res.end(html('Login received. You can close this tab and go back to Skynul.'))
       } catch {
         res.writeHead(500, { 'Content-Type': 'text/plain' })
         res.end('Error')

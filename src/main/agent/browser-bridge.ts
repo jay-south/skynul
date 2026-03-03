@@ -93,6 +93,20 @@ export class BrowserBridge {
     return typeof result === 'string' ? result : JSON.stringify(result)
   }
 
+  async saveSnapshot(): Promise<Record<string, unknown>> {
+    if (!this.relay.isExtensionConnected) {
+      throw new Error('Chrome extension not connected')
+    }
+    return (await this.relay.sendCommand('snapshotSave')) as Record<string, unknown>
+  }
+
+  async restoreSnapshot(snapshot: Record<string, unknown>): Promise<void> {
+    if (!this.relay.isExtensionConnected) {
+      throw new Error('Chrome extension not connected')
+    }
+    await this.relay.sendCommand('snapshotRestore', { snapshot })
+  }
+
   destroy(): void {
     // Relay is shared, don't close it here
   }
