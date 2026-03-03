@@ -52,6 +52,8 @@ export const IPC = {
   channelSetCredentials: 'skynul:channel:setCredentials',
   channelGeneratePairing: 'skynul:channel:generatePairing',
   channelUnpair: 'skynul:channel:unpair',
+  channelGetGlobal: 'skynul:channel:getGlobal',
+  channelSetAutoApprove: 'skynul:channel:setAutoApprove',
 
   // ── Schedules ──────────────────────────────────────────────────────
   scheduleList: 'skynul:schedule:list',

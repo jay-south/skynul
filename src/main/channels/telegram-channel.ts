@@ -21,11 +21,31 @@ const DEFAULT_STATE: TelegramState = {
   pairingCode: null
 }
 
+/** Convert markdown-ish text to Telegram HTML */
+function toHtml(text: string): string {
+  let out = text
+    // Escape HTML entities first
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+  // Markdown [text](url) → <a>
+  out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2">$1</a>')
+  // Bare URLs (not already inside href) → clickable <a>
+  out = out.replace(/(?<!href=")(https?:\/\/[^\s<]+)/g, '<a href="$1">Link</a>')
+  // *bold* → <b>
+  out = out.replace(/\*([^*]+)\*/g, '<b>$1</b>')
+  // _italic_ → <i>
+  out = out.replace(/(?<!\w)_([^_]+)_(?!\w)/g, '<i>$1</i>')
+  return out
+}
+
 export class TelegramChannel extends Channel {
   readonly id: ChannelId = 'telegram'
   private bot: Bot | null = null
   private state: TelegramState = { ...DEFAULT_STATE }
   private hasToken = false
+  private statusError: string | null = null
+  private retryTimer: ReturnType<typeof setTimeout> | null = null
 
   constructor(taskManager: TaskManager) {
     super(taskManager)
@@ -42,30 +62,65 @@ export class TelegramChannel extends Channel {
       return
     }
 
+    // Kill any previous instance before starting a new one
+    await this.stop()
+
     try {
       this.bot = new Bot(token)
+      this.statusError = null
+
       this.bot.catch((err) => {
-        console.error('[TelegramChannel] Bot error:', err.message ?? err)
+        const msg = err.message ?? String(err)
+        console.error('[TelegramChannel] Bot error:', msg)
+        this.statusError = msg
       })
       this.registerCommands()
       this.subscribeToTaskUpdates()
 
       console.log('[TelegramChannel] Starting bot polling...')
       this.bot.start({
-        onStart: () => console.log('[TelegramChannel] Polling started OK'),
+        onStart: () => {
+          console.log('[TelegramChannel] Polling started OK')
+          this.statusError = null
+        },
         drop_pending_updates: true
+      }).catch((e) => {
+        // Polling died — mark as error and schedule retry
+        const msg = e instanceof Error ? e.message : String(e)
+        console.error('[TelegramChannel] Polling stopped:', msg)
+        this.statusError = msg
+        this.bot = null
+        this.scheduleRetry()
       })
     } catch (e) {
       console.error('[TelegramChannel] Failed to start bot:', e)
+      this.statusError = e instanceof Error ? e.message : String(e)
       this.bot = null
+      this.scheduleRetry()
     }
   }
 
+  private scheduleRetry(): void {
+    if (this.retryTimer) return
+    console.log('[TelegramChannel] Will retry in 30s...')
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = null
+      if (this.state.enabled && !this.bot) {
+        void this.start()
+      }
+    }, 30_000)
+  }
+
   async stop(): Promise<void> {
+    if (this.retryTimer) {
+      clearTimeout(this.retryTimer)
+      this.retryTimer = null
+    }
     if (this.bot) {
       await this.bot.stop()
       this.bot = null
     }
+    this.statusError = null
   }
 
   getSettings(): ChannelSettings {
@@ -75,7 +130,7 @@ export class TelegramChannel extends Channel {
       status: this.bot ? 'connected' : this.state.enabled ? 'error' : 'disconnected',
       paired: this.state.pairedChatId !== null,
       pairingCode: this.state.pairingCode,
-      error: null,
+      error: this.statusError,
       hasCredentials: this.hasToken,
       meta: { pairedChatId: this.state.pairedChatId }
     }
@@ -113,8 +168,21 @@ export class TelegramChannel extends Channel {
   }
 
   protected async sendMessage(text: string): Promise<void> {
-    if (!this.bot || !this.state.pairedChatId) return
-    await this.bot.api.sendMessage(this.state.pairedChatId, text, { parse_mode: 'Markdown' })
+    if (!this.state.pairedChatId) {
+      console.warn('[TelegramChannel] sendMessage: no pairedChatId, skipping')
+      return
+    }
+    if (!this.bot) {
+      console.warn('[TelegramChannel] sendMessage: bot is null, skipping')
+      return
+    }
+    try {
+      await this.bot.api.sendMessage(this.state.pairedChatId, toHtml(text), { parse_mode: 'HTML' })
+    } catch (e) {
+      // HTML parse failed — fallback to plain text
+      console.warn('[TelegramChannel] HTML send failed, retrying plain:', e)
+      await this.bot.api.sendMessage(this.state.pairedChatId, text)
+    }
   }
 
   private registerCommands(): void {
@@ -149,7 +217,7 @@ export class TelegramChannel extends Channel {
     this.bot.command('list', async (ctx) => {
       if (!this.isPaired(ctx.chat.id)) return
       const tasks = this.taskManager.list()
-      await ctx.reply(formatTaskList(tasks), { parse_mode: 'Markdown' })
+      await ctx.reply(toHtml(formatTaskList(tasks)), { parse_mode: 'HTML' })
     })
 
     this.bot.command('status', async (ctx) => {
@@ -164,7 +232,7 @@ export class TelegramChannel extends Channel {
         await ctx.reply('\u{1f50d} Tarea no encontrada. Usá /list para ver tus tareas.')
         return
       }
-      await ctx.reply(formatTaskSummary(task), { parse_mode: 'Markdown' })
+      await ctx.reply(toHtml(formatTaskSummary(task)), { parse_mode: 'HTML' })
     })
 
     this.bot.command('cancel', async (ctx) => {
@@ -181,7 +249,7 @@ export class TelegramChannel extends Channel {
       }
       try {
         this.taskManager.cancel(task.id)
-        await ctx.reply(`\u26d4 *Cancelada:* ${task.prompt.slice(0, 80)}`, { parse_mode: 'Markdown' })
+        await ctx.reply(toHtml(`\u26d4 *Cancelada:* ${task.prompt.slice(0, 80)}`), { parse_mode: 'HTML' })
       } catch (e) {
         await ctx.reply(`Error: ${e instanceof Error ? e.message : String(e)}`)
       }
@@ -196,7 +264,7 @@ export class TelegramChannel extends Channel {
       if (!prompt) return
       try {
         const task = await this.createTaskFromMessage(prompt)
-        await ctx.reply(this.formatSummary(task), { parse_mode: 'Markdown' })
+        await ctx.reply(toHtml(this.formatSummary(task)), { parse_mode: 'HTML' })
       } catch (e) {
         await ctx.reply(`No se pudo crear la tarea: ${e instanceof Error ? e.message : String(e)}`)
       }

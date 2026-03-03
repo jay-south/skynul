@@ -154,6 +154,10 @@ const skynul = {
     ipcRenderer.invoke(IPC.channelGeneratePairing, channelId),
   channelUnpair: (channelId: import('../shared/channel').ChannelId): Promise<import('../shared/channel').ChannelSettings> =>
     ipcRenderer.invoke(IPC.channelUnpair, channelId),
+  channelGetGlobal: (): Promise<import('../shared/channel').ChannelGlobalSettings> =>
+    ipcRenderer.invoke(IPC.channelGetGlobal),
+  channelSetAutoApprove: (val: boolean): Promise<import('../shared/channel').ChannelGlobalSettings> =>
+    ipcRenderer.invoke(IPC.channelSetAutoApprove, val),
 
   // ── Schedules ────────────────────────────────────────────────────────
   scheduleList: (): Promise<import('../shared/schedule').Schedule[]> =>

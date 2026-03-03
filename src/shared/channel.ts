@@ -12,3 +12,7 @@ export type ChannelSettings = {
   hasCredentials: boolean
   meta: Record<string, unknown>
 }
+
+export type ChannelGlobalSettings = {
+  autoApprove: boolean
+}

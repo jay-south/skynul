@@ -559,6 +559,14 @@ export function registerIpcHandlers(opts: {
     return cm.getChannel(channelId).getSettings()
   })
 
+  ipcMain.handle(IPC.channelGetGlobal, async () => {
+    return cm.getGlobalSettings()
+  })
+
+  ipcMain.handle(IPC.channelSetAutoApprove, async (_evt, val: boolean) => {
+    return cm.setAutoApprove(val)
+  })
+
   // ── Schedules ─────────────────────────────────────────────────────────
 
   ipcMain.handle(IPC.scheduleList, async () => loadSchedules())

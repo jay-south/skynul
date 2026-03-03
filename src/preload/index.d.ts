@@ -68,6 +68,8 @@ declare global {
       channelSetCredentials: (channelId: import('../shared/channel').ChannelId, creds: Record<string, string>) => Promise<import('../shared/channel').ChannelSettings>
       channelGeneratePairing: (channelId: import('../shared/channel').ChannelId) => Promise<string>
       channelUnpair: (channelId: import('../shared/channel').ChannelId) => Promise<import('../shared/channel').ChannelSettings>
+      channelGetGlobal: () => Promise<import('../shared/channel').ChannelGlobalSettings>
+      channelSetAutoApprove: (val: boolean) => Promise<import('../shared/channel').ChannelGlobalSettings>
 
       // Schedules
       scheduleList: () => Promise<import('../shared/schedule').Schedule[]>

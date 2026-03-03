@@ -40,6 +40,17 @@ function statusIcon(status: string): string {
   return (STATUS_LABEL[status] ?? '\u2753').split(' ')[0]
 }
 
+/** Convert bare URLs to Telegram-clickable markdown links */
+function linkify(text: string): string {
+  return text.replace(
+    /🔗\s*(https?:\/\/[^\s)]+)/g,
+    (_m, url) => `🔗 [Ver acá](${url})`
+  ).replace(
+    /(?<![\(\[])(https?:\/\/[^\s)]+)(?!\))/g,
+    (url) => `[Link](${url})`
+  )
+}
+
 // ── Public formatters ────────────────────────────────────────────────────────
 
 export function formatTaskSummary(task: Task): string {
@@ -73,8 +84,7 @@ export function formatTaskComplete(task: Task): string {
 
   if (task.summary) {
     lines.push('')
-    lines.push(`\u{1f4cb} *Resultado:*`)
-    lines.push(task.summary)
+    lines.push(linkify(task.summary))
   } else {
     lines.push('')
     lines.push(`\u{1f4cb} _Tarea completada sin detalles adicionales._`)

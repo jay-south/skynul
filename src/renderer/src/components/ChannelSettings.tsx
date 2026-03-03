@@ -80,11 +80,16 @@ export function ChannelSettings(): React.JSX.Element {
   const [credDraft2, setCredDraft2] = useState('')
   const [busy, setBusy] = useState<ChannelId | null>(null)
   const [error, setError] = useState('')
+  const [autoApprove, setAutoApprove] = useState(true)
 
   const loadChannels = useCallback(async () => {
     try {
-      const all = await window.skynul.channelGetAll()
+      const [all, global] = await Promise.all([
+        window.skynul.channelGetAll(),
+        window.skynul.channelGetGlobal()
+      ])
       setChannels(all)
+      setAutoApprove(global.autoApprove)
     } catch {
       // not available
     }
@@ -154,10 +159,37 @@ export function ChannelSettings(): React.JSX.Element {
     }
   }
 
+  const handleAutoApproveToggle = async (): Promise<void> => {
+    try {
+      const updated = await window.skynul.channelSetAutoApprove(!autoApprove)
+      setAutoApprove(updated.autoApprove)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
   return (
     <div className="settingsSection">
       <div className="settingsLabel">Messaging Channels</div>
       {error && <div className="composerError">{error}</div>}
+
+      <button
+        className={`cap ${autoApprove ? 'on' : 'off'}`}
+        onClick={() => void handleAutoApproveToggle()}
+        style={{ marginBottom: 12 }}
+      >
+        <div className="capLeft">
+          <div className="capTitle">Aprobar tareas automáticamente</div>
+          <div className="capDesc">
+            {autoApprove
+              ? 'Las tareas de canales se ejecutan sin confirmación'
+              : 'Las tareas quedan pendientes hasta que las apruebes'}
+          </div>
+        </div>
+        <div className="capToggle" aria-hidden="true">
+          <div className="capKnob" />
+        </div>
+      </button>
 
       <div className="channelGrid">
         {channels.map((ch) => {

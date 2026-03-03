@@ -167,7 +167,7 @@ app.whenReady().then(() => {
   scheduleRunner.start()
 
   channelManager = new ChannelManager(taskManager)
-  void channelManager.startAll().catch((e) => {
+  void channelManager.loadGlobal().then(() => channelManager!.startAll()).catch((e) => {
     console.warn('[ChannelManager] Failed to start:', e)
   })
 
