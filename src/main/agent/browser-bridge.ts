@@ -22,6 +22,7 @@ export type PageInfo = {
 
 export class BrowserBridge {
   private relay: CdpRelay
+  private tabId: number | null = null
 
   constructor(relay: CdpRelay) {
     this.relay = relay
@@ -33,15 +34,21 @@ export class BrowserBridge {
 
   /** Create a new tab for the task; never use or close the user's current tab. Call once at task start. */
   async ensureTaskTab(): Promise<void> {
-    await this.relay.sendCommand('taskStart')
+    const res = (await this.relay.sendCommand('taskStart')) as { tabId: number }
+    this.tabId = res.tabId
   }
 
-  async getPageInfo(): Promise<PageInfo> {
+  /** Send a command scoped to this bridge's tab. */
+  private cmd(action: string, params?: Record<string, unknown>): Promise<unknown> {
+    return this.relay.sendCommand(action, { ...params, tabId: this.tabId })
+  }
+
+  async getPageInfo(frameId?: string): Promise<PageInfo> {
     if (!this.relay.isExtensionConnected) {
       throw new Error('Chrome extension not connected')
     }
     try {
-      const result = (await this.relay.sendCommand('getPageInfo')) as {
+      const result = (await this.cmd('getPageInfo', { frameId })) as {
         url?: string
         title?: string
         text?: string
@@ -71,40 +78,45 @@ export class BrowserBridge {
     }
   }
 
-  async click(selector: string): Promise<void> {
-    await this.relay.sendCommand('click', { selector })
+  async click(selector: string, frameId?: string): Promise<void> {
+    await this.cmd('click', { selector, frameId })
   }
 
-  async type(selector: string, text: string): Promise<void> {
-    await this.relay.sendCommand('type', { selector, text })
+  async type(selector: string, text: string, frameId?: string): Promise<void> {
+    await this.cmd('type', { selector, text, frameId })
   }
 
   async navigate(url: string): Promise<void> {
-    await this.relay.sendCommand('navigate', { url })
+    await this.cmd('navigate', { url })
     await new Promise((r) => setTimeout(r, 2500))
   }
 
   async pressKey(key: string): Promise<void> {
-    await this.relay.sendCommand('pressKey', { key })
+    await this.cmd('pressKey', { key })
   }
 
-  async evaluate(script: string): Promise<string> {
-    const result = await this.relay.sendCommand('evaluate', { js: script })
+  async evaluate(script: string, frameId?: string): Promise<string> {
+    const result = await this.cmd('evaluate', { js: script, frameId })
     return typeof result === 'string' ? result : JSON.stringify(result)
+  }
+
+  async getFrames(): Promise<Array<{ id: string; url: string; name: string; parentId: string | null }>> {
+    const result = await this.cmd('getFrames')
+    return result as Array<{ id: string; url: string; name: string; parentId: string | null }>
   }
 
   async saveSnapshot(): Promise<Record<string, unknown>> {
     if (!this.relay.isExtensionConnected) {
       throw new Error('Chrome extension not connected')
     }
-    return (await this.relay.sendCommand('snapshotSave')) as Record<string, unknown>
+    return (await this.cmd('snapshotSave')) as Record<string, unknown>
   }
 
   async restoreSnapshot(snapshot: Record<string, unknown>): Promise<void> {
     if (!this.relay.isExtensionConnected) {
       throw new Error('Chrome extension not connected')
     }
-    await this.relay.sendCommand('snapshotRestore', { snapshot })
+    await this.cmd('snapshotRestore', { snapshot })
   }
 
   destroy(): void {

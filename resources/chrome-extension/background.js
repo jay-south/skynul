@@ -16,8 +16,13 @@ const KEEPALIVE_INTERVAL_MIN = 0.5 // 30 seconds — minimum chrome.alarms allow
 let ws = null
 /** @type {Set<number>} */
 const attachedTabs = new Set()
-/** @type {number | null} — tab used for the current task; all commands target this instead of active tab */
-let taskTabId = null
+/** @type {Set<number>} — tabs created by taskStart; cleaned up when closed */
+const taskTabs = new Set()
+
+/** Inlined JS helper: querySelector that pierces shadow DOM */
+const deepQueryFn = `function deepQuery(sel) { const found = document.querySelector(sel); if (found) return found; const walk = (root) => { const r = root.querySelectorAll('*'); for (const el of r) { if (el.shadowRoot) { const f = el.shadowRoot.querySelector(sel); if (f) return f; const d = walk(el.shadowRoot); if (d) return d; } } return null; }; return walk(document); }`
+/** @type {Map<string, number>} frameId → executionContextId */
+const frameContexts = new Map()
 
 // ── Keepalive via chrome.alarms ─────────────────────────────────────
 
@@ -61,7 +66,7 @@ function connect() {
   ws.onclose = () => {
     console.log('[Skynul] Relay disconnected')
     ws = null
-    taskTabId = null
+    taskTabs.clear()
     detachAll()
     // Alarm will trigger reconnect — no setTimeout needed
   }
@@ -77,6 +82,7 @@ function send(data) {
 
 async function handleCommand(msg) {
   const { id, action, method, params } = msg
+  const tid = msg.tabId // explicit tab from BrowserBridge (may be null for legacy)
   try {
     let result
     switch (action) {
@@ -84,34 +90,37 @@ async function handleCommand(msg) {
         result = await createTaskTab()
         break
       case 'navigate':
-        result = await navigateTab(msg.url)
+        result = await navigateTab(msg.url, tid)
         break
       case 'click':
-        result = await clickSelector(msg.selector)
+        result = await clickSelector(msg.selector, msg.frameId, tid)
         break
       case 'type':
-        result = await typeInto(msg.selector, msg.text)
+        result = await typeInto(msg.selector, msg.text, msg.frameId, tid)
         break
       case 'pressKey':
-        result = await pressKey(msg.key)
+        result = await pressKey(msg.key, tid)
         break
       case 'evaluate':
-        result = await evaluateJS(msg.js)
+        result = await evaluateJS(msg.js, msg.frameId, tid)
         break
       case 'getPageInfo':
-        result = await getPageInfo()
+        result = await getPageInfo(msg.frameId, tid)
+        break
+      case 'getFrames':
+        result = await getFrames(tid)
         break
       case 'screenshot':
-        result = await captureScreenshot()
+        result = await captureScreenshot(tid)
         break
       case 'cdp':
-        result = await sendCDP(method, params)
+        result = await sendCDP(method, params, tid ? await resolveTabId(tid) : undefined)
         break
       case 'snapshotSave':
-        result = await snapshotSave()
+        result = await snapshotSave(tid)
         break
       case 'snapshotRestore':
-        result = await snapshotRestore(msg.snapshot)
+        result = await snapshotRestore(msg.snapshot, tid)
         break
       case 'ping':
         result = { pong: true }
@@ -127,33 +136,30 @@ async function handleCommand(msg) {
 
 // ── Debugger helpers ────────────────────────────────────────────────
 
-async function getActiveTabId() {
-  // If a task tab was set (task started), use it and verify it still exists
-  if (taskTabId != null) {
+async function resolveTabId(explicitTabId) {
+  // If the command carries an explicit tabId (from BrowserBridge), use it
+  if (explicitTabId != null) {
     try {
-      await chrome.tabs.get(taskTabId)
-      return taskTabId
+      await chrome.tabs.get(explicitTabId)
+      return explicitTabId
     } catch {
-      taskTabId = null
+      // tab was closed — fall through to fallback
     }
   }
-  // Try active tab in current window first
+  // Fallback for legacy / single-agent callers
   let [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-  if (tab?.id)
-    return tab.id
-  // Fallback: active tab in any window (Skynul may have focus, not Chrome)
+  if (tab?.id) return tab.id
   ;[tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
   if (tab?.id) return tab.id
-  // Last resort: any non-chrome tab
   const tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] })
   if (tabs.length > 0) return tabs[tabs.length - 1].id
   throw new Error('No active tab found')
 }
 
-/** Create a new tab for the task; all subsequent commands use this tab (never close the user's current tab). */
+/** Create a new tab for the task. The returned tabId must be sent back with every command. */
 async function createTaskTab() {
-  const tab = await chrome.tabs.create({ url: 'about:blank', active: true })
-  taskTabId = tab.id
+  const tab = await chrome.tabs.create({ url: 'about:blank', active: false })
+  taskTabs.add(tab.id)
   return { tabId: tab.id }
 }
 
@@ -168,7 +174,42 @@ async function ensureAttached(tabId) {
       }
     })
   })
+  // Track execution contexts so we can evaluate inside iframes
+  frameContexts.clear()
+  await sendCDP('Runtime.enable', {}, tabId)
+  // Collect contexts that already exist (iframes loaded before attach)
+  try {
+    const { result } = await sendCDP('Runtime.evaluate', {
+      expression: '1', returnByValue: true
+    }, tabId) // triggers main context
+    const tree = await sendCDP('Page.getFrameTree', {}, tabId)
+    const walkFrames = (node) => {
+      const f = node.frame
+      if (!frameContexts.has(f.id)) {
+        // Probe each frame to force context creation
+        sendCDP('Page.createIsolatedWorld', { frameId: f.id, worldName: '__skynul_probe' }, tabId).catch(() => {})
+      }
+      for (const child of node.childFrames || []) walkFrames(child)
+    }
+    walkFrames(tree.frameTree)
+    // Give contexts a moment to register via the event listener
+    await new Promise(r => setTimeout(r, 200))
+  } catch { /* non-critical */ }
 }
+
+chrome.debugger.onEvent.addListener((source, method, params) => {
+  if (method === 'Runtime.executionContextCreated') {
+    const ctx = params.context
+    if (ctx.auxData?.frameId) {
+      frameContexts.set(ctx.auxData.frameId, ctx.id)
+    }
+  }
+  if (method === 'Runtime.executionContextDestroyed') {
+    for (const [fid, cid] of frameContexts) {
+      if (cid === params.executionContextId) { frameContexts.delete(fid); break }
+    }
+  }
+})
 
 function detachAll() {
   for (const tabId of attachedTabs) {
@@ -182,7 +223,7 @@ function detachAll() {
 }
 
 async function sendCDP(method, params = {}, tabId) {
-  if (!tabId) tabId = await getActiveTabId()
+  if (!tabId) tabId = await resolveTabId()
   await ensureAttached(tabId)
   return new Promise((resolve, reject) => {
     chrome.debugger.sendCommand({ tabId }, method, params, (result) => {
@@ -194,8 +235,8 @@ async function sendCDP(method, params = {}, tabId) {
 
 // ── High-level actions ──────────────────────────────────────────────
 
-async function navigateTab(url) {
-  const tabId = await getActiveTabId()
+async function navigateTab(url, tid) {
+  const tabId = await resolveTabId(tid)
   await ensureAttached(tabId)
   const result = await sendCDP('Page.navigate', { url }, tabId)
   // Wait for JS to execute and render dynamic content
@@ -203,33 +244,29 @@ async function navigateTab(url) {
   return result
 }
 
-async function clickSelector(selector) {
-  const tabId = await getActiveTabId()
+async function clickSelector(selector, frameId, tid) {
+  const tabId = await resolveTabId(tid)
   await ensureAttached(tabId)
-  const result = await sendCDP(
-    'Runtime.evaluate',
-    {
-      expression: `(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return { error: 'Element not found: ${selector}' }; el.scrollIntoView({ block: 'center' }); el.click(); return { success: true, tag: el.tagName }; })()`,
-      returnByValue: true
-    },
-    tabId
-  )
+  const opts = {
+    expression: `(() => { ${deepQueryFn} const el = deepQuery(${JSON.stringify(selector)}); if (!el) return { error: 'Element not found: ${selector}' }; el.scrollIntoView({ block: 'center' }); el.click(); return { success: true, tag: el.tagName }; })()`,
+    returnByValue: true
+  }
+  if (frameId) { const ctxId = frameContexts.get(frameId); if (ctxId) opts.contextId = ctxId }
+  const result = await sendCDP('Runtime.evaluate', opts, tabId)
   const val = result?.result?.value
   if (val?.error) throw new Error(val.error)
   return val || { success: true }
 }
 
-async function typeInto(selector, text) {
-  const tabId = await getActiveTabId()
+async function typeInto(selector, text, frameId, tid) {
+  const tabId = await resolveTabId(tid)
   await ensureAttached(tabId)
-  await sendCDP(
-    'Runtime.evaluate',
-    {
-      expression: `(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return { error: 'Element not found' }; el.focus(); el.select?.(); return { success: true }; })()`,
-      returnByValue: true
-    },
-    tabId
-  )
+  const opts = {
+    expression: `(() => { ${deepQueryFn} const el = deepQuery(${JSON.stringify(selector)}); if (!el) return { error: 'Element not found' }; el.focus(); el.select?.(); return { success: true }; })()`,
+    returnByValue: true
+  }
+  if (frameId) { const ctxId = frameContexts.get(frameId); if (ctxId) opts.contextId = ctxId }
+  await sendCDP('Runtime.evaluate', opts, tabId)
   for (const char of text) {
     await sendCDP(
       'Input.dispatchKeyEvent',
@@ -241,8 +278,8 @@ async function typeInto(selector, text) {
   return { success: true }
 }
 
-async function pressKey(key) {
-  const tabId = await getActiveTabId()
+async function pressKey(key, tid) {
+  const tabId = await resolveTabId(tid)
   await ensureAttached(tabId)
   const keyMap = {
     Enter: { keyCode: 13, code: 'Enter', key: 'Enter' },
@@ -279,47 +316,85 @@ async function pressKey(key) {
   return { success: true }
 }
 
-async function evaluateJS(js) {
-  const tabId = await getActiveTabId()
+async function evaluateJS(js, frameId, tid) {
+  const tabId = await resolveTabId(tid)
   await ensureAttached(tabId)
-  const result = await sendCDP('Runtime.evaluate', { expression: js, returnByValue: true }, tabId)
+  const opts = { expression: js, returnByValue: true }
+  if (frameId) {
+    const ctxId = frameContexts.get(frameId)
+    if (ctxId) opts.contextId = ctxId
+  }
+  const result = await sendCDP('Runtime.evaluate', opts, tabId)
   return result?.result?.value ?? null
 }
 
-async function getPageInfo() {
-  const tabId = await getActiveTabId()
+async function getFrames(tid) {
+  const tabId = await resolveTabId(tid)
   await ensureAttached(tabId)
+  const tree = await sendCDP('Page.getFrameTree', {}, tabId)
+  const frames = []
+  const walk = (node) => {
+    const f = node.frame
+    frames.push({ id: f.id, url: f.url, name: f.name || '', parentId: f.parentId || null })
+    for (const child of node.childFrames || []) walk(child)
+  }
+  walk(tree.frameTree)
+  return frames
+}
+
+async function getPageInfo(frameId, tid) {
+  const tabId = await resolveTabId(tid)
+  await ensureAttached(tabId)
+
+  const evalOpts = {
+    returnByValue: true
+  }
+  if (frameId) {
+    const ctxId = frameContexts.get(frameId)
+    if (ctxId) evalOpts.contextId = ctxId
+  }
 
   // Get basic page info + elements in one call
   const result = await sendCDP(
     'Runtime.evaluate',
     {
+      ...evalOpts,
       expression: `(() => {
       const b = document.body;
       if (!b) return { url: location.href, title: document.title, text: '', elements: [] };
       
-      // Get text content
-      const w = document.createTreeWalker(b, NodeFilter.SHOW_TEXT, { 
-        acceptNode(n) { 
-          const e = n.parentElement; 
-          if (!e) return 2; 
-          const t = e.tagName; 
-          if (t==='SCRIPT'||t==='STYLE'||t==='NOSCRIPT') return 2; 
-          const s = getComputedStyle(e); 
-          if (s.display==='none'||s.visibility==='hidden') return 2; 
-          return (n.textContent||'').trim().length>0?1:2; 
-        } 
-      }); 
-      const p = []; 
-      while(w.nextNode()) p.push((w.currentNode.textContent||'').trim()); 
-      const tx = p.join(' '); 
-      
-      // Get interactive elements
+      // Collect all roots (document + shadow roots recursively)
+      const roots = [document];
+      const walkRoots = (node) => {
+        if (!node) return;
+        if (node.shadowRoot) { roots.push(node.shadowRoot); walkRoots(node.shadowRoot); }
+        const children = node.children || node.childNodes || [];
+        for (const c of children) { if (c.nodeType === 1) walkRoots(c); }
+      };
+      walkRoots(b);
+
+      // Get text content from all roots
+      const p = [];
+      for (const root of roots) {
+        const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+          acceptNode(n) {
+            const e = n.parentElement;
+            if (!e) return 2;
+            const t = e.tagName;
+            if (t==='SCRIPT'||t==='STYLE'||t==='NOSCRIPT') return 2;
+            try { const s = getComputedStyle(e); if (s.display==='none'||s.visibility==='hidden') return 2; } catch { return 2; }
+            return (n.textContent||'').trim().length>0?1:2;
+          }
+        });
+        while(w.nextNode()) p.push((w.currentNode.textContent||'').trim());
+      }
+      const tx = p.join(' ');
+
+      // Get interactive elements from all roots
       const elements = [];
       const seen = new Set();
       const isVisible = (el) => {
-        const s = window.getComputedStyle(el);
-        return s.display !== 'none' && s.visibility !== 'hidden' && s.opacity !== '0';
+        try { const s = window.getComputedStyle(el); return s.display !== 'none' && s.visibility !== 'hidden' && s.opacity !== '0'; } catch { return false; }
       };
       const getSelector = (el) => {
         if (el.id) return '#' + el.id;
@@ -331,43 +406,38 @@ async function getPageInfo() {
         if (placeholder) return el.tagName.toLowerCase() + '[placeholder="' + placeholder + '"]';
         if (el.className && typeof el.className === 'string') {
           const classes = el.className.split(' ').filter(c => c.length > 0);
-          if (classes.length > 0) {
-            return el.tagName.toLowerCase() + '.' + classes.join('.');
-          }
+          if (classes.length > 0) return el.tagName.toLowerCase() + '.' + classes.join('.');
         }
-        // Fallback: tag with nth-of-type index
         const tag = el.tagName.toLowerCase();
-        const siblings = Array.from(el.parentElement?.children || []).filter(
-          sib => sib.tagName.toLowerCase() === tag
-        );
-        if (siblings.length > 1) {
-          const index = siblings.indexOf(el) + 1;
-          return tag + ':nth-of-type(' + index + ')';
-        }
+        const siblings = Array.from(el.parentElement?.children || []).filter(sib => sib.tagName.toLowerCase() === tag);
+        if (siblings.length > 1) return tag + ':nth-of-type(' + (siblings.indexOf(el) + 1) + ')';
         return tag;
       };
-      
+
       const selectors = [
         'button:not([disabled])', 'a[href]', 'input:not([type="hidden"]):not([disabled])',
         'textarea:not([disabled])', 'select:not([disabled])',
         '[role="button"]', '[role="link"]', '[role="textbox"]', '[role="combobox"]',
         '[role="searchbox"]', '[onclick]'
       ];
-      
-      selectors.forEach(sel => {
-        document.querySelectorAll(sel).forEach(el => {
-          if (!isVisible(el)) return;
-          const tag = el.tagName.toLowerCase();
-          const type = el.type || '';
-          const text = (el.textContent?.slice(0, 50).trim() || el.placeholder || el.value || '');
-          const selector = getSelector(el);
-          if (!selector) return;
-          const key = tag + ':' + selector;
-          if (seen.has(key)) return;
-          seen.add(key);
-          elements.push({ tag, type: type || undefined, selector, text: text || undefined, interactive: true });
+
+      for (const root of roots) {
+        selectors.forEach(sel => {
+          try { root.querySelectorAll(sel) } catch { return; }
+          root.querySelectorAll(sel).forEach(el => {
+            if (!isVisible(el)) return;
+            const tag = el.tagName.toLowerCase();
+            const type = el.type || '';
+            const text = (el.textContent?.slice(0, 50).trim() || el.placeholder || el.value || '');
+            const selector = getSelector(el);
+            if (!selector) return;
+            const key = tag + ':' + selector;
+            if (seen.has(key)) return;
+            seen.add(key);
+            elements.push({ tag, type: type || undefined, selector, text: text || undefined, interactive: true });
+          });
         });
-      });
+      }
       
       return { 
         url: location.href, 
@@ -375,16 +445,15 @@ async function getPageInfo() {
         text: tx.length>4000?tx.slice(0,4000)+'...':tx,
         elements: elements.slice(0, 30)
       }; 
-    })()`,
-      returnByValue: true
+    })()`
     },
     tabId
   )
   return result?.result?.value ?? { url: '', title: '', text: '', elements: [] }
 }
 
-async function captureScreenshot() {
-  const tabId = await getActiveTabId()
+async function captureScreenshot(tid) {
+  const tabId = await resolveTabId(tid)
   await ensureAttached(tabId)
   const result = await sendCDP('Page.captureScreenshot', { format: 'png' }, tabId)
   return { data: result.data }
@@ -392,8 +461,8 @@ async function captureScreenshot() {
 
 // ── Snapshot helpers ────────────────────────────────────────────
 
-async function snapshotSave() {
-  const tabId = await getActiveTabId()
+async function snapshotSave(tid) {
+  const tabId = await resolveTabId(tid)
   await ensureAttached(tabId)
 
   // Get all cookies
@@ -450,8 +519,8 @@ async function snapshotSave() {
   }
 }
 
-async function snapshotRestore(snapshot) {
-  const tabId = await getActiveTabId()
+async function snapshotRestore(snapshot, tid) {
+  const tabId = await resolveTabId(tid)
   await ensureAttached(tabId)
 
   // Navigate to the saved URL
@@ -492,7 +561,7 @@ chrome.debugger.onDetach.addListener((source) => {
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   attachedTabs.delete(tabId)
-  if (tabId === taskTabId) taskTabId = null
+  taskTabs.delete(tabId)
 })
 
 // Initial connect
