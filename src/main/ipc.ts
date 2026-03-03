@@ -1,6 +1,7 @@
-import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { spawn } from 'child_process'
 import { readFile, writeFile } from 'fs/promises'
+import os from 'os'
 import { IPC } from '../shared/ipc'
 import {
   ChatSendRequest,
@@ -38,6 +39,7 @@ import { deepseekRespond } from './providers/deepseek'
 import { kimiRespond } from './providers/kimi'
 import type { TaskManager } from './agent/task-manager'
 import type { ChannelManager } from './channels/channel-manager'
+import type { RuntimeStats } from '../shared/runtime'
 import type { CdpRelay } from './agent/cdp-relay'
 import { BrowserBridge } from './agent/browser-bridge'
 import { loadSnapshots, saveSnapshot, deleteSnapshot } from './browser-snapshots'
@@ -128,6 +130,36 @@ export function registerIpcHandlers(opts: {
     return 'pong'
   })
 
+  ipcMain.handle(IPC.runtimeGetStats, async (): Promise<RuntimeStats> => {
+    const metrics = app.getAppMetrics()
+
+    let cpu = 0
+    let memMB = 0
+    for (const m of metrics) {
+      cpu += m.cpu?.percentCPUUsage ?? 0
+      const wsKb = m.memory?.workingSetSize ?? 0
+      memMB += wsKb / 1024
+    }
+
+    const totalMemMB = os.totalmem() / (1024 * 1024)
+    const freeMemMB = os.freemem() / (1024 * 1024)
+    const loadavg1m = os.loadavg?.()[0] ?? 0
+
+    return {
+      ts: Date.now(),
+      app: {
+        cpuPercent: cpu,
+        memoryMB: memMB,
+        processCount: metrics.length
+      },
+      system: {
+        totalMemMB,
+        freeMemMB,
+        loadavg1m
+      }
+    }
+  })
+
   ipcMain.handle(IPC.openExternal, async (_evt, url: string) => {
     const u = String(url ?? '')
     const parsed = new URL(u)
@@ -171,9 +203,7 @@ export function registerIpcHandlers(opts: {
     const opts = {
       properties: ['openDirectory', 'createDirectory'] as Array<'openDirectory' | 'createDirectory'>
     }
-    const result = win
-      ? await dialog.showOpenDialog(win, opts)
-      : await dialog.showOpenDialog(opts)
+    const result = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
     if (result.canceled || result.filePaths.length === 0) return policy
 
     policy = {
@@ -208,9 +238,7 @@ export function registerIpcHandlers(opts: {
         { name: 'Todos', extensions: ['*'] }
       ]
     }
-    const result = win
-      ? await dialog.showOpenDialog(win, opts)
-      : await dialog.showOpenDialog(opts)
+    const result = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
     return { canceled: result.canceled, filePaths: result.filePaths }
   })
 
@@ -453,19 +481,22 @@ export function registerIpcHandlers(opts: {
 
   ipcMain.handle(IPC.skillList, async () => loadSkills())
 
-  ipcMain.handle(IPC.skillSave, async (_evt, skill: Omit<Skill, 'id' | 'createdAt'> & { id?: string }) => {
-    const skills = await loadSkills()
-    if (skill.id) {
-      const idx = skills.findIndex((s) => s.id === skill.id)
-      if (idx !== -1) {
-        skills[idx] = { ...skills[idx], ...skill } as Skill
+  ipcMain.handle(
+    IPC.skillSave,
+    async (_evt, skill: Omit<Skill, 'id' | 'createdAt'> & { id?: string }) => {
+      const skills = await loadSkills()
+      if (skill.id) {
+        const idx = skills.findIndex((s) => s.id === skill.id)
+        if (idx !== -1) {
+          skills[idx] = { ...skills[idx], ...skill } as Skill
+        }
+      } else {
+        skills.push({ ...skill, id: createSkillId(), createdAt: Date.now() } as Skill)
       }
-    } else {
-      skills.push({ ...skill, id: createSkillId(), createdAt: Date.now() } as Skill)
+      await saveSkills(skills)
+      return skills
     }
-    await saveSkills(skills)
-    return skills
-  })
+  )
 
   ipcMain.handle(IPC.skillDelete, async (_evt, id: string) => {
     const skills = (await loadSkills()).filter((s) => s.id !== id)
@@ -545,10 +576,13 @@ export function registerIpcHandlers(opts: {
     return cm.getChannel(channelId).setEnabled(enabled)
   })
 
-  ipcMain.handle(IPC.channelSetCredentials, async (_evt, channelId: ChannelId, creds: Record<string, string>) => {
-    await cm.getChannel(channelId).setCredentials(creds)
-    return cm.getChannel(channelId).getSettings()
-  })
+  ipcMain.handle(
+    IPC.channelSetCredentials,
+    async (_evt, channelId: ChannelId, creds: Record<string, string>) => {
+      await cm.getChannel(channelId).setCredentials(creds)
+      return cm.getChannel(channelId).getSettings()
+    }
+  )
 
   ipcMain.handle(IPC.channelGeneratePairing, async (_evt, channelId: ChannelId) => {
     return cm.getChannel(channelId).generatePairingCode()
@@ -610,7 +644,8 @@ export function registerIpcHandlers(opts: {
 
   ipcMain.handle(IPC.transcribeAudio, async (_evt, audioBuffer: ArrayBuffer) => {
     const apiKey = await getSecret('openai.apiKey')
-    if (!apiKey) throw new Error('OpenAI API key required for voice input. Set it in Settings → Providers.')
+    if (!apiKey)
+      throw new Error('OpenAI API key required for voice input. Set it in Settings → Providers.')
 
     const blob = new Blob([audioBuffer], { type: 'audio/webm' })
     const formData = new FormData()

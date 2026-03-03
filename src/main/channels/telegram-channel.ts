@@ -1,7 +1,9 @@
-import { Bot } from 'grammy'
+import { Bot, InputFile } from 'grammy'
 import { randomBytes } from 'crypto'
-import { readFile, writeFile, mkdir } from 'fs/promises'
-import { join, dirname } from 'path'
+import { readFile, writeFile, mkdir, stat } from 'fs/promises'
+import { join, dirname, basename } from 'path'
+import { createWriteStream } from 'fs'
+import { pipeline } from 'stream/promises'
 import { app } from 'electron'
 import type { ChannelId, ChannelSettings } from '../../shared/channel'
 import type { TaskManager } from '../agent/task-manager'
@@ -252,6 +254,42 @@ export class TelegramChannel extends Channel {
         await ctx.reply(toHtml(`\u26d4 *Cancelada:* ${task.prompt.slice(0, 80)}`), { parse_mode: 'HTML' })
       } catch (e) {
         await ctx.reply(`Error: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    })
+
+    this.bot.command('send', async (ctx) => {
+      if (!this.isPaired(ctx.chat.id)) return
+      const filePath = ctx.match?.trim()
+      if (!filePath) {
+        await ctx.reply('Uso: /send <ruta del archivo>')
+        return
+      }
+      try {
+        const info = await stat(filePath)
+        if (!info.isFile()) { await ctx.reply('No es un archivo.'); return }
+        if (info.size > 50 * 1024 * 1024) { await ctx.reply('El archivo supera 50MB (límite de Telegram).'); return }
+        await ctx.replyWithDocument(new InputFile(filePath, basename(filePath)))
+      } catch (e) {
+        await ctx.reply(`Error: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    })
+
+    this.bot.on('message:document', async (ctx) => {
+      if (!this.isPaired(ctx.chat.id)) return
+      try {
+        const doc = ctx.message.document
+        const file = await ctx.api.getFile(doc.file_id)
+        const url = `https://api.telegram.org/file/bot${this.bot!.token}/${file.file_path}`
+        const destDir = join(app.getPath('userData'), 'received')
+        await mkdir(destDir, { recursive: true })
+        const destPath = join(destDir, doc.file_name ?? `file_${Date.now()}`)
+        const res = await fetch(url)
+        if (!res.ok || !res.body) throw new Error(`Download failed: ${res.status}`)
+        const ws = createWriteStream(destPath)
+        await pipeline(res.body, ws)
+        await ctx.reply(`\u2705 Guardado en: ${destPath}`)
+      } catch (e) {
+        await ctx.reply(`Error al guardar: ${e instanceof Error ? e.message : String(e)}`)
       }
     })
 

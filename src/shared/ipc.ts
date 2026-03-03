@@ -1,5 +1,6 @@
 export const IPC = {
   ping: 'skynul:app:ping',
+  runtimeGetStats: 'skynul:app:runtime:getStats',
   getPolicy: 'skynul:policy:get',
   pickWorkspace: 'skynul:workspace:pick',
   setCapability: 'skynul:policy:setCapability',

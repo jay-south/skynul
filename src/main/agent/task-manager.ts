@@ -10,10 +10,7 @@ import { writeFileSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { EventEmitter } from 'events'
 import { app, type BrowserWindow } from 'electron'
-import type {
-  Task,
-  TaskCreateRequest
-} from '../../shared/task'
+import type { Task, TaskCreateRequest } from '../../shared/task'
 import type { PolicyState } from '../../shared/policy'
 import { TaskRunner } from './task-runner'
 import type { CdpRelay } from './cdp-relay'
@@ -67,6 +64,7 @@ export class TaskManager extends EventEmitter {
     const id = `task_${Date.now().toString(36)}_${randomBytes(4).toString('hex')}`
     const task: Task = {
       id,
+      parentTaskId: req.parentTaskId,
       prompt: req.prompt,
       status: 'pending_approval',
       mode: req.mode ?? 'browser',
@@ -132,7 +130,14 @@ export class TaskManager extends EventEmitter {
 
     const runner = new TaskRunner(
       task,
-      { provider, openaiModel, cdpRelay: this.cdpRelay, memoryContext: memoryContext + skillContext, taskManager: this, taskId: task.id },
+      {
+        provider,
+        openaiModel,
+        cdpRelay: this.cdpRelay,
+        memoryContext: memoryContext + skillContext,
+        taskManager: this,
+        taskId: task.id
+      },
       {
         onUpdate: (updated) => {
           this.tasks.set(updated.id, updated)
@@ -147,21 +152,24 @@ export class TaskManager extends EventEmitter {
     const startTime = Date.now()
 
     // Run in background — don't await
-    void runner.run().then((final) => {
-      this.tasks.set(final.id, final)
-      this.runners.delete(taskId)
-      if (memoryEnabled) this.extractAndSaveMemory(final, provider, Date.now() - startTime)
-      void this.persistToDisk()
-    }).catch((e) => {
-      task.status = 'failed'
-      task.error = e instanceof Error ? e.message : String(e)
-      task.updatedAt = Date.now()
-      this.tasks.set(taskId, task)
-      this.pushUpdate(task)
-      this.runners.delete(taskId)
-      if (memoryEnabled) this.extractAndSaveMemory(task, provider, Date.now() - startTime)
-      void this.persistToDisk()
-    })
+    void runner
+      .run()
+      .then((final) => {
+        this.tasks.set(final.id, final)
+        this.runners.delete(taskId)
+        if (memoryEnabled) this.extractAndSaveMemory(final, provider, Date.now() - startTime)
+        void this.persistToDisk()
+      })
+      .catch((e) => {
+        task.status = 'failed'
+        task.error = e instanceof Error ? e.message : String(e)
+        task.updatedAt = Date.now()
+        this.tasks.set(taskId, task)
+        this.pushUpdate(task)
+        this.runners.delete(taskId)
+        if (memoryEnabled) this.extractAndSaveMemory(task, provider, Date.now() - startTime)
+        void this.persistToDisk()
+      })
 
     return task
   }
@@ -172,23 +180,31 @@ export class TaskManager extends EventEmitter {
    */
   async spawnAndWait(
     prompt: string,
-    parentCapabilities: import('../../shared/task').TaskCapabilityId[]
+    parentCapabilities: import('../../shared/task').TaskCapabilityId[],
+    parentTaskId?: string
   ): Promise<{ taskId: string; summary: string }> {
-    const task = this.create({ prompt, capabilities: parentCapabilities })
+    const task = this.create({ prompt, capabilities: parentCapabilities, parentTaskId })
 
     // Auto-approve (starts the runner internally)
     await this.approve(task.id)
 
     // Wait for terminal status via EventEmitter
     const result = await new Promise<Task>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        this.cancel(task.id)
-        reject(new Error('Sub-task timed out after 10 minutes'))
-      }, 10 * 60 * 1000)
+      const timeout = setTimeout(
+        () => {
+          this.cancel(task.id)
+          reject(new Error('Sub-task timed out after 10 minutes'))
+        },
+        10 * 60 * 1000
+      )
 
       const onUpdate = (updated: Task): void => {
         if (updated.id !== task.id) return
-        if (updated.status === 'completed' || updated.status === 'failed' || updated.status === 'cancelled') {
+        if (
+          updated.status === 'completed' ||
+          updated.status === 'failed' ||
+          updated.status === 'cancelled'
+        ) {
           clearTimeout(timeout)
           this.removeListener('taskUpdate', onUpdate)
           resolve(updated)
@@ -209,7 +225,8 @@ export class TaskManager extends EventEmitter {
   sendMessage(targetTaskId: string, fromTaskId: string, message: string): void {
     const target = this.tasks.get(targetTaskId)
     if (!target) throw new Error(`Task not found: ${targetTaskId}`)
-    if (target.status !== 'running') throw new Error(`Task ${targetTaskId} is not running (status: ${target.status})`)
+    if (target.status !== 'running')
+      throw new Error(`Task ${targetTaskId} is not running (status: ${target.status})`)
 
     let inbox = this.inboxes.get(targetTaskId)
     if (!inbox) {
@@ -317,7 +334,10 @@ export class TaskManager extends EventEmitter {
     if (task.status !== 'completed' && task.status !== 'failed') return
 
     const outcome = task.status === 'completed' ? 'completed' : 'failed'
-    const lastActions = task.steps.slice(-5).map((s) => s.action.type).join(', ')
+    const lastActions = task.steps
+      .slice(-5)
+      .map((s) => s.action.type)
+      .join(', ')
     const summary = task.summary ?? task.error ?? 'No summary'
     const learnings = `${summary}. Steps: ${task.steps.length}. Last actions: ${lastActions}. Duration: ${Math.round(durationMs / 1000)}s.`
 

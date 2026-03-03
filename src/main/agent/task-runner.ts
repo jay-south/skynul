@@ -46,6 +46,8 @@ export class TaskRunner {
   /** Scale factors from last CDP screenshot — needed to convert screenshot coords to native coords. */
   private cdpScaleX = 1
   private cdpScaleY = 1
+  /** Best-effort accumulated token usage (when provider returns usage). */
+  private usageTotals: { inputTokens: number; outputTokens: number } | null = null
 
   constructor(
     task: Task,
@@ -73,7 +75,9 @@ export class TaskRunner {
    */
   private async runCdp(): Promise<Task> {
     // Check if this task actually needs the browser (CDP)
-    const needsBrowser = this.task.capabilities.includes('browser.cdp') || this.task.capabilities.includes('app.launch')
+    const needsBrowser =
+      this.task.capabilities.includes('browser.cdp') ||
+      this.task.capabilities.includes('app.launch')
     let browserBridge: BrowserBridge | null = null
 
     if (needsBrowser) {
@@ -89,7 +93,10 @@ export class TaskRunner {
       try {
         await browserBridge.ensureTaskTab()
       } catch (e) {
-        return this.finish('failed', `Could not create task tab: ${e instanceof Error ? e.message : String(e)}`)
+        return this.finish(
+          'failed',
+          `Could not create task tab: ${e instanceof Error ? e.message : String(e)}`
+        )
       }
     }
 
@@ -97,7 +104,9 @@ export class TaskRunner {
       this.abort('Task timed out')
     }, this.task.timeoutMs)
 
-    this.pushStatus(needsBrowser ? 'CDP browser bridge ready. Starting agent loop...' : 'Starting agent loop...')
+    this.pushStatus(
+      needsBrowser ? 'CDP browser bridge ready. Starting agent loop...' : 'Starting agent loop...'
+    )
 
     const systemPrompt = buildCdpSystemPrompt(this.task.capabilities)
     const history: VisionMessage[] = []
@@ -122,13 +131,20 @@ export class TaskRunner {
             pageUrl = pageInfo.url
             pageTitle = pageInfo.title
             pageText = pageInfo.text.slice(0, 2800)
-            elementsBlock = pageInfo.elements.length > 0
-              ? `\n\nInteractive elements (use these exact selectors for click/type):\n${pageInfo.elements
-                  .map((el) => `  ${el.selector}  ${el.text ? `| "${el.text.slice(0, 40)}${el.text.length > 40 ? '…' : ''}"` : ''}`)
-                  .join('\n')}`
-              : ''
+            elementsBlock =
+              pageInfo.elements.length > 0
+                ? `\n\nInteractive elements (use these exact selectors for click/type):\n${pageInfo.elements
+                    .map(
+                      (el) =>
+                        `  ${el.selector}  ${el.text ? `| "${el.text.slice(0, 40)}${el.text.length > 40 ? '…' : ''}"` : ''}`
+                    )
+                    .join('\n')}`
+                : ''
           } catch (e) {
-            return this.finish('failed', `getPageInfo failed: ${e instanceof Error ? e.message : String(e)}`)
+            return this.finish(
+              'failed',
+              `getPageInfo failed: ${e instanceof Error ? e.message : String(e)}`
+            )
           }
         }
 
@@ -136,30 +152,39 @@ export class TaskRunner {
         let actionLog = ''
         if (stepIndex > 0) {
           const recentSteps = this.task.steps.slice(-8)
-          actionLog = '\n\nRecent actions:\n' + recentSteps.map((s) => {
-            let desc = s.action.type
-            const resultSuffix = s.result ? ` → ${s.result.slice(0, 200)}` : ''
-            const errorSuffix = s.error ? ` [ERROR: ${s.error.slice(0, 100)}]` : ''
-            return `Step ${s.index + 1}: ${desc}${resultSuffix}${errorSuffix}`
-          }).join('\n') + '\n\nDo NOT repeat actions that already succeeded.'
+          actionLog =
+            '\n\nRecent actions:\n' +
+            recentSteps
+              .map((s) => {
+                let desc = s.action.type
+                const resultSuffix = s.result ? ` → ${s.result.slice(0, 200)}` : ''
+                const errorSuffix = s.error ? ` [ERROR: ${s.error.slice(0, 100)}]` : ''
+                return `Step ${s.index + 1}: ${desc}${resultSuffix}${errorSuffix}`
+              })
+              .join('\n') +
+            '\n\nDo NOT repeat actions that already succeeded.'
         }
 
         let turnText: string
         if (!browserBridge) {
           // No browser — API-only mode (e.g. Polymarket trading)
-          turnText = stepIndex === 0
-            ? `Task: ${this.task.prompt}\n\nYou are in API-only mode. Use the polymarket_* actions directly. Do NOT use shell, navigate, or evaluate.`
-            : `Step ${stepIndex + 1}.${actionLog}`
+          turnText =
+            stepIndex === 0
+              ? `Task: ${this.task.prompt}\n\nYou are in API-only mode. Use the polymarket_* actions directly. Do NOT use shell, navigate, or evaluate.`
+              : `Step ${stepIndex + 1}.${actionLog}`
         } else {
-          turnText = stepIndex === 0
-            ? `Task: ${this.task.prompt}\n\nCurrent page:\nURL: ${pageUrl}\nTitle: ${pageTitle}\nText: ${pageText}${elementsBlock}`
-            : `Step ${stepIndex + 1}.\nURL: ${pageUrl}\nTitle: ${pageTitle}\nText: ${pageText}${elementsBlock}${actionLog}`
+          turnText =
+            stepIndex === 0
+              ? `Task: ${this.task.prompt}\n\nCurrent page:\nURL: ${pageUrl}\nTitle: ${pageTitle}\nText: ${pageText}${elementsBlock}`
+              : `Step ${stepIndex + 1}.\nURL: ${pageUrl}\nTitle: ${pageTitle}\nText: ${pageText}${elementsBlock}${actionLog}`
         }
 
         // Inject incoming messages from other tasks
         const inboxBlock = this.drainInbox()
 
-        const turnContent: VisionMessage['content'] = [{ type: 'input_text', text: turnText + inboxBlock }]
+        const turnContent: VisionMessage['content'] = [
+          { type: 'input_text', text: turnText + inboxBlock }
+        ]
 
         // After launch/native actions, include a screenshot so the model can see the app
         if (this.cdpNeedsScreenshot) {
@@ -169,7 +194,10 @@ export class TaskRunner {
             const shot = await wb.captureScreen({ maxWidth: 1280, maxHeight: 720 })
             this.cdpScaleX = shot.scaleX
             this.cdpScaleY = shot.scaleY
-            turnContent.push({ type: 'input_image', image_url: `data:image/png;base64,${shot.buffer.toString('base64')}` })
+            turnContent.push({
+              type: 'input_image',
+              image_url: `data:image/png;base64,${shot.buffer.toString('base64')}`
+            })
           } catch {
             // non-critical — model continues without screenshot
           }
@@ -185,7 +213,8 @@ export class TaskRunner {
         }
         history.push(turnMessage)
 
-        const rawResponse = await this.callVisionModel(systemPrompt, history)
+        const { text: rawResponse, usage } = await this.callVisionModel(systemPrompt, history)
+        if (usage) this.addUsage(usage)
         const { thought, action } = parseModelResponse(rawResponse)
 
         history.push({
@@ -232,7 +261,10 @@ export class TaskRunner {
       } catch (e) {
         if (this.aborted) break
         browserBridge?.destroy()
-        return this.finish('failed', `CDP loop error: ${e instanceof Error ? e.message : String(e)}`)
+        return this.finish(
+          'failed',
+          `CDP loop error: ${e instanceof Error ? e.message : String(e)}`
+        )
       }
     }
 
@@ -258,7 +290,12 @@ export class TaskRunner {
     const memCtx = this.opts.memoryContext ?? ''
     history.push({
       role: 'user',
-      content: [{ type: 'input_text', text: `Task: ${this.task.prompt}${memCtx}\n\n[CODE MODE] You have NO screen access. Use file_read, file_write, file_edit, file_list, file_search, and shell to accomplish the task. Do NOT use click, scroll, move, or other screen actions.` }]
+      content: [
+        {
+          type: 'input_text',
+          text: `Task: ${this.task.prompt}${memCtx}\n\n[CODE MODE] You have NO screen access. Use file_read, file_write, file_edit, file_list, file_search, and shell to accomplish the task. Do NOT use click, scroll, move, or other screen actions.`
+        }
+      ]
     })
 
     while (!this.aborted && this.task.steps.length < this.task.maxSteps) {
@@ -269,19 +306,21 @@ export class TaskRunner {
           turnText = `Task: ${this.task.prompt}\n\n[CODE MODE] No screen. Use file_read/file_write/file_edit/file_list/file_search/shell/done/fail actions.`
         } else {
           const recentSteps = this.task.steps.slice(-8)
-          const actionLog = recentSteps.map((s) => {
-            const a = s.action
-            let desc: string = a.type
-            if (a.type === 'shell') desc = `shell "${(a as any).command?.slice(0, 80)}"`
-            else if (a.type === 'file_read') desc = `file_read ${(a as any).path}`
-            else if (a.type === 'file_write') desc = `file_write ${(a as any).path}`
-            else if (a.type === 'file_edit') desc = `file_edit ${(a as any).path}`
-            else if (a.type === 'file_list') desc = `file_list "${(a as any).pattern}"`
-            else if (a.type === 'file_search') desc = `file_search "${(a as any).pattern}"`
-            const resultSuffix = s.result ? ` → ${s.result.slice(0, 300)}` : ''
-            const errorSuffix = s.error ? ` [ERROR: ${s.error.slice(0, 100)}]` : ''
-            return `Step ${s.index + 1}: ${desc}${resultSuffix}${errorSuffix}`
-          }).join('\n')
+          const actionLog = recentSteps
+            .map((s) => {
+              const a = s.action
+              let desc: string = a.type
+              if (a.type === 'shell') desc = `shell "${(a as any).command?.slice(0, 80)}"`
+              else if (a.type === 'file_read') desc = `file_read ${(a as any).path}`
+              else if (a.type === 'file_write') desc = `file_write ${(a as any).path}`
+              else if (a.type === 'file_edit') desc = `file_edit ${(a as any).path}`
+              else if (a.type === 'file_list') desc = `file_list "${(a as any).pattern}"`
+              else if (a.type === 'file_search') desc = `file_search "${(a as any).pattern}"`
+              const resultSuffix = s.result ? ` → ${s.result.slice(0, 300)}` : ''
+              const errorSuffix = s.error ? ` [ERROR: ${s.error.slice(0, 100)}]` : ''
+              return `Step ${s.index + 1}: ${desc}${resultSuffix}${errorSuffix}`
+            })
+            .join('\n')
           turnText = `Step ${stepIndex + 1}.\n\nRecent actions:\n${actionLog}\n\nContinue with the next step.`
         }
 
@@ -298,7 +337,8 @@ export class TaskRunner {
         }
         history.push(turnMessage)
 
-        const rawResponse = await this.callVisionModel(systemPrompt, history)
+        const { text: rawResponse, usage } = await this.callVisionModel(systemPrompt, history)
+        if (usage) this.addUsage(usage)
         const { thought, action } = parseModelResponse(rawResponse)
 
         history.push({
@@ -349,7 +389,10 @@ export class TaskRunner {
         await this.sleep(200)
       } catch (e) {
         if (this.aborted) break
-        return this.finish('failed', `Code loop error: ${e instanceof Error ? e.message : String(e)}`)
+        return this.finish(
+          'failed',
+          `Code loop error: ${e instanceof Error ? e.message : String(e)}`
+        )
       }
     }
 
@@ -373,14 +416,20 @@ export class TaskRunner {
       case 'save_to_excel': {
         if (!this.lastScrapeData) return '[Error: no data available. Use web_scrape first.]'
         try {
-          const filePath = await createExcelFromTsv(this.lastScrapeData, action.filename, action.filter)
+          const filePath = await createExcelFromTsv(
+            this.lastScrapeData,
+            action.filename,
+            action.filter
+          )
           return `Excel saved: ${filePath}`
         } catch (e) {
           return `[Error creating Excel: ${e instanceof Error ? e.message : String(e)}]`
         }
       }
       case 'launch':
-        return this.executeShell(`powershell.exe -NoProfile -Command "Start-Process '${action.app}'"`)
+        return this.executeShell(
+          `powershell.exe -NoProfile -Command "Start-Process '${action.app}'"`
+        )
       case 'polymarket_get_account_summary':
       case 'polymarket_get_trader_leaderboard':
       case 'polymarket_search_markets':
@@ -408,7 +457,12 @@ export class TaskRunner {
   }
 
   /** Read a file with line numbers (cat -n style). */
-  private async executeFileRead(filePath: string, offset?: number, limit?: number, cwd?: string): Promise<string> {
+  private async executeFileRead(
+    filePath: string,
+    offset?: number,
+    limit?: number,
+    cwd?: string
+  ): Promise<string> {
     const fs = await import('fs/promises')
     const path = await import('path')
     const resolved = cwd ? path.resolve(cwd, filePath) : path.resolve(filePath)
@@ -444,7 +498,12 @@ export class TaskRunner {
   }
 
   /** Search-and-replace in a file. Fails if old_string not found or not unique. */
-  private async executeFileEdit(filePath: string, oldStr: string, newStr: string, cwd?: string): Promise<string> {
+  private async executeFileEdit(
+    filePath: string,
+    oldStr: string,
+    newStr: string,
+    cwd?: string
+  ): Promise<string> {
     const fs = await import('fs/promises')
     const path = await import('path')
     const resolved = cwd ? path.resolve(cwd, filePath) : path.resolve(filePath)
@@ -452,7 +511,8 @@ export class TaskRunner {
       const content = await fs.readFile(resolved, 'utf-8')
       const count = content.split(oldStr).length - 1
       if (count === 0) return `[Error: old_string not found in ${resolved}]`
-      if (count > 1) return `[Error: old_string found ${count} times in ${resolved} — must be unique. Add more context.]`
+      if (count > 1)
+        return `[Error: old_string found ${count} times in ${resolved} — must be unique. Add more context.]`
       const updated = content.replace(oldStr, newStr)
       await fs.writeFile(resolved, updated, 'utf-8')
       return `File edited: ${resolved} (replaced 1 occurrence)`
@@ -489,11 +549,16 @@ export class TaskRunner {
   }
 
   /** Search file contents using rg (fallback to grep -rn). */
-  private async executeFileSearch(pattern: string, searchPath?: string, glob?: string, cwd?: string): Promise<string> {
+  private async executeFileSearch(
+    pattern: string,
+    searchPath?: string,
+    glob?: string,
+    cwd?: string
+  ): Promise<string> {
     const { exec } = require('child_process') as typeof import('child_process')
     const execOpts = { timeout: 10_000, maxBuffer: 512 * 1024, cwd: cwd || undefined }
     return new Promise((resolve) => {
-      const escapedPattern = pattern.replace(/'/g, "'\\''" )
+      const escapedPattern = pattern.replace(/'/g, "'\\''")
       const dir = searchPath || '.'
       const globFlag = glob ? ` --glob '${glob.replace(/'/g, "'\\''")}'` : ''
       const rgCmd = `rg -n --max-count 50 '${escapedPattern}' ${dir}${globFlag}`
@@ -550,7 +615,10 @@ export class TaskRunner {
     }
   }
 
-  private async executeCdpAction(bridge: BrowserBridge, action: TaskAction): Promise<string | undefined> {
+  private async executeCdpAction(
+    bridge: BrowserBridge,
+    action: TaskAction
+  ): Promise<string | undefined> {
     const raw = action as Record<string, unknown>
     const type = raw.type as string
 
@@ -584,10 +652,10 @@ export class TaskRunner {
         if (this.cdpNeedsScreenshot || this.bridge?.isAlive) {
           // In screen mode after launch → use bridge for key combos
           const wb = await this.getScreenBridge()
-          await wb.keyCombo(raw.combo as string || raw.key as string)
+          await wb.keyCombo((raw.combo as string) || (raw.key as string))
           this.cdpNeedsScreenshot = true
         } else {
-          await bridge.pressKey(raw.key as string || raw.combo as string)
+          await bridge.pressKey((raw.key as string) || (raw.combo as string))
         }
         break
       }
@@ -606,9 +674,9 @@ export class TaskRunner {
         if (evalResult && evalResult.includes('\t')) {
           if (this.lastScrapeData) {
             // Append rows only (skip header of subsequent evaluates)
-            const newLines = evalResult.split('\n').filter(l => l.includes('\t'))
+            const newLines = evalResult.split('\n').filter((l) => l.includes('\t'))
             const existingHeader = this.lastScrapeData.split('\n')[0]
-            const newRows = newLines.filter(l => l !== existingHeader)
+            const newRows = newLines.filter((l) => l !== existingHeader)
             if (newRows.length > 0) this.lastScrapeData += '\n' + newRows.join('\n')
           } else {
             this.lastScrapeData = evalResult
@@ -632,9 +700,14 @@ export class TaskRunner {
         return data
       }
       case 'save_to_excel': {
-        if (!this.lastScrapeData) return '[Error: no data available. Use web_scrape or evaluate (returning TSV) first.]'
+        if (!this.lastScrapeData)
+          return '[Error: no data available. Use web_scrape or evaluate (returning TSV) first.]'
         try {
-          const filePath = await createExcelFromTsv(this.lastScrapeData, raw.filename as string, raw.filter as string | undefined)
+          const filePath = await createExcelFromTsv(
+            this.lastScrapeData,
+            raw.filename as string,
+            raw.filter as string | undefined
+          )
           return `Excel saved and opened: ${filePath}`
         } catch (e) {
           return `[Error creating Excel: ${e instanceof Error ? e.message : String(e)}. Data had ${this.lastScrapeData.split('\\n').length} lines.]`
@@ -666,17 +739,19 @@ export class TaskRunner {
   private async callVisionModel(
     systemPrompt: string,
     messages: VisionMessage[]
-  ): Promise<string> {
+  ): Promise<{ text: string; usage?: { inputTokens: number; outputTokens: number } }> {
     switch (this.opts.provider) {
       case 'chatgpt':
-        return codexVisionRespond({ systemPrompt, messages, sessionId: this.task.id })
+        return {
+          text: await codexVisionRespond({ systemPrompt, messages, sessionId: this.task.id })
+        }
       case 'claude': {
         const { claudeVisionRespond } = await import('../providers/claude-vision')
-        return claudeVisionRespond({ systemPrompt, messages })
+        return { text: await claudeVisionRespond({ systemPrompt, messages }) }
       }
       case 'deepseek': {
         const { deepseekVisionRespond } = await import('../providers/deepseek-vision')
-        return deepseekVisionRespond({ systemPrompt, messages })
+        return { text: await deepseekVisionRespond({ systemPrompt, messages }) }
       }
       case 'kimi': {
         const { kimiVisionRespond } = await import('../providers/kimi-vision')
@@ -685,6 +760,13 @@ export class TaskRunner {
       default:
         throw new Error(`Unsupported provider: ${this.opts.provider}`)
     }
+  }
+
+  private addUsage(usage: { inputTokens: number; outputTokens: number }): void {
+    if (!this.usageTotals) this.usageTotals = { inputTokens: 0, outputTokens: 0 }
+    this.usageTotals.inputTokens += usage.inputTokens
+    this.usageTotals.outputTokens += usage.outputTokens
+    this.task.usage = { ...this.usageTotals }
   }
 
   /**
@@ -697,7 +779,6 @@ export class TaskRunner {
     }
     this.cleanup()
   }
-
 
   /** Handle inter-task communication actions. */
   private async executeInterTaskAction(action: TaskAction): Promise<string> {
@@ -713,13 +794,17 @@ export class TaskRunner {
         return JSON.stringify(peers)
       }
       case 'task_send': {
-        const result = await tm.spawnAndWait(action.prompt, this.task.capabilities)
+        const result = await tm.spawnAndWait(action.prompt, this.task.capabilities, this.task.id)
         return `Sub-task ${result.taskId} finished: ${result.summary}`
       }
       case 'task_read': {
         const target = tm.get(action.taskId)
         if (!target) return `[Error: task ${action.taskId} not found]`
-        return JSON.stringify({ id: target.id, status: target.status, summary: target.summary ?? null })
+        return JSON.stringify({
+          id: target.id,
+          status: target.status,
+          summary: target.summary ?? null
+        })
       }
       case 'task_message': {
         try {
@@ -738,15 +823,19 @@ export class TaskRunner {
     return new Promise((resolve) => {
       const { exec } = require('child_process') as typeof import('child_process')
       const timeout = Math.min(timeoutMs ?? 120_000, 300_000) // default 120s, max 5min
-      const child = exec(command, { timeout, maxBuffer: 1024 * 1024, cwd: cwd || undefined }, (err, stdout, stderr) => {
-        const out = (stdout ?? '').toString().slice(0, 4000)
-        const errOut = (stderr ?? '').toString().slice(0, 1000)
-        if (err) {
-          resolve(`[Exit ${err.code ?? 1}] ${errOut || err.message}\n${out}`.trim())
-        } else {
-          resolve(errOut ? `${out}\n[stderr] ${errOut}` : out || '(no output)')
+      const child = exec(
+        command,
+        { timeout, maxBuffer: 1024 * 1024, cwd: cwd || undefined },
+        (err, stdout, stderr) => {
+          const out = (stdout ?? '').toString().slice(0, 4000)
+          const errOut = (stderr ?? '').toString().slice(0, 1000)
+          if (err) {
+            resolve(`[Exit ${err.code ?? 1}] ${errOut || err.message}\n${out}`.trim())
+          } else {
+            resolve(errOut ? `${out}\n[stderr] ${errOut}` : out || '(no output)')
+          }
         }
-      })
+      )
       child.stdin?.end()
     })
   }
@@ -757,18 +846,31 @@ export class TaskRunner {
     switch (action.type) {
       case 'polymarket_get_account_summary': {
         const summary = await client.getAccountSummary()
-        const result = `Balance: $${summary.balanceUsd.toFixed(2)}, ${summary.positions.length} positions.` +
+        const result =
+          `Balance: $${summary.balanceUsd.toFixed(2)}, ${summary.positions.length} positions.` +
           (summary.positions.length > 0
-            ? '\n' + summary.positions.map((p) => `  ${p.marketTitle} [${p.outcome}] ${p.sizeShares} shares @ $${p.avgPriceUsd.toFixed(2)}, PnL $${p.pnlUsd.toFixed(2)}`).join('\n')
+            ? '\n' +
+              summary.positions
+                .map(
+                  (p) =>
+                    `  ${p.marketTitle} [${p.outcome}] ${p.sizeShares} shares @ $${p.avgPriceUsd.toFixed(2)}, PnL $${p.pnlUsd.toFixed(2)}`
+                )
+                .join('\n')
             : '')
         this.task.summary = `Polymarket: ${result}`
         return result
       }
       case 'polymarket_get_trader_leaderboard': {
-        const traders = await client.getTopTraders({ limit: 10, timePeriod: 'MONTH', category: 'OVERALL' })
+        const traders = await client.getTopTraders({
+          limit: 10,
+          timePeriod: 'MONTH',
+          category: 'OVERALL'
+        })
         const top = traders
           .slice(0, 5)
-          .map((t) => `#${t.rank} ${t.userName || t.wallet.slice(0, 8)} PnL $${t.pnlUsd.toFixed(2)}`)
+          .map(
+            (t) => `#${t.rank} ${t.userName || t.wallet.slice(0, 8)} PnL $${t.pnlUsd.toFixed(2)}`
+          )
           .join('; ')
         const result = `Leaderboard (MONTH): ${top || 'no traders found'}.`
         this.task.summary = `Polymarket ${result}`
@@ -778,10 +880,14 @@ export class TaskRunner {
         const raw = action as any
         const markets = await client.searchMarkets(raw.query, raw.limit ?? 5)
         if (markets.length === 0) return 'No markets found.'
-        const result = markets.map((m) => {
-          const tokens = m.tokens.map((t) => `${t.outcome}: ${t.tokenId} @ $${t.price.toFixed(3)}`).join(', ')
-          return `${m.title} | vol: $${m.volume.toFixed(0)} | tokens: [${tokens}]`
-        }).join('\n')
+        const result = markets
+          .map((m) => {
+            const tokens = m.tokens
+              .map((t) => `${t.outcome}: ${t.tokenId} @ $${t.price.toFixed(3)}`)
+              .join(', ')
+            return `${m.title} | vol: $${m.volume.toFixed(0)} | tokens: [${tokens}]`
+          })
+          .join('\n')
         return result
       }
       case 'polymarket_place_order': {
@@ -796,7 +902,8 @@ export class TaskRunner {
         return `Order placed (GTC): ${action.side} ${action.size} @ $${action.price} on ${action.tokenId.slice(0, 10)}... — order stays in book until filled.`
       }
       case 'polymarket_close_position': {
-        if (!action.tokenId) return '[Error: tokenId is required. Use polymarket_get_account_summary to find your position tokenId first.]'
+        if (!action.tokenId)
+          return '[Error: tokenId is required. Use polymarket_get_account_summary to find your position tokenId first.]'
         await client.closePosition({
           tokenId: action.tokenId,
           size: action.size

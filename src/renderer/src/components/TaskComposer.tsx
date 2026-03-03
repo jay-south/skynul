@@ -246,7 +246,7 @@ export function TaskComposer(props: {
               placeholder={t(lang, 'tasks_prompt_placeholder')}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              rows={4}
+              rows={7}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault()

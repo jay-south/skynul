@@ -159,11 +159,30 @@ code {
 .rbList {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding-right: 4px;
+  max-height: calc(11 * 62px);
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.rbList:hover {
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+.rbList::-webkit-scrollbar {
+  width: 4px;
+}
+.rbList::-webkit-scrollbar-track {
+  background: transparent;
+}
+.rbList::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 2px;
+}
+.rbList:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .rbItem {
@@ -1136,6 +1155,7 @@ code {
 
 .taskNewPrompt {
   width: 100%;
+  min-height: 140px;
   resize: none;
   border-radius: 10px;
   border: 1px solid var(--nb-border);
@@ -1473,7 +1493,7 @@ code {
   padding: 24px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .dashHeader {
@@ -1537,7 +1557,7 @@ code {
   font-size: 32px;
   font-weight: 700;
   color: var(--nb-text);
-  margin-bottom: 24px;
+  margin-bottom: 12px;
   letter-spacing: -0.5px;
   text-align: center;
 }
@@ -1645,6 +1665,137 @@ code {
   font-weight: 600;
   color: var(--nb-text);
   margin-bottom: 10px;
+}
+
+/* ── Agents (dashboard) ─────────────────────────────────────────────── */
+
+.agentGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+@media (min-width: 760px) {
+  .agentGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.agentCard {
+  border: 1px solid var(--nb-border);
+  border-radius: 14px;
+  background: var(--nb-surface-2);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.agentCardTitle {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--nb-text);
+  line-height: 1.35;
+}
+
+.agentCardMeta {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--nb-muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.agentStatusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.agentCardBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.agentCardPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.agentPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--nb-border);
+  background: var(--nb-panel);
+  color: var(--nb-muted);
+}
+
+.agentCardActions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.agentDetailsBlock {
+  border: 1px solid var(--nb-border);
+  border-radius: 14px;
+  background: var(--nb-panel);
+  padding: 12px;
+}
+
+.agentDetailsPrompt {
+  font-size: 13px;
+  color: var(--nb-text);
+  line-height: 1.5;
+}
+
+.agentDetailsMeta {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.agentSubList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agentSubItem {
+  text-align: left;
+  border: 1px solid var(--nb-border);
+  border-radius: 12px;
+  background: var(--nb-panel-2);
+  padding: 10px 12px;
+  cursor: pointer;
+  color: var(--nb-text);
+  transition: background 0.12s;
+}
+
+.agentSubItem:hover {
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 92%);
+}
+
+.agentSubTitle {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.agentSubMeta {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--nb-muted);
 }
 
 .dashEmpty {
@@ -2014,7 +2165,7 @@ code {
 .taskComposerWrap {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
   max-width: 560px;
   width: 100%;
 }
@@ -2263,7 +2414,7 @@ code {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  max-width: 680px;
+  max-width: 780px;
   margin: 0 auto;
   width: 100%;
 }
@@ -2686,46 +2837,55 @@ code {
   border-color: var(--nb-text);
 }
 
-.schedNewForm {
-  padding: 10px;
+/* ── Schedule config card (below the normal InputBar) ──────────────── */
+
+.schedCard {
+  max-width: calc(720px - 48px);
+  width: 100%;
+  padding: 16px 20px;
+  box-sizing: border-box;
   border: 1px solid var(--nb-border);
-  border-radius: 8px;
-  margin-bottom: 8px;
+  border-radius: 14px;
+  background: var(--nb-panel);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.schedCardRow {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.schedNewPrompt {
-  width: 100%;
-  background: none;
-  border: 1px solid var(--nb-border);
-  border-radius: 6px;
-  color: var(--nb-text);
-  font-size: 13px;
-  font-family: inherit;
-  padding: 6px 8px;
-  resize: none;
-  outline: none;
-}
-.schedNewPrompt:focus {
-  border-color: var(--nb-accent-2);
+.schedCardLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--nb-muted);
 }
 
 .schedPresets {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 6px;
 }
 
 .schedPresetChip {
-  padding: 3px 8px;
+  padding: 5px 11px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 600;
   border: 1px solid var(--nb-border);
   background: none;
   color: var(--nb-muted);
   cursor: pointer;
+  transition: all 120ms ease;
+}
+.schedPresetChip:hover {
+  color: var(--nb-text);
+  border-color: var(--nb-text-dim, var(--nb-muted));
 }
 .schedPresetChip.active {
   border-color: var(--nb-accent-2);
@@ -2735,37 +2895,70 @@ code {
 
 .schedTimeRow {
   display: flex;
-  gap: 6px;
+  gap: 8px;
+  align-items: center;
 }
 
 .schedTimeInput,
 .schedDowSelect {
-  background: none;
+  background: var(--nb-panel-2);
   border: 1px solid var(--nb-border);
-  border-radius: 6px;
+  border-radius: 10px;
   color: var(--nb-text);
-  font-size: 12px;
-  padding: 4px 6px;
+  font-size: 13px;
+  padding: 8px 12px;
 }
 
-.schedFormActions {
+.schedCronInput {
+  max-width: 220px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--nb-border);
+  background: var(--nb-panel-2);
+  font-size: 13px;
+  color: var(--nb-text);
+  outline: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.schedCronInput:focus {
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 55%);
+}
+
+.schedCardFooter {
   display: flex;
-  gap: 6px;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 4px;
+  border-top: 1px solid var(--nb-border);
 }
 
-.schedSaveBtn {
-  flex: 1;
-  background: var(--nb-accent-2) !important;
-  color: #fff !important;
+.schedPreview {
   font-size: 12px;
+  color: var(--nb-muted);
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
-.schedSaveBtn:disabled {
-  opacity: 0.4;
+.schedPreview code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: var(--nb-panel-2);
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-size: 11px;
+}
+.schedPreviewNext {
+  color: var(--nb-accent-2);
+  font-weight: 600;
 }
 
-.schedCancelBtn {
-  background: none !important;
-  border: 1px solid var(--nb-border) !important;
-  color: var(--nb-muted) !important;
+.schedCancelLink {
+  background: none;
+  border: none;
+  color: var(--nb-muted);
   font-size: 12px;
+  cursor: pointer;
+  padding: 4px 0;
+}
+.schedCancelLink:hover {
+  color: var(--nb-text);
 }

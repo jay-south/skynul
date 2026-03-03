@@ -107,11 +107,15 @@ export type TaskSource = 'desktop' | 'telegram' | 'discord' | 'slack' | 'whatsap
 
 export type Task = {
   id: string
+  /** If present, this task was spawned from another task (sub-agent). */
+  parentTaskId?: string
   prompt: string
   status: TaskStatus
   mode: TaskMode
   capabilities: TaskCapabilityId[]
   steps: TaskStep[]
+  /** Best-effort token usage (only available for some providers). */
+  usage?: { inputTokens: number; outputTokens: number }
   createdAt: number
   updatedAt: number
   /** Max steps before auto-stopping. */
@@ -137,6 +141,7 @@ export type TaskCreateRequest = {
   maxSteps?: number
   timeoutMs?: number
   source?: TaskSource
+  parentTaskId?: string
 }
 
 export type TaskCreateResponse = {

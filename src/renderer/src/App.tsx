@@ -12,7 +12,7 @@ import { TaskPanel } from './components/TaskPanel'
 import { ChatFeed } from './components/ChatFeed'
 import { InputBar } from './components/InputBar'
 import { TaskDashboard } from './components/TaskDashboard'
-import { SchedulePanel } from './components/SchedulePanel'
+import { ScheduleDetail, SchedulePanel, NewScheduleForm } from './components/SchedulePanel'
 import { t } from './i18n'
 import { SkillGraph } from './components/SkillGraph'
 import { ChannelSettings } from './components/ChannelSettings'
@@ -79,13 +79,23 @@ function BrowserSnapshotsSection(): React.JSX.Element {
   const refresh = useCallback(async () => {
     try {
       const list = await window.skynul.browserSnapshotList()
-      setSnapshots(list.map((s) => ({ id: s.id, name: s.name, url: s.url, title: s.title, createdAt: s.createdAt })))
+      setSnapshots(
+        list.map((s) => ({
+          id: s.id,
+          name: s.name,
+          url: s.url,
+          title: s.title,
+          createdAt: s.createdAt
+        }))
+      )
     } catch {
       // extension might not be connected
     }
   }, [])
 
-  useEffect(() => { void refresh() }, [refresh])
+  useEffect(() => {
+    void refresh()
+  }, [refresh])
 
   const handleSave = async (): Promise<void> => {
     setBusy(true)
@@ -154,10 +164,25 @@ function BrowserSnapshotsSection(): React.JSX.Element {
             }}
           >
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div
+                style={{
+                  fontWeight: 500,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}
+              >
                 {s.name}
               </div>
-              <div style={{ color: '#888', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div
+                style={{
+                  color: '#888',
+                  fontSize: 11,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}
+              >
                 {s.url} · {new Date(s.createdAt).toLocaleDateString()}
               </div>
             </div>
@@ -202,13 +227,14 @@ function App(): React.JSX.Element {
   const [isMaximized, setIsMaximized] = useState<boolean>(false)
 
   // ── Settings tab ────────────────────────────────────────────────────
-  const [settingsTab, setSettingsTab] = useState<'general' | 'providers' | 'computer' | 'channels' | 'skills' | 'developer'>('general')
+  const [settingsTab, setSettingsTab] = useState<
+    'general' | 'providers' | 'computer' | 'channels' | 'skills' | 'developer'
+  >('general')
 
   // ── Skills ─────────────────────────────────────────────────────────
   const [skills, setSkills] = useState<Skill[]>([])
   const [skillModal, setSkillModal] = useState<Skill | 'new' | null>(null)
   const [skillDraft, setSkillDraft] = useState({ name: '', tag: '', description: '', prompt: '' })
-
 
   // ── Trading secrets modal ────────────────────────────────────────────
   const [tradingModal, setTradingModal] = useState<'polymarket' | 'binance' | null>(null)
@@ -225,11 +251,15 @@ function App(): React.JSX.Element {
 
   // ── Task template flow (renders in main panel) ─────────────────────
   const [taskSubTab, setTaskSubTab] = useState<'tasks' | 'scheduled'>('tasks')
+  const [showNewSchedule, setShowNewSchedule] = useState(false)
+  const [activeScheduleId, setActiveScheduleId] = useState<string | null>(null)
   const [schedules, setSchedules] = useState<Schedule[]>([])
 
   // ── Composer state (inline in main panel) ──────────────────────────
   const [composerPrompt, setComposerPrompt] = useState('')
-  const [composerCapsOverride, setComposerCapsOverride] = useState<Set<TaskCapabilityId> | null>(null)
+  const [composerCapsOverride, setComposerCapsOverride] = useState<Set<TaskCapabilityId> | null>(
+    null
+  )
 
   // ── Profile dropdown ───────────────────────────────────────────────
   const [profileOpen, setProfileOpen] = useState(false)
@@ -349,11 +379,11 @@ function App(): React.JSX.Element {
     if (sidebarTab !== 'settings') return
     const ids: ProviderId[] = ['kimi', 'claude', 'deepseek']
     let alive = true
-    void Promise.all(ids.map((id) => window.skynul.hasProviderApiKey(id).then((has) => [id, has] as const))).then(
-      (pairs) => {
-        if (alive) setProviderApiKeys(Object.fromEntries(pairs))
-      }
-    )
+    void Promise.all(
+      ids.map((id) => window.skynul.hasProviderApiKey(id).then((has) => [id, has] as const))
+    ).then((pairs) => {
+      if (alive) setProviderApiKeys(Object.fromEntries(pairs))
+    })
     return () => {
       alive = false
     }
@@ -362,7 +392,8 @@ function App(): React.JSX.Element {
   // When an API-key provider is selected, check if it has a key and clear draft
   const apiKeyProvider = policy?.provider.active
   useEffect(() => {
-    if (apiKeyProvider !== 'kimi' && apiKeyProvider !== 'claude' && apiKeyProvider !== 'deepseek') return
+    if (apiKeyProvider !== 'kimi' && apiKeyProvider !== 'claude' && apiKeyProvider !== 'deepseek')
+      return
     setApiKeyDraft('')
     let alive = true
     void window.skynul.hasProviderApiKey(apiKeyProvider).then((has) => {
@@ -503,10 +534,7 @@ function App(): React.JSX.Element {
     if (providerSwitchBusy) return
     // Si hacen click en el provider ya activo, cambiar a otro para poder "salir" (ej. de Kimi)
     const current = policy?.provider.active
-    const target: ProviderId =
-      current === id
-        ? (PROVIDERS.find((p) => p.id !== id)?.id ?? id)
-        : id
+    const target: ProviderId = current === id ? (PROVIDERS.find((p) => p.id !== id)?.id ?? id) : id
     if (target === id && current === id) return
 
     setError('')
@@ -599,7 +627,11 @@ function App(): React.JSX.Element {
 
   // ── Task handlers ────────────────────────────────────────────────────
 
-  const handleNewTask = async (prompt: string, caps: TaskCapabilityId[], mode?: 'browser' | 'code'): Promise<void> => {
+  const handleNewTask = async (
+    prompt: string,
+    caps: TaskCapabilityId[],
+    mode?: 'browser' | 'code'
+  ): Promise<void> => {
     try {
       const { task } = await window.skynul.taskCreate(prompt, caps, { mode: mode ?? 'browser' })
       setTasks((prev) => [task, ...prev])
@@ -654,6 +686,7 @@ function App(): React.JSX.Element {
     try {
       const updated = await window.skynul.scheduleDelete(id)
       setSchedules(updated)
+      setActiveScheduleId((prev) => (prev === id ? null : prev))
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     }
@@ -669,7 +702,11 @@ function App(): React.JSX.Element {
   }, [])
 
   // ── Trading secrets helpers ──────────────────────────────────────────
-  const POLYMARKET_KEYS = ['POLYMARKET_PRIVATE_KEY', 'POLYMARKET_FUNDER_ADDRESS', 'POLYMARKET_SIGNATURE_TYPE'] as const
+  const POLYMARKET_KEYS = [
+    'POLYMARKET_PRIVATE_KEY',
+    'POLYMARKET_FUNDER_ADDRESS',
+    'POLYMARKET_SIGNATURE_TYPE'
+  ] as const
 
   const openTradingModal = useCallback(async (platform: 'polymarket' | 'binance') => {
     setTradingModal(platform)
@@ -700,10 +737,58 @@ function App(): React.JSX.Element {
   const composerAutoCaps = useMemo(() => {
     const lower = composerPrompt.toLowerCase()
     const CAP_KEYWORDS: Array<{ cap: TaskCapabilityId; words: string[] }> = [
-      { cap: 'browser.cdp', words: ['browser', 'webpage', 'website', 'scrape', 'navigate', 'url', 'busca', 'search', 'googl', 'precio', 'price', 'compr', 'buy', 'reserv', 'book', 'flight', 'vuelo', 'hotel', 'viaj', 'travel', 'paquete', 'package', 'oferta', 'deal', 'tienda', 'store', 'shop', 'amazon', 'mercadolibre', 'airbnb', 'despegar', 'download', 'descargar', 'open', 'web'] },
-      { cap: 'app.launch', words: ['launch', 'whatsapp', 'telegram', 'discord', 'slack', 'spotify'] },
-      { cap: 'polymarket.trading', words: ['polymarket', 'trade', 'bet', 'position', 'market', 'odds'] },
-      { cap: 'office.professional', words: ['excel', 'word', 'powerpoint', 'spreadsheet', 'document', 'formatting'] }
+      {
+        cap: 'browser.cdp',
+        words: [
+          'browser',
+          'webpage',
+          'website',
+          'scrape',
+          'navigate',
+          'url',
+          'busca',
+          'search',
+          'googl',
+          'precio',
+          'price',
+          'compr',
+          'buy',
+          'reserv',
+          'book',
+          'flight',
+          'vuelo',
+          'hotel',
+          'viaj',
+          'travel',
+          'paquete',
+          'package',
+          'oferta',
+          'deal',
+          'tienda',
+          'store',
+          'shop',
+          'amazon',
+          'mercadolibre',
+          'airbnb',
+          'despegar',
+          'download',
+          'descargar',
+          'open',
+          'web'
+        ]
+      },
+      {
+        cap: 'app.launch',
+        words: ['launch', 'whatsapp', 'telegram', 'discord', 'slack', 'spotify']
+      },
+      {
+        cap: 'polymarket.trading',
+        words: ['polymarket', 'trade', 'bet', 'position', 'market', 'odds']
+      },
+      {
+        cap: 'office.professional',
+        words: ['excel', 'word', 'powerpoint', 'spreadsheet', 'document', 'formatting']
+      }
     ]
     const detected = new Set<TaskCapabilityId>()
     for (const { cap, words } of CAP_KEYWORDS) {
@@ -741,7 +826,17 @@ function App(): React.JSX.Element {
     let detectedMode: 'browser' | 'code' = 'browser'
     // Only use code mode if no browser/polymarket caps are needed
     if (!caps.includes('browser.cdp') && !caps.includes('polymarket.trading')) {
-      const codeWords = ['command', 'script', 'headless', 'fetch', 'curl', 'code', 'git', 'build', 'deploy']
+      const codeWords = [
+        'command',
+        'script',
+        'headless',
+        'fetch',
+        'curl',
+        'code',
+        'git',
+        'build',
+        'deploy'
+      ]
       if (codeWords.some((w) => text.toLowerCase().includes(w))) detectedMode = 'code'
     }
     void handleNewTask(text, caps, detectedMode)
@@ -752,17 +847,36 @@ function App(): React.JSX.Element {
   return (
     <div className={`layout${isMaximized ? ' maximized' : ''}`}>
       <div className="titleBar">
-        <button className="winBtn" onClick={() => void window.skynul.windowMinimize()} aria-label="Minimize">
+        <button
+          className="winBtn"
+          onClick={() => void window.skynul.windowMinimize()}
+          aria-label="Minimize"
+        >
           <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
             <rect x="4" y="11" width="16" height="2" rx="1" />
           </svg>
         </button>
-        <button className="winBtn" onClick={() => void window.skynul.windowMaximize()} aria-label="Maximize">
-          <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2">
+        <button
+          className="winBtn"
+          onClick={() => void window.skynul.windowMaximize()}
+          aria-label="Maximize"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="11"
+            height="11"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <rect x="4" y="4" width="16" height="16" rx="2" />
           </svg>
         </button>
-        <button className="winBtn close" onClick={() => void window.skynul.windowClose()} aria-label="Close">
+        <button
+          className="winBtn close"
+          onClick={() => void window.skynul.windowClose()}
+          aria-label="Close"
+        >
           <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
             <path d="M6.225 4.811a1 1 0 0 0-1.414 1.414L10.586 12l-5.775 5.775a1 1 0 1 0 1.414 1.414L12 13.414l5.775 5.775a1 1 0 0 0 1.414-1.414L13.414 12l5.775-5.775a1 1 0 0 0-1.414-1.414L12 10.586 6.225 4.811Z" />
           </svg>
@@ -805,9 +919,11 @@ function App(): React.JSX.Element {
               {taskSubTab === 'scheduled' && (
                 <SchedulePanel
                   schedules={schedules}
+                  activeScheduleId={activeScheduleId}
                   onToggle={(id) => void handleToggleSchedule(id)}
                   onDelete={(id) => void handleDeleteSchedule(id)}
-                  onSave={(data) => void handleSaveSchedule(data)}
+                  onSelect={(id) => setActiveScheduleId(id)}
+                  onNewSchedule={() => setShowNewSchedule(true)}
                 />
               )}
             </>
@@ -825,15 +941,16 @@ function App(): React.JSX.Element {
             <img src={skynulLogo} alt="Skynul" className="sbFooterLogo" />
           </div>
           <div style={{ position: 'relative' }}>
-            <button
-              className="profileBtn"
-              onClick={() => setProfileOpen(!profileOpen)}
-            >
-              <div className="profileAvatar">
-                {(accountEmail || 'U').slice(0, 2).toUpperCase()}
-              </div>
+            <button className="profileBtn" onClick={() => setProfileOpen(!profileOpen)}>
+              <div className="profileAvatar">{(accountEmail || 'U').slice(0, 2).toUpperCase()}</div>
               <span className="profileEmail">{accountEmail || 'Not signed in'}</span>
-              <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" style={{ flexShrink: 0, opacity: 0.5 }}>
+              <svg
+                viewBox="0 0 24 24"
+                width="12"
+                height="12"
+                fill="currentColor"
+                style={{ flexShrink: 0, opacity: 0.5 }}
+              >
                 <path d={profileOpen ? 'M7 14l5-5 5 5z' : 'M7 10l5 5 5-5z'} />
               </svg>
             </button>
@@ -841,23 +958,38 @@ function App(): React.JSX.Element {
               <div className="profileDropdown">
                 <button
                   className="profileDropdownItem"
-                  onClick={() => { setSidebarTab('dashboard'); setProfileOpen(false) }}
+                  onClick={() => {
+                    setSidebarTab('dashboard')
+                    setProfileOpen(false)
+                  }}
                 >
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                    <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+                  </svg>
                   Dashboard
                 </button>
                 <button
                   className="profileDropdownItem"
-                  onClick={() => { setSidebarTab('settings'); setProfileOpen(false) }}
+                  onClick={() => {
+                    setSidebarTab('settings')
+                    setProfileOpen(false)
+                  }}
                 >
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.2 7.2 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 1h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.22-1.13.52-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 7.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.41 1.05.73 1.63.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .44-.18.49-.42l.36-2.54c.58-.22 1.13-.52 1.63-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"/></svg>
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                    <path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.2 7.2 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 1h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.22-1.13.52-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 7.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.41 1.05.73 1.63.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .44-.18.49-.42l.36-2.54c.58-.22 1.13-.52 1.63-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z" />
+                  </svg>
                   Settings
                 </button>
                 <button
                   className="profileDropdownItem danger"
-                  onClick={() => { void signOut(); setProfileOpen(false) }}
+                  onClick={() => {
+                    void signOut()
+                    setProfileOpen(false)
+                  }}
                 >
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                    <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+                  </svg>
                   Log out
                 </button>
               </div>
@@ -868,8 +1000,8 @@ function App(): React.JSX.Element {
 
       <section className="main">
         {/* ── Chat-feed task view ─────────────────────────────────── */}
-        {sidebarTab === 'tasks' && (
-          activeTask ? (
+        {sidebarTab === 'tasks' &&
+          (activeTask ? (
             <div className="chatFeedLayout">
               <ChatFeed
                 task={activeTask}
@@ -882,12 +1014,39 @@ function App(): React.JSX.Element {
                 autoCaps={composerAutoCaps}
                 compact={true}
                 onSubmit={handleInputSubmit}
-                onStop={isActiveTaskRunning ? () => void handleCancelTask(activeTask.id) : undefined}
+                onStop={
+                  isActiveTaskRunning ? () => void handleCancelTask(activeTask.id) : undefined
+                }
                 onTextChange={(t) => {
                   setComposerPrompt(t)
                   if (composerCapsOverride) setComposerCapsOverride(null)
                 }}
               />
+            </div>
+          ) : taskSubTab === 'scheduled' && showNewSchedule ? (
+            <div className="chatFeedCentered">
+              <NewScheduleForm
+                onSave={(data) => {
+                  void handleSaveSchedule(data)
+                  setShowNewSchedule(false)
+                }}
+                onCancel={() => setShowNewSchedule(false)}
+              />
+            </div>
+          ) : taskSubTab === 'scheduled' && activeScheduleId ? (
+            <div className="chatFeedCentered">
+              {(() => {
+                const s = schedules.find((sc) => sc.id === activeScheduleId)
+                if (!s) return <div className="taskEmpty">Schedule not found.</div>
+                return (
+                  <ScheduleDetail
+                    schedule={s}
+                    onToggle={() => void handleToggleSchedule(s.id)}
+                    onDelete={() => void handleDeleteSchedule(s.id)}
+                    onBack={() => setActiveScheduleId(null)}
+                  />
+                )
+              })()}
             </div>
           ) : (
             <div className="chatFeedCentered">
@@ -903,8 +1062,7 @@ function App(): React.JSX.Element {
                 }}
               />
             </div>
-          )
-        )}
+          ))}
 
         {/* ── Dashboard panel (stats + recent) ─────────────────────────── */}
         {sidebarTab === 'dashboard' && (
@@ -956,14 +1114,25 @@ function App(): React.JSX.Element {
 
               {/* ── Settings tabs ─────────────────────────────── */}
               <div className="seg">
-                {(['general', 'providers', 'computer', 'channels', 'developer', 'skills'] as const).map((tab) => (
+                {(
+                  ['general', 'providers', 'computer', 'channels', 'developer', 'skills'] as const
+                ).map((tab) => (
                   <button
                     key={tab}
                     className={`segBtn ${settingsTab === tab ? 'active' : ''}`}
                     onClick={() => setSettingsTab(tab)}
                     aria-pressed={settingsTab === tab}
                   >
-                    {{general: 'General', providers: 'Providers', computer: 'Computer', channels: 'Channels', developer: 'Developer', skills: 'Skills'}[tab]}
+                    {
+                      {
+                        general: 'General',
+                        providers: 'Providers',
+                        computer: 'Computer',
+                        channels: 'Channels',
+                        developer: 'Developer',
+                        skills: 'Skills'
+                      }[tab]
+                    }
                   </button>
                 ))}
               </div>
@@ -979,8 +1148,10 @@ function App(): React.JSX.Element {
                     <div className="providerGrid">
                       {PROVIDERS.map((p) => {
                         const isActive = policy?.provider.active === p.id
-                        const showConnected = isActive &&
-                          ((p.id === 'chatgpt' && chatgptConnected) || (p.id !== 'chatgpt' && providerApiKeys[p.id]))
+                        const showConnected =
+                          isActive &&
+                          ((p.id === 'chatgpt' && chatgptConnected) ||
+                            (p.id !== 'chatgpt' && providerApiKeys[p.id]))
                         const isKimi = p.id === 'kimi'
                         return (
                           <button
@@ -990,15 +1161,13 @@ function App(): React.JSX.Element {
                             onClick={() => void setActiveProvider(p.id)}
                             disabled={providerSwitchBusy}
                           >
-                            <img
-                              src={p.icon}
-                              alt={p.label}
-                              className="providerIcon"
-                            />
+                            <img src={p.icon} alt={p.label} className="providerIcon" />
                             {isKimi && <div className="providerCardLabel">KIMI k2-5</div>}
                             {showConnected && (
                               <div className="providerCardBadge">
-                                <span className="providerCardBadgeCheck" aria-hidden>✓</span>
+                                <span className="providerCardBadgeCheck" aria-hidden>
+                                  ✓
+                                </span>
                                 {t(lang, 'provider_connected')}
                               </div>
                             )}
@@ -1019,12 +1188,22 @@ function App(): React.JSX.Element {
                             : t(lang, 'chatgpt_status_not_connected')}
                         </div>
                         {chatgptConnected ? (
-                          <button className="btn" onClick={() => void chatgptDisconnect()} disabled={chatgptBusy}>
+                          <button
+                            className="btn"
+                            onClick={() => void chatgptDisconnect()}
+                            disabled={chatgptBusy}
+                          >
                             {t(lang, 'chatgpt_disconnect')}
                           </button>
                         ) : (
-                          <button className="btn" onClick={() => void chatgptConnect()} disabled={chatgptBusy}>
-                            {chatgptBusy ? t(lang, 'chatgpt_connecting') : t(lang, 'chatgpt_connect')}
+                          <button
+                            className="btn"
+                            onClick={() => void chatgptConnect()}
+                            disabled={chatgptBusy}
+                          >
+                            {chatgptBusy
+                              ? t(lang, 'chatgpt_connecting')
+                              : t(lang, 'chatgpt_connect')}
                           </button>
                         )}
                         <div className="settingsFieldHint">{t(lang, 'chatgpt_hint')}</div>
@@ -1038,12 +1217,24 @@ function App(): React.JSX.Element {
                     policy?.provider.active === 'deepseek') && (
                     <div className="settingsSection">
                       <div className="settingsLabel">
-                        {t(lang, `settings_${policy.provider.active}_key` as 'settings_kimi_key' | 'settings_claude_key' | 'settings_deepseek_key')}
+                        {t(
+                          lang,
+                          `settings_${policy.provider.active}_key` as
+                            | 'settings_kimi_key'
+                            | 'settings_claude_key'
+                            | 'settings_deepseek_key'
+                        )}
                       </div>
                       <div className="settingsField">
                         {hasApiKey && (
                           <div className="settingsFieldHint">
-                            {t(lang, `${policy.provider.active}_key_configured` as 'kimi_key_configured' | 'claude_key_configured' | 'deepseek_key_configured')}
+                            {t(
+                              lang,
+                              `${policy.provider.active}_key_configured` as
+                                | 'kimi_key_configured'
+                                | 'claude_key_configured'
+                                | 'deepseek_key_configured'
+                            )}
                           </div>
                         )}
                         <input
@@ -1063,7 +1254,13 @@ function App(): React.JSX.Element {
                           {apiKeyBusy ? '...' : t(lang, 'provider_api_key_save')}
                         </button>
                         <div className="settingsFieldHint">
-                          {t(lang, `${policy.provider.active}_key_get_from` as 'kimi_key_get_from' | 'claude_key_get_from' | 'deepseek_key_get_from')}
+                          {t(
+                            lang,
+                            `${policy.provider.active}_key_get_from` as
+                              | 'kimi_key_get_from'
+                              | 'claude_key_get_from'
+                              | 'deepseek_key_get_from'
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1105,7 +1302,9 @@ function App(): React.JSX.Element {
                     >
                       <div className="capLeft">
                         <div className="capTitle">Auto-Approve Tasks</div>
-                        <div className="capDesc">Skip capability confirmation and run immediately</div>
+                        <div className="capDesc">
+                          Skip capability confirmation and run immediately
+                        </div>
                       </div>
                       <div className="capToggle" aria-hidden="true">
                         <div className="capKnob" />
@@ -1140,7 +1339,10 @@ function App(): React.JSX.Element {
                   {/* ── Trading Options ──────────────────────────────── */}
                   <div className="settingsSection">
                     <div className="settingsLabel">Trading Options</div>
-                    <div className="settingsField" style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                    <div
+                      className="settingsField"
+                      style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}
+                    >
                       <button className="btn" onClick={() => void openTradingModal('polymarket')}>
                         Polymarket
                         {polymarketConfigured && <span className="settingsBadgeDot">✓</span>}
@@ -1153,14 +1355,11 @@ function App(): React.JSX.Element {
 
                   {/* ── Browser Snapshots ──────────────────────────── */}
                   <BrowserSnapshotsSection />
-
                 </>
               )}
 
               {/* ═══════════════ TAB: Channels ═══════════════ */}
-              {settingsTab === 'channels' && (
-                <ChannelSettings />
-              )}
+              {settingsTab === 'channels' && <ChannelSettings />}
 
               {/* ═══════════════ TAB: General ═══════════════ */}
               {settingsTab === 'general' && (
@@ -1224,11 +1423,19 @@ function App(): React.JSX.Element {
                           : t(lang, 'account_supabase_not_configured')}
                       </div>
                       {accountConnected ? (
-                        <button className="btn" onClick={() => void signOut()} disabled={accountBusy}>
+                        <button
+                          className="btn"
+                          onClick={() => void signOut()}
+                          disabled={accountBusy}
+                        >
                           {t(lang, 'account_sign_out')}
                         </button>
                       ) : (
-                        <button className="btn" onClick={() => void signIn()} disabled={accountBusy}>
+                        <button
+                          className="btn"
+                          onClick={() => void signIn()}
+                          disabled={accountBusy}
+                        >
                           {t(lang, 'account_sign_in_google')}
                         </button>
                       )}
@@ -1265,9 +1472,7 @@ function App(): React.JSX.Element {
                     <button className="btn" onClick={pickWorkspace}>
                       {t(lang, 'settings_pick_workspace')}
                     </button>
-                    <div className="settingsFieldHint">
-                      Working directory for shell commands
-                    </div>
+                    <div className="settingsFieldHint">Working directory for shell commands</div>
                   </div>
                 </>
               )}
@@ -1310,7 +1515,9 @@ function App(): React.JSX.Element {
                         Import Skill
                       </button>
                     </div>
-                    <div className="settingsFieldHint">Supports .json and .md (with YAML frontmatter)</div>
+                    <div className="settingsFieldHint">
+                      Supports .json and .md (with YAML frontmatter)
+                    </div>
                     {skills.length > 0 && (
                       <div className="capList">
                         {skills.map((s) => (
@@ -1328,17 +1535,30 @@ function App(): React.JSX.Element {
                             </div>
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                               <span
-                                style={{ fontSize: 12, cursor: 'pointer', color: 'var(--nb-muted)' }}
+                                style={{
+                                  fontSize: 12,
+                                  cursor: 'pointer',
+                                  color: 'var(--nb-muted)'
+                                }}
                                 onClick={async (e) => {
                                   e.stopPropagation()
-                                  setSkillDraft({ name: s.name, tag: s.tag, description: s.description, prompt: s.prompt })
+                                  setSkillDraft({
+                                    name: s.name,
+                                    tag: s.tag,
+                                    description: s.description,
+                                    prompt: s.prompt
+                                  })
                                   setSkillModal(s)
                                 }}
                               >
                                 Edit
                               </span>
                               <span
-                                style={{ fontSize: 12, cursor: 'pointer', color: 'var(--nb-muted)' }}
+                                style={{
+                                  fontSize: 12,
+                                  cursor: 'pointer',
+                                  color: 'var(--nb-muted)'
+                                }}
                                 onClick={async (e) => {
                                   e.stopPropagation()
                                   const updated = await window.skynul.skillDelete(s.id)
@@ -1369,7 +1589,9 @@ function App(): React.JSX.Element {
           <div className="modal" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 500 }}>
             <div className="modalHeader">
               <div className="modalTitle">{skillModal === 'new' ? 'New Skill' : 'Edit Skill'}</div>
-              <button className="modalClose" onClick={() => setSkillModal(null)} aria-label="Close">&times;</button>
+              <button className="modalClose" onClick={() => setSkillModal(null)} aria-label="Close">
+                &times;
+              </button>
             </div>
             <div className="modalBody" style={{ gridTemplateColumns: '1fr' }}>
               <div className="modalSection">
@@ -1438,7 +1660,13 @@ function App(): React.JSX.Element {
           <div className="modal" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
             <div className="modalHeader">
               <div className="modalTitle">Polymarket Configuration</div>
-              <button className="modalClose" onClick={() => setTradingModal(null)} aria-label="Close">&times;</button>
+              <button
+                className="modalClose"
+                onClick={() => setTradingModal(null)}
+                aria-label="Close"
+              >
+                &times;
+              </button>
             </div>
             <div className="modalBody" style={{ gridTemplateColumns: '1fr' }}>
               {POLYMARKET_KEYS.map((k) => (
@@ -1449,22 +1677,29 @@ function App(): React.JSX.Element {
                     className="input"
                     value={tradingSecrets[k] ?? ''}
                     placeholder={k === 'POLYMARKET_SIGNATURE_TYPE' ? '0, 1 or 2 (default: 2)' : ''}
-                    onChange={(e) => setTradingSecrets((prev) => ({ ...prev, [k]: e.target.value }))}
+                    onChange={(e) =>
+                      setTradingSecrets((prev) => ({ ...prev, [k]: e.target.value }))
+                    }
                     style={{ width: '100%', boxSizing: 'border-box' }}
                   />
                 </div>
               ))}
             </div>
             <div className="modalFooter">
-              <button className="btn" onClick={() => setTradingModal(null)}>Cancel</button>
-              <button className="btn" onClick={() => void saveTradingSecrets()} disabled={tradingSaving}>
+              <button className="btn" onClick={() => setTradingModal(null)}>
+                Cancel
+              </button>
+              <button
+                className="btn"
+                onClick={() => void saveTradingSecrets()}
+                disabled={tradingSaving}
+              >
                 {tradingSaving ? 'Saving...' : 'Save'}
               </button>
             </div>
           </div>
         </div>
       )}
-
     </div>
   )
 }
