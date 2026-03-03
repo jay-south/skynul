@@ -88,6 +88,7 @@ export class SignalChannel extends Channel {
       paired: this.state.paired,
       pairingCode: null,
       error: this.lastError,
+      hasCredentials: false,
       meta: {
         phoneNumber: this.state.phoneNumber,
         apiUrl: this.state.apiUrl,
@@ -178,7 +179,7 @@ export class SignalChannel extends Channel {
       this.state.paired = true
       this.state.phoneNumber = sender
       await this.saveState()
-      await this.sendMessage('Paired! Send any message to create a task.')
+      await this.sendMessage('\u2705 Vinculado! Mandame un mensaje para crear una tarea.')
       return
     }
 
@@ -194,7 +195,7 @@ export class SignalChannel extends Channel {
       const taskId = body.slice(8).trim()
       try {
         this.taskManager.cancel(taskId)
-        await this.sendMessage(`Task ${taskId} cancelled.`)
+        await this.sendMessage(`\u26d4 Tarea cancelada.`)
       } catch (e) {
         await this.sendMessage(`Error: ${e instanceof Error ? e.message : String(e)}`)
       }
@@ -205,7 +206,7 @@ export class SignalChannel extends Channel {
       const taskId = body.slice(8).trim()
       const task = this.taskManager.get(taskId)
       if (!task) {
-        await this.sendMessage('Task not found.')
+        await this.sendMessage('\u{1f50d} Tarea no encontrada.')
         return
       }
       await this.sendMessage(formatTaskSummary(task))
@@ -214,7 +215,7 @@ export class SignalChannel extends Channel {
 
     if (body === '/unpair') {
       await this.unpair()
-      await this.sendMessage('Unpaired.')
+      await this.sendMessage('Desvinculado.')
       return
     }
 
@@ -222,7 +223,7 @@ export class SignalChannel extends Channel {
       const task = await this.createTaskFromMessage(body)
       await this.sendMessage(this.formatSummary(task))
     } catch (e) {
-      await this.sendMessage(`Failed: ${e instanceof Error ? e.message : String(e)}`)
+      await this.sendMessage(`No se pudo crear la tarea: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
 

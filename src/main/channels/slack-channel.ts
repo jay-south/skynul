@@ -91,6 +91,7 @@ export class SlackChannel extends Channel {
       paired: this.state.paired,
       pairingCode: this.state.pairingCode,
       error: this.lastError,
+      hasCredentials: false,
       meta: {
         pairedUserId: this.state.pairedUserId,
         pairedChannelId: this.state.pairedChannelId
@@ -151,11 +152,11 @@ export class SlackChannel extends Channel {
     if (content.startsWith('/pair ')) {
       const code = content.slice(6).trim()
       if (!this.state.pairingCode) {
-        await say('No pairing code active. Generate one from Skynul settings.')
+        await say('No hay código de vinculación activo. Generá uno desde los ajustes de Skynul.')
         return
       }
       if (code !== this.state.pairingCode) {
-        await say('Invalid pairing code.')
+        await say('Código inválido.')
         return
       }
       this.state.paired = true
@@ -163,7 +164,7 @@ export class SlackChannel extends Channel {
       this.state.pairedChannelId = channelId
       this.state.pairingCode = null
       await this.saveState()
-      await say('Paired! Send any message to create a task.')
+      await say('\u2705 Vinculado! Mandame un mensaje para crear una tarea.')
       return
     }
 
@@ -180,7 +181,7 @@ export class SlackChannel extends Channel {
       const taskId = content.slice(8).trim()
       try {
         this.taskManager.cancel(taskId)
-        await say(`Task \`${taskId}\` cancelled.`)
+        await say(`\u26d4 Tarea cancelada.`)
       } catch (e) {
         await say(`Error: ${e instanceof Error ? e.message : String(e)}`)
       }
@@ -191,7 +192,7 @@ export class SlackChannel extends Channel {
       const taskId = content.slice(8).trim()
       const task = this.taskManager.get(taskId)
       if (!task) {
-        await say('Task not found.')
+        await say('\u{1f50d} Tarea no encontrada.')
         return
       }
       await say(formatTaskSummary(task))
@@ -200,7 +201,7 @@ export class SlackChannel extends Channel {
 
     if (content === '/unpair') {
       await this.unpair()
-      await say('Unpaired.')
+      await say('Desvinculado.')
       return
     }
 
@@ -209,7 +210,7 @@ export class SlackChannel extends Channel {
       const task = await this.createTaskFromMessage(content)
       await say(this.formatSummary(task))
     } catch (e) {
-      await say(`Failed: ${e instanceof Error ? e.message : String(e)}`)
+      await say(`No se pudo crear la tarea: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
 

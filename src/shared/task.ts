@@ -103,6 +103,8 @@ export type TaskStep = {
 
 // ── Task (the top-level entity) ───────────────────────────────────────────────
 
+export type TaskSource = 'desktop' | 'telegram' | 'discord' | 'slack' | 'whatsapp' | 'signal'
+
 export type Task = {
   id: string
   prompt: string
@@ -120,6 +122,8 @@ export type Task = {
   error?: string
   /** Summary from the model when done. */
   summary?: string
+  /** Where the task was created from. Channels only notify for their own tasks. */
+  source?: TaskSource
 }
 
 // ── IPC payloads ──────────────────────────────────────────────────────────────
@@ -132,6 +136,7 @@ export type TaskCreateRequest = {
   mode?: TaskMode
   maxSteps?: number
   timeoutMs?: number
+  source?: TaskSource
 }
 
 export type TaskCreateResponse = {

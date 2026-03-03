@@ -75,7 +75,8 @@ export class TaskManager extends EventEmitter {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       maxSteps: req.maxSteps ?? DEFAULT_MAX_STEPS,
-      timeoutMs: req.timeoutMs ?? DEFAULT_TIMEOUT_MS
+      timeoutMs: req.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+      source: req.source ?? 'desktop'
     }
     this.tasks.set(id, task)
     void this.persistToDisk()

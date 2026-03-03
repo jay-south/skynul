@@ -1,9 +1,8 @@
 import type { ChannelId, ChannelSettings } from '../../shared/channel'
 import type { TaskManager } from '../agent/task-manager'
-import type { Task } from '../../shared/task'
+import type { Task, TaskSource } from '../../shared/task'
 import {
   formatTaskSummary,
-  formatStepUpdate,
   formatTaskComplete,
   formatTaskFailed
 } from './message-formatter'
@@ -17,7 +16,6 @@ export const DEFAULT_CHANNEL_CAPABILITIES = [
 export abstract class Channel {
   abstract readonly id: ChannelId
   protected taskManager: TaskManager
-  private stepCounters = new Map<string, number>()
 
   constructor(taskManager: TaskManager) {
     this.taskManager = taskManager
@@ -42,26 +40,21 @@ export abstract class Channel {
   }
 
   private async handleTaskUpdate(task: Task): Promise<void> {
+    // Only notify for tasks originated from THIS channel
+    if (task.source !== this.id) return
+
     try {
       if (task.status === 'completed') {
-        this.stepCounters.delete(task.id)
         await this.sendMessage(formatTaskComplete(task))
         return
       }
 
       if (task.status === 'failed' || task.status === 'cancelled') {
-        this.stepCounters.delete(task.id)
         await this.sendMessage(formatTaskFailed(task))
         return
       }
 
-      if (task.status === 'running' && task.steps.length > 0) {
-        const count = (this.stepCounters.get(task.id) ?? 0) + 1
-        this.stepCounters.set(task.id, count)
-        if (count % 5 === 0) {
-          await this.sendMessage(formatStepUpdate(task))
-        }
-      }
+      // No step-by-step updates — only final results
     } catch (e) {
       console.warn(`[${this.id}] Failed to send update:`, e)
     }
@@ -71,7 +64,8 @@ export abstract class Channel {
   protected async createTaskFromMessage(prompt: string): Promise<Task> {
     const task = this.taskManager.create({
       prompt,
-      capabilities: [...DEFAULT_CHANNEL_CAPABILITIES]
+      capabilities: [...DEFAULT_CHANNEL_CAPABILITIES],
+      source: this.id as TaskSource
     })
     await this.taskManager.approve(task.id)
     return task

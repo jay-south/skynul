@@ -270,6 +270,16 @@ BEFORE navigating to any website to read data, ALWAYS use web_scrape. It fetches
   * Facebook/Instagram: navigate visually — the user is already logged in.
 - IMPORTANT: If a scrape returns error or empty data, try ONE alternative. If that also fails, report what you found and finish.
 
+## DONE SUMMARY FORMAT — THIS IS CRITICAL:
+When you finish a task with "done", the summary is shown DIRECTLY to the user. Format it well:
+- For SEARCH / SCRAPE / RESEARCH tasks: structure results clearly with bullet points, include ALL relevant data (links, prices, dates, names, ratings).
+- Even if no results match the criteria, STILL list the closest options found.
+- Example good summary for a flight search:
+  "✈️ Vuelos CRD → BUE (ida y vuelta, 2 pasajeros, mayo 2025)\n\n🔍 No encontré pasajes debajo de $100.000/persona, pero estas son las mejores opciones:\n\n1. JetSMART — $160.275/persona ($320.550 total)\n   📅 5 may → 12 may\n   🔗 https://skyscanner.com/...\n\n2. Aerolíneas Argentinas — $195.000/persona\n   📅 5 may → 12 may\n   🔗 https://skyscanner.com/...\n\n💡 Tip: probá fechas flexibles para encontrar mejores precios."
+- Use emojis as section markers, newlines for spacing, bullet points for lists.
+- ALWAYS include links/URLs when available from scrape results.
+- NEVER give a flat paragraph — structure it visually.
+
 ## ACTION FORMAT:
 {"thought": "...", "action": {"type": "web_scrape", "url": "https://...", "instruction": "what to extract"}}
 {"thought": "...", "action": {"type": "save_to_excel", "filename": "my_data", "filter": "optional filter"}}
@@ -282,7 +292,7 @@ BEFORE navigating to any website to read data, ALWAYS use web_scrape. It fetches
 {"thought": "...", "action": {"type": "launch", "app": "notepad"}}
 {"thought": "...", "action": {"type": "shell", "command": "ls -la"}}
 {"thought": "...", "action": {"type": "wait", "ms": 1500}}
-{"thought": "...", "action": {"type": "done", "summary": "Completed."}}
+{"thought": "...", "action": {"type": "done", "summary": "✈️ Vuelos CRD → BUE (mayo, 2 pax)\n\n🔍 No hay bajo $100k, mejores opciones:\n\n1. JetSMART — $65.904 ida + $79.084 vuelta = $144.988/pax\n   📅 8 may → 15 may\n   🔗 https://www.skyscanner.com.ar/...\n\n2. Aerolíneas — $89.000 ida + $95.000 vuelta = $184.000/pax\n   📅 10 may → 17 may\n   🔗 https://www.skyscanner.com.ar/...\n\n💡 Tip: probá fechas flexibles."}}
 
 ## SHELL COMMANDS (requires app.launch capability):
 You can execute shell commands directly without using the screen. Use this for:
@@ -422,6 +432,14 @@ You control the user's REAL Chrome browser via CDP. Use **navigate + evaluate** 
 ### Generic evaluate for ANY site:
 (() => { const rows = []; document.querySelectorAll('a[href]').forEach(a => { const t = a.textContent?.trim(); if (t && t.length > 10 && t.length < 200) rows.push(t + '\\t' + a.href); }); return 'Titulo\\tLink\\n' + rows.join('\\n'); })()
 
+## DONE SUMMARY FORMAT — CRITICAL:
+When finishing with "done", the summary goes DIRECTLY to the user. Format it well:
+- For SEARCH / SCRAPE / RESEARCH: use bullet points, include ALL data (links, prices, dates, names).
+- Even if no results match criteria, STILL list closest options found.
+- Use emojis as section markers (✈️🔍📅🔗💡💰🏠), newlines for spacing.
+- ALWAYS include URLs/links when available. NEVER give a flat paragraph.
+- Example: "✈️ Vuelos CRD → BUE (mayo, 2 pax)\\n\\n🔍 No hay bajo $100k/persona, mejores opciones:\\n\\n1. JetSMART — $160.275/pax ($320.550 total)\\n   📅 5 may → 12 may\\n   🔗 https://...\\n\\n2. Aerolíneas — $195.000/pax\\n   📅 7 may → 14 may\\n   🔗 https://..."
+
 ## AVAILABLE ACTIONS:
 {"thought": "...", "action": {"type": "navigate", "url": "https://..."}}
 {"thought": "...", "action": {"type": "click", "selector": "exact selector from the list"}}
@@ -431,7 +449,7 @@ You control the user's REAL Chrome browser via CDP. Use **navigate + evaluate** 
 {"thought": "...", "action": {"type": "save_to_excel", "filename": "my_data", "filter": "optional"}}
 {"thought": "...", "action": {"type": "launch", "app": "whatsapp"}}
 {"thought": "...", "action": {"type": "wait", "ms": 2000}}
-{"thought": "...", "action": {"type": "done", "summary": "Completed."}}
+{"thought": "...", "action": {"type": "done", "summary": "🏠 Departamentos en Palermo\n\n1. 2 amb luminoso — USD 85.000\n   📍 Thames 1200\n   🔗 https://zonaprop.com.ar/...\n\n2. 3 amb con balcón — USD 120.000\n   📍 Honduras 4500\n   🔗 https://zonaprop.com.ar/..."}}
 {"thought": "...", "action": {"type": "fail", "reason": "Reason."}}
 ${hasPolymarket ? `{"thought": "...", "action": {"type": "polymarket_get_account_summary"}}
 {"thought": "...", "action": {"type": "polymarket_get_trader_leaderboard"}}

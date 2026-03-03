@@ -25,6 +25,7 @@ export class TelegramChannel extends Channel {
   readonly id: ChannelId = 'telegram'
   private bot: Bot | null = null
   private state: TelegramState = { ...DEFAULT_STATE }
+  private hasToken = false
 
   constructor(taskManager: TaskManager) {
     super(taskManager)
@@ -32,22 +33,32 @@ export class TelegramChannel extends Channel {
 
   async start(): Promise<void> {
     this.state = await this.loadState()
+    const token = await getSecret('telegram.botToken')
+    this.hasToken = !!token
     if (!this.state.enabled) return
 
-    const token = await getSecret('telegram.botToken')
     if (!token) {
       console.warn('[TelegramChannel] Enabled but no bot token set')
       return
     }
 
-    this.bot = new Bot(token)
-    this.registerCommands()
-    this.subscribeToTaskUpdates()
+    try {
+      this.bot = new Bot(token)
+      this.bot.catch((err) => {
+        console.error('[TelegramChannel] Bot error:', err.message ?? err)
+      })
+      this.registerCommands()
+      this.subscribeToTaskUpdates()
 
-    this.bot.start({
-      onStart: () => console.log('[TelegramChannel] Polling started'),
-      drop_pending_updates: true
-    })
+      console.log('[TelegramChannel] Starting bot polling...')
+      this.bot.start({
+        onStart: () => console.log('[TelegramChannel] Polling started OK'),
+        drop_pending_updates: true
+      })
+    } catch (e) {
+      console.error('[TelegramChannel] Failed to start bot:', e)
+      this.bot = null
+    }
   }
 
   async stop(): Promise<void> {
@@ -65,6 +76,7 @@ export class TelegramChannel extends Channel {
       paired: this.state.pairedChatId !== null,
       pairingCode: this.state.pairingCode,
       error: null,
+      hasCredentials: this.hasToken,
       meta: { pairedChatId: this.state.pairedChatId }
     }
   }
@@ -83,6 +95,7 @@ export class TelegramChannel extends Channel {
   async setCredentials(creds: Record<string, string>): Promise<void> {
     if (creds.token) {
       await setSecret('telegram.botToken', creds.token.trim())
+      this.hasToken = true
     }
   }
 
@@ -110,27 +123,27 @@ export class TelegramChannel extends Channel {
     this.bot.command('pair', async (ctx) => {
       const code = ctx.match?.trim()
       if (!code) {
-        await ctx.reply('Usage: /pair <code>')
+        await ctx.reply('Uso: /pair <código>')
         return
       }
       if (!this.state.pairingCode) {
-        await ctx.reply('No pairing code active. Generate one from Skynul settings.')
+        await ctx.reply('No hay código de vinculación activo. Generá uno desde los ajustes de Skynul.')
         return
       }
       if (code !== this.state.pairingCode) {
-        await ctx.reply('Invalid pairing code.')
+        await ctx.reply('Código inválido.')
         return
       }
       this.state.pairedChatId = ctx.chat.id
       this.state.pairingCode = null
       await this.saveState()
-      await ctx.reply('Paired successfully! Send me any message to create a task.')
+      await ctx.reply('\u2705 Vinculado! Mandame un mensaje para crear una tarea.')
     })
 
     this.bot.command('unpair', async (ctx) => {
       if (!this.isPaired(ctx.chat.id)) return
       await this.unpair()
-      await ctx.reply('Unpaired. You will no longer receive updates.')
+      await ctx.reply('Desvinculado. Ya no vas a recibir actualizaciones.')
     })
 
     this.bot.command('list', async (ctx) => {
@@ -141,14 +154,14 @@ export class TelegramChannel extends Channel {
 
     this.bot.command('status', async (ctx) => {
       if (!this.isPaired(ctx.chat.id)) return
-      const taskId = ctx.match?.trim()
-      if (!taskId) {
-        await ctx.reply('Usage: /status <task_id>')
+      const input = ctx.match?.trim()
+      if (!input) {
+        await ctx.reply('Uso: /status <número> (de /list)')
         return
       }
-      const task = this.taskManager.get(taskId)
+      const task = this.resolveTask(input)
       if (!task) {
-        await ctx.reply('Task not found.')
+        await ctx.reply('\u{1f50d} Tarea no encontrada. Usá /list para ver tus tareas.')
         return
       }
       await ctx.reply(formatTaskSummary(task), { parse_mode: 'Markdown' })
@@ -156,14 +169,19 @@ export class TelegramChannel extends Channel {
 
     this.bot.command('cancel', async (ctx) => {
       if (!this.isPaired(ctx.chat.id)) return
-      const taskId = ctx.match?.trim()
-      if (!taskId) {
-        await ctx.reply('Usage: /cancel <task_id>')
+      const input = ctx.match?.trim()
+      if (!input) {
+        await ctx.reply('Uso: /cancel <número> (de /list)')
+        return
+      }
+      const task = this.resolveTask(input)
+      if (!task) {
+        await ctx.reply('\u{1f50d} Tarea no encontrada. Usá /list para ver tus tareas.')
         return
       }
       try {
-        this.taskManager.cancel(taskId)
-        await ctx.reply(`Task \`${taskId}\` cancelled.`, { parse_mode: 'Markdown' })
+        this.taskManager.cancel(task.id)
+        await ctx.reply(`\u26d4 *Cancelada:* ${task.prompt.slice(0, 80)}`, { parse_mode: 'Markdown' })
       } catch (e) {
         await ctx.reply(`Error: ${e instanceof Error ? e.message : String(e)}`)
       }
@@ -171,7 +189,7 @@ export class TelegramChannel extends Channel {
 
     this.bot.on('message:text', async (ctx) => {
       if (!this.isPaired(ctx.chat.id)) {
-        await ctx.reply('Not paired. Use /pair <code> first.')
+        await ctx.reply('No estás vinculado. Usá /pair <código> primero.')
         return
       }
       const prompt = ctx.message.text.trim()
@@ -180,9 +198,19 @@ export class TelegramChannel extends Channel {
         const task = await this.createTaskFromMessage(prompt)
         await ctx.reply(this.formatSummary(task), { parse_mode: 'Markdown' })
       } catch (e) {
-        await ctx.reply(`Failed to create task: ${e instanceof Error ? e.message : String(e)}`)
+        await ctx.reply(`No se pudo crear la tarea: ${e instanceof Error ? e.message : String(e)}`)
       }
     })
+  }
+
+  /** Resolve a task by list number (1-based) or raw ID */
+  private resolveTask(input: string): import('../../shared/task').Task | undefined {
+    const num = parseInt(input, 10)
+    if (!isNaN(num) && num > 0) {
+      const tasks = this.taskManager.list()
+      return tasks[num - 1]
+    }
+    return this.taskManager.get(input)
   }
 
   private isPaired(chatId: number): boolean {

@@ -108,6 +108,7 @@ export class WhatsAppChannel extends Channel {
       paired: this.state.paired,
       pairingCode: this.qrCode,
       error: this.lastError,
+      hasCredentials: false,
       meta: { pairedChatId: this.state.pairedChatId, phoneNumber: this.state.phoneNumber }
     }
   }
@@ -160,7 +161,7 @@ export class WhatsAppChannel extends Channel {
       this.state.pairedChatId = chatId
       this.state.paired = true
       await this.saveState()
-      await this.client!.sendMessage(chatId, 'Paired! Send any message to create a task.')
+      await this.client!.sendMessage(chatId, '\u2705 Vinculado! Mandame un mensaje para crear una tarea.')
       return
     }
 
@@ -177,7 +178,7 @@ export class WhatsAppChannel extends Channel {
       const taskId = body.slice(8).trim()
       try {
         this.taskManager.cancel(taskId)
-        await this.client!.sendMessage(chatId, `Task ${taskId} cancelled.`)
+        await this.client!.sendMessage(chatId, `\u26d4 Tarea cancelada.`)
       } catch (e) {
         await this.client!.sendMessage(chatId, `Error: ${e instanceof Error ? e.message : String(e)}`)
       }
@@ -188,7 +189,7 @@ export class WhatsAppChannel extends Channel {
       const taskId = body.slice(8).trim()
       const task = this.taskManager.get(taskId)
       if (!task) {
-        await this.client!.sendMessage(chatId, 'Task not found.')
+        await this.client!.sendMessage(chatId, '\u{1f50d} Tarea no encontrada.')
         return
       }
       await this.client!.sendMessage(chatId, formatTaskSummary(task))
@@ -200,7 +201,7 @@ export class WhatsAppChannel extends Channel {
       const task = await this.createTaskFromMessage(body)
       await this.client!.sendMessage(chatId, this.formatSummary(task))
     } catch (e) {
-      await this.client!.sendMessage(chatId, `Failed: ${e instanceof Error ? e.message : String(e)}`)
+      await this.client!.sendMessage(chatId, `No se pudo crear la tarea: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
 
