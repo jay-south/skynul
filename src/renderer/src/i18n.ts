@@ -108,6 +108,22 @@ const MESSAGES = {
     claude_key_configured: 'API key configured',
     claude_key_get_from: 'Get your API key from console.anthropic.com',
 
+    settings_glm_key: 'GLM API Key',
+    glm_key_configured: 'API key configured',
+    glm_key_get_from: 'Get your API key from open.bigmodel.cn',
+
+    settings_minimax_key: 'MiniMax API Key',
+    minimax_key_configured: 'API key configured',
+    minimax_key_get_from: 'Get your API key from platform.minimaxi.com',
+
+    settings_openrouter_key: 'OpenRouter API Key',
+    openrouter_key_configured: 'API key configured',
+    openrouter_key_get_from: 'Get your API key from openrouter.ai',
+
+    settings_gemini_key: 'Gemini API Key',
+    gemini_key_configured: 'API key configured',
+    gemini_key_get_from: 'Get your API key from ai.google.dev',
+
     provider_api_key_placeholder: 'Paste your API key',
     provider_api_key_save: 'Save',
 
@@ -279,6 +295,22 @@ const MESSAGES = {
     settings_claude_key: 'Clave API de Claude',
     claude_key_configured: 'Clave API configurada',
     claude_key_get_from: 'Obtén tu clave en console.anthropic.com',
+
+    settings_glm_key: 'Clave API de GLM',
+    glm_key_configured: 'Clave API configurada',
+    glm_key_get_from: 'Obtén tu clave en open.bigmodel.cn',
+
+    settings_minimax_key: 'Clave API de MiniMax',
+    minimax_key_configured: 'Clave API configurada',
+    minimax_key_get_from: 'Obtén tu clave en platform.minimaxi.com',
+
+    settings_openrouter_key: 'Clave API de OpenRouter',
+    openrouter_key_configured: 'Clave API configurada',
+    openrouter_key_get_from: 'Obtén tu clave en openrouter.ai',
+
+    settings_gemini_key: 'Clave API de Gemini',
+    gemini_key_configured: 'Clave API configurada',
+    gemini_key_get_from: 'Obtén tu clave en ai.google.dev',
 
     provider_api_key_placeholder: 'Pega tu clave API',
     provider_api_key_save: 'Guardar',

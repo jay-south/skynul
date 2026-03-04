@@ -37,6 +37,10 @@ import {
 import { claudeRespond } from './providers/claude'
 import { deepseekRespond } from './providers/deepseek'
 import { kimiRespond } from './providers/kimi'
+import { glmRespond } from './providers/glm'
+import { minimaxRespond } from './providers/minimax'
+import { openrouterRespond } from './providers/openrouter'
+import { geminiRespond } from './providers/gemini'
 import type { TaskManager } from './agent/task-manager'
 import type { ChannelManager } from './channels/channel-manager'
 import type { RuntimeStats } from '../shared/runtime'
@@ -242,7 +246,16 @@ export function registerIpcHandlers(opts: {
     return { canceled: result.canceled, filePaths: result.filePaths }
   })
 
-  const VALID_PROVIDERS: ProviderId[] = ['chatgpt', 'claude', 'deepseek', 'kimi']
+  const VALID_PROVIDERS: ProviderId[] = [
+    'chatgpt',
+    'claude',
+    'deepseek',
+    'kimi',
+    'glm',
+    'minimax',
+    'openrouter',
+    'gemini'
+  ]
 
   ipcMain.handle(IPC.setActiveProvider, async (_evt, providerId: string) => {
     if (!VALID_PROVIDERS.includes(providerId as ProviderId)) {
@@ -404,6 +417,34 @@ export function registerIpcHandlers(opts: {
       const apiKey = await getSecret('deepseek.apiKey')
       if (!apiKey) throw new Error('DeepSeek API key is not set. Go to Settings and add it.')
       const content = await deepseekRespond({ apiKey, messages: req.messages })
+      return { content }
+    }
+
+    if (active === 'glm') {
+      const apiKey = await getSecret('glm.apiKey')
+      if (!apiKey) throw new Error('GLM API key is not set. Go to Settings and add it.')
+      const content = await glmRespond({ apiKey, messages: req.messages })
+      return { content }
+    }
+
+    if (active === 'minimax') {
+      const apiKey = await getSecret('minimax.apiKey')
+      if (!apiKey) throw new Error('MiniMax API key is not set. Go to Settings and add it.')
+      const content = await minimaxRespond({ apiKey, messages: req.messages })
+      return { content }
+    }
+
+    if (active === 'openrouter') {
+      const apiKey = await getSecret('openrouter.apiKey')
+      if (!apiKey) throw new Error('OpenRouter API key is not set. Go to Settings and add it.')
+      const content = await openrouterRespond({ apiKey, messages: req.messages })
+      return { content }
+    }
+
+    if (active === 'gemini') {
+      const apiKey = await getSecret('gemini.apiKey')
+      if (!apiKey) throw new Error('Gemini API key is not set. Go to Settings and add it.')
+      const content = await geminiRespond({ apiKey, messages: req.messages })
       return { content }
     }
 

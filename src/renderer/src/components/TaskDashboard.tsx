@@ -5,6 +5,24 @@ import type { RuntimeStats } from '../../../shared/runtime'
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
+const STATUS_COLOR: Record<string, string> = {
+  running: 'var(--nb-accent-2)',
+  completed: 'var(--nb-accent-2)',
+  failed: 'var(--nb-danger)',
+  pending_approval: 'var(--nb-warning, #f0a030)',
+  cancelled: 'var(--nb-muted)',
+  approved: 'var(--nb-accent-2)'
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  running: 'Running',
+  completed: 'Done',
+  failed: 'Failed',
+  pending_approval: 'Pending',
+  cancelled: 'Cancelled',
+  approved: 'Starting'
+}
+
 function StatCard(props: {
   label: string
   value: string | number
@@ -24,38 +42,22 @@ function StatCard(props: {
 
 function RecentTask(props: { task: Task; onClick: () => void }): React.JSX.Element {
   const { task } = props
-  const statusColor: Record<string, string> = {
-    running: 'var(--nb-accent-2)',
-    completed: 'var(--nb-accent-2)',
-    failed: 'var(--nb-danger)',
-    pending_approval: 'var(--nb-warning, #f0a030)',
-    cancelled: 'var(--nb-muted)',
-    approved: 'var(--nb-accent-2)'
-  }
-  const statusLabel: Record<string, string> = {
-    running: 'Running',
-    completed: 'Done',
-    failed: 'Failed',
-    pending_approval: 'Pending',
-    cancelled: 'Cancelled',
-    approved: 'Starting'
-  }
   const ago = formatAgo(task.updatedAt)
 
   return (
     <button className="dashRecentItem" onClick={props.onClick}>
-      <div
-        className="dashRecentDot"
-        style={{ background: statusColor[task.status] ?? 'var(--nb-muted)' }}
-      />
-      <div className="dashRecentContent">
+        <div
+          className="dashRecentDot"
+          style={{ background: STATUS_COLOR[task.status] ?? 'var(--nb-muted)' }}
+        />
+        <div className="dashRecentContent">
         <div className="dashRecentTitle">
           {task.prompt.slice(0, 50)}
           {task.prompt.length > 50 ? '…' : ''}
         </div>
         <div className="dashRecentMeta">
-          <span style={{ color: statusColor[task.status] }}>
-            {statusLabel[task.status] ?? task.status}
+          <span style={{ color: STATUS_COLOR[task.status] }}>
+            {STATUS_LABEL[task.status] ?? task.status}
           </span>
           {' · '}
           {task.steps.length} steps · {ago}
@@ -72,22 +74,6 @@ function AgentCard(props: {
   onDetails: () => void
 }): React.JSX.Element {
   const { task } = props
-  const statusColor: Record<string, string> = {
-    running: 'var(--nb-accent-2)',
-    completed: 'var(--nb-accent-2)',
-    failed: 'var(--nb-danger)',
-    pending_approval: 'var(--nb-warning, #f0a030)',
-    cancelled: 'var(--nb-muted)',
-    approved: 'var(--nb-accent-2)'
-  }
-  const statusLabel: Record<string, string> = {
-    running: 'Running',
-    completed: 'Done',
-    failed: 'Failed',
-    pending_approval: 'Pending',
-    cancelled: 'Cancelled',
-    approved: 'Starting'
-  }
 
   const tokens = task.usage ? task.usage.inputTokens + task.usage.outputTokens : null
 
@@ -101,10 +87,10 @@ function AgentCard(props: {
         <div className="agentCardMeta">
           <span
             className="agentStatusDot"
-            style={{ background: statusColor[task.status] ?? 'var(--nb-muted)' }}
+            style={{ background: STATUS_COLOR[task.status] ?? 'var(--nb-muted)' }}
           />
-          <span style={{ color: statusColor[task.status] ?? 'var(--nb-muted)' }}>
-            {statusLabel[task.status] ?? task.status}
+          <span style={{ color: STATUS_COLOR[task.status] ?? 'var(--nb-muted)' }}>
+            {STATUS_LABEL[task.status] ?? task.status}
           </span>
           {' · '}
           {task.mode}
@@ -441,8 +427,8 @@ export function TaskDashboard(props: {
         <div className="dashStats" style={{ marginBottom: 20 }}>
           <StatCard
             label="Status"
-            value={statusLabel[selectedAgent.status] ?? selectedAgent.status}
-            color={statusColor[selectedAgent.status] ?? 'var(--nb-muted)'}
+            value={STATUS_LABEL[selectedAgent.status] ?? selectedAgent.status}
+            color={STATUS_COLOR[selectedAgent.status] ?? 'var(--nb-muted)'}
           />
           <StatCard label="Mode" value={selectedAgent.mode} />
           <StatCard label="Steps" value={selectedAgent.steps.length} />

@@ -2093,6 +2093,16 @@ code {
   height: 48px;
 }
 
+.providerCard--openrouter .providerIcon {
+  width: 56px;
+  height: 56px;
+}
+
+.providerCard--gemini .providerIcon {
+  width: 64px;
+  height: 64px;
+}
+
 .providerCard--kimi {
   padding: 14px 12px;
   gap: 6px;
@@ -2104,11 +2114,34 @@ code {
   letter-spacing: 0.02em;
 }
 
+.providerCard--glm .providerCardLabel {
+  font-weight: 800;
+}
+
+.providerTextLogo {
+  color: var(--nb-text);
+  line-height: 1;
+  text-align: center;
+}
+
+.providerTextLogo--bold {
+  font-size: 34px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.providerTextLogo--regular {
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
 .providerIcon {
   width: 96px;
   height: 96px;
   object-fit: contain;
-  filter: var(--nb-icon-filter, none);
+  /* Force monochrome so we can flip cleanly per theme */
+  filter: brightness(0);
 }
 
 [data-theme='dark'] .providerIcon {
@@ -2120,6 +2153,11 @@ code {
   font-weight: 650;
   color: var(--nb-text);
   text-align: center;
+}
+
+.providerCardLabel--medium {
+  font-weight: 500;
+  letter-spacing: 0.08em;
 }
 
 .providerCardBadge {
