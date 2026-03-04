@@ -1,3 +1,32 @@
+console.log(`
+\x1b[1;37m  ███████╗██╗  ██╗██╗   ██╗███╗   ██╗██╗   ██╗██╗
+  ██╔════╝██║ ██╔╝╚██╗ ██╔╝████╗  ██║██║   ██║██║
+  ███████╗█████╔╝  ╚████╔╝ ██╔██╗ ██║██║   ██║██║
+  ╚════██║██╔═██╗   ╚██╔╝  ██║╚██╗██║██║   ██║██║
+  ███████║██║  ██╗   ██║   ██║ ╚████║╚██████╔╝███████╗
+  ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═══╝ ╚═════╝ ╚══════╝\x1b[0m
+`)
+
+// Detect host timezone from Windows (WSL defaults to UTC)
+if (!process.env.TZ) {
+  try {
+    const tz = require('child_process')
+      .execSync('powershell.exe -NoProfile -Command "[TimeZoneInfo]::Local.Id"', { timeout: 3000 })
+      .toString().trim()
+    // Map common Windows timezone IDs to IANA
+    const winToIana: Record<string, string> = {
+      'Argentina Standard Time': 'America/Argentina/Buenos_Aires',
+      'SA Western Standard Time': 'America/La_Paz',
+      'Pacific Standard Time': 'America/Los_Angeles',
+      'Eastern Standard Time': 'America/New_York',
+      'Central Standard Time': 'America/Chicago',
+      'Mountain Standard Time': 'America/Denver',
+      'UTC': 'UTC'
+    }
+    process.env.TZ = winToIana[tz] || tz
+  } catch { /* not on WSL or powershell not available — keep system default */ }
+}
+
 import { app, shell, BrowserWindow, screen, session, nativeTheme } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -17,6 +46,11 @@ let scheduleRunner: ScheduleRunner | null = null
 
 // WSL/VMs often fail GPU init; disable to avoid crashes/noise.
 app.disableHardwareAcceleration()
+
+// Propagate detected timezone to renderer (Chromium)
+if (process.env.TZ && process.env.TZ !== 'UTC') {
+  app.commandLine.appendSwitch('timezone', process.env.TZ)
+}
 
 nativeTheme.themeSource = 'dark'
 

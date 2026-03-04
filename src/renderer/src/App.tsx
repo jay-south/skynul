@@ -258,6 +258,7 @@ function App(): React.JSX.Element {
   const [taskSubTab, setTaskSubTab] = useState<'tasks' | 'scheduled'>('tasks')
   const [showNewSchedule, setShowNewSchedule] = useState(false)
   const [activeScheduleId, setActiveScheduleId] = useState<string | null>(null)
+  const [viewingProcessTaskId, setViewingProcessTaskId] = useState<string | null>(null)
   const [schedules, setSchedules] = useState<Schedule[]>([])
 
   // ── Composer state (inline in main panel) ──────────────────────────
@@ -914,7 +915,7 @@ function App(): React.JSX.Element {
       <aside className="sidebar">
         {/* ── Tasks / Settings content ─────────────────────────────── */}
         <div className="sidebarContent">
-          {sidebarTab === 'tasks' && (
+          {(sidebarTab === 'tasks' || sidebarTab === 'dashboard') && (
             <>
               <div className="seg seg--2col" style={{ margin: '0 8px 4px' }}>
                 <button
@@ -936,9 +937,11 @@ function App(): React.JSX.Element {
                   activeTaskId={activeTaskId}
                   onSelectTask={(id) => {
                     setActiveTaskId(id)
+                    if (sidebarTab === 'dashboard') setSidebarTab('tasks')
                   }}
                   onNewTask={() => {
                     setActiveTaskId(null)
+                    if (sidebarTab === 'dashboard') setSidebarTab('tasks')
                   }}
                   onStopTask={(id) => void handleCancelTask(id)}
                   onDeleteTask={handleDeleteTask}
@@ -953,10 +956,12 @@ function App(): React.JSX.Element {
                   onSelect={(id) => {
                     setActiveScheduleId(id)
                     setShowNewSchedule(false)
+                    if (sidebarTab === 'dashboard') setSidebarTab('tasks')
                   }}
                   onNewSchedule={() => {
                     setShowNewSchedule(true)
                     setActiveScheduleId(null)
+                    if (sidebarTab === 'dashboard') setSidebarTab('tasks')
                   }}
                 />
               )}
@@ -1090,6 +1095,39 @@ function App(): React.JSX.Element {
                 onCancel={() => setShowNewSchedule(false)}
               />
             </div>
+          ) : taskSubTab === 'scheduled' && activeScheduleId && viewingProcessTaskId ? (
+            /* ── Viewing a specific run's conversation ────────────── */
+            (() => {
+              const runTask = tasks.find((t) => t.id === viewingProcessTaskId)
+              if (!runTask) return <div className="taskEmpty">Run not found.</div>
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                  <div className="schedProcessBackBar">
+                    <button
+                      className="schedProcessBackBtn"
+                      onClick={() => setViewingProcessTaskId(null)}
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        width="14"
+                        height="14"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
+                        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z" />
+                      </svg>
+                      Back
+                    </button>
+                  </div>
+                  <ChatFeed
+                    task={runTask}
+                    onApprove={() => void window.skynul.taskApprove(runTask.id)}
+                    onCancel={() => void window.skynul.taskCancel(runTask.id)}
+                    onDontAskAgain={() => {}}
+                  />
+                </div>
+              )
+            })()
           ) : taskSubTab === 'scheduled' && activeScheduleId ? (
             <div className="chatFeedCentered">
               {(() => {
@@ -1098,9 +1136,14 @@ function App(): React.JSX.Element {
                 return (
                   <ScheduleDetail
                     schedule={s}
+                    tasks={tasks}
                     onToggle={() => void handleToggleSchedule(s.id)}
                     onDelete={() => void handleDeleteSchedule(s.id)}
-                    onBack={() => setActiveScheduleId(null)}
+                    onBack={() => {
+                      setActiveScheduleId(null)
+                      setViewingProcessTaskId(null)
+                    }}
+                    onViewProcess={(taskId) => setViewingProcessTaskId(taskId)}
                   />
                 )
               })()}
@@ -1138,12 +1181,19 @@ function App(): React.JSX.Element {
                   <span>Back</span>
                 </button>
               </div>
+              <h2 className="settingsPanelTitle">Dashboard</h2>
               <TaskDashboard
                 tasks={tasks}
                 schedules={schedules}
                 onSelectTask={(id) => {
                   setActiveTaskId(id)
                   setSidebarTab('tasks')
+                }}
+                onSelectSchedule={(id) => {
+                  setActiveScheduleId(id)
+                  setSidebarTab('tasks')
+                  setTaskSubTab('scheduled')
+                  setShowNewSchedule(false)
                 }}
               />
             </div>

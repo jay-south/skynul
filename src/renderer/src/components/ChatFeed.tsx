@@ -165,6 +165,7 @@ export function ChatFeed(props: {
       {task.steps.length > 0 && (() => {
         const elements: React.JSX.Element[] = []
         let agentBatch: TaskStep[] = []
+        let lastDateStr = ''
 
         const flushBatch = (key: string): void => {
           if (agentBatch.length > 0) {
@@ -177,8 +178,25 @@ export function ChatFeed(props: {
           }
         }
 
+        const maybeAddDateSep = (ts: number | undefined, key: string): void => {
+          if (!ts) return
+          const dateStr = new Date(ts).toLocaleDateString(undefined, {
+            year: 'numeric', month: 'short', day: 'numeric'
+          })
+          if (dateStr !== lastDateStr) {
+            flushBatch(`bot-before-date-${key}`)
+            elements.push(
+              <div key={`date-sep-${key}`} className="feedDateSep">
+                <span>{dateStr}</span>
+              </div>
+            )
+            lastDateStr = dateStr
+          }
+        }
+
         for (const step of task.steps) {
           const a = step.action as Record<string, unknown>
+          maybeAddDateSep(step.timestamp, String(step.index))
           if (a.type === 'user_message') {
             flushBatch(`bot-before-${step.index}`)
             elements.push(

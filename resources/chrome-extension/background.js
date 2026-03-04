@@ -244,6 +244,53 @@ async function navigateTab(url, tid) {
   return result
 }
 
+/** Find a DOM node by CSS selector, piercing closed shadow DOM via CDP. Returns nodeId or null. */
+async function cdpQuerySelector(selector, tabId) {
+  try {
+    await sendCDP('DOM.enable', {}, tabId)
+    const doc = await sendCDP('DOM.getDocument', { depth: -1, pierce: true }, tabId)
+    // Walk the full tree (including shadowRoots) to find a matching node
+    const findNode = (node) => {
+      if (!node) return null
+      const tag = (node.localName || '').toLowerCase()
+      const attrs = {}
+      if (node.attributes) {
+        for (let i = 0; i < node.attributes.length; i += 2) attrs[node.attributes[i]] = node.attributes[i + 1]
+      }
+      // Check if this node matches the selector
+      const matches =
+        (selector.startsWith('#') && attrs.id === selector.slice(1)) ||
+        (selector.startsWith('[') && (() => {
+          const m = selector.match(/\[([^=]+)="([^"]+)"\]/)
+          return m && attrs[m[1]] === m[2]
+        })()) ||
+        (selector.includes('.') && !selector.startsWith('[') && (() => {
+          const parts = selector.split('.')
+          const sTag = parts[0] || tag
+          const classes = (attrs.class || '').split(' ')
+          return sTag === tag && parts.slice(1).every(c => classes.includes(c))
+        })()) ||
+        (selector.includes('[aria-label=') && (() => {
+          const m = selector.match(/\[aria-label="([^"]+)"\]/)
+          return m && attrs['aria-label'] === m[1]
+        })())
+      if (matches) return node
+      for (const child of node.children || []) {
+        const found = findNode(child)
+        if (found) return found
+      }
+      for (const sr of node.shadowRoots || []) {
+        const found = findNode(sr)
+        if (found) return found
+      }
+      return null
+    }
+    const target = findNode(doc.root)
+    if (target?.nodeId) return target.nodeId
+    return null
+  } catch { return null }
+}
+
 async function clickSelector(selector, frameId, tid) {
   const tabId = await resolveTabId(tid)
   await ensureAttached(tabId)
@@ -254,7 +301,26 @@ async function clickSelector(selector, frameId, tid) {
   if (frameId) { const ctxId = frameContexts.get(frameId); if (ctxId) opts.contextId = ctxId }
   const result = await sendCDP('Runtime.evaluate', opts, tabId)
   const val = result?.result?.value
-  if (val?.error) throw new Error(val.error)
+  // Fallback: if JS deepQuery failed, try CDP DOM pierce for closed shadow DOM
+  if (val?.error) {
+    const nodeId = await cdpQuerySelector(selector, tabId)
+    if (nodeId) {
+      // Get box model to find click coordinates
+      try {
+        const box = await sendCDP('DOM.getBoxModel', { nodeId }, tabId)
+        const q = box.model.content
+        const cx = (q[0] + q[2] + q[4] + q[6]) / 4
+        const cy = (q[1] + q[3] + q[5] + q[7]) / 4
+        await sendCDP('DOM.scrollIntoViewIfNeeded', { nodeId }, tabId)
+        await sendCDP('Input.dispatchMouseEvent', { type: 'mousePressed', x: cx, y: cy, button: 'left', clickCount: 1 }, tabId)
+        await sendCDP('Input.dispatchMouseEvent', { type: 'mouseReleased', x: cx, y: cy, button: 'left', clickCount: 1 }, tabId)
+        return { success: true, via: 'cdp-dom' }
+      } catch (e) {
+        throw new Error(`CDP click failed: ${e.message}`)
+      }
+    }
+    throw new Error(val.error)
+  }
   return val || { success: true }
 }
 
@@ -266,7 +332,22 @@ async function typeInto(selector, text, frameId, tid) {
     returnByValue: true
   }
   if (frameId) { const ctxId = frameContexts.get(frameId); if (ctxId) opts.contextId = ctxId }
-  await sendCDP('Runtime.evaluate', opts, tabId)
+  const focusResult = await sendCDP('Runtime.evaluate', opts, tabId)
+  const focusVal = focusResult?.result?.value
+  // Fallback: if JS deepQuery failed, focus via CDP DOM
+  if (focusVal?.error) {
+    const nodeId = await cdpQuerySelector(selector, tabId)
+    if (nodeId) {
+      try {
+        await sendCDP('DOM.scrollIntoViewIfNeeded', { nodeId }, tabId)
+        await sendCDP('DOM.focus', { nodeId }, tabId)
+      } catch (e) {
+        throw new Error(`CDP focus failed: ${e.message}`)
+      }
+    } else {
+      throw new Error(focusVal.error)
+    }
+  }
   for (const char of text) {
     await sendCDP(
       'Input.dispatchKeyEvent',
@@ -449,7 +530,62 @@ async function getPageInfo(frameId, tid) {
     },
     tabId
   )
-  return result?.result?.value ?? { url: '', title: '', text: '', elements: [] }
+  const info = result?.result?.value ?? { url: '', title: '', text: '', elements: [] }
+
+  // Fallback: if JS walker found 0 elements, use CDP DOM domain to pierce closed shadow DOM
+  if (info.elements.length === 0) {
+    try {
+      await sendCDP('DOM.enable', {}, tabId)
+      const docResult = await sendCDP('DOM.getDocument', { depth: -1, pierce: true }, tabId)
+      const elements = []
+      const interactiveTags = new Set(['button', 'a', 'input', 'textarea', 'select'])
+      const interactiveRoles = new Set(['button', 'link', 'textbox', 'combobox', 'searchbox', 'tab', 'menuitem'])
+      const seen = new Set()
+
+      const walkNodes = (node) => {
+        if (!node) return
+        const tag = (node.localName || '').toLowerCase()
+        const attrs = {}
+        if (node.attributes) {
+          for (let i = 0; i < node.attributes.length; i += 2) {
+            attrs[node.attributes[i]] = node.attributes[i + 1]
+          }
+        }
+        const role = attrs.role || ''
+        const isInteractive = interactiveTags.has(tag) || interactiveRoles.has(role) ||
+          attrs.onclick || attrs['data-action']
+        if (isInteractive && tag !== 'script' && tag !== 'style') {
+          let selector = ''
+          if (attrs.id) selector = '#' + attrs.id
+          else if (attrs['data-testid']) selector = `[data-testid="${attrs['data-testid']}"]`
+          else if (attrs.name) selector = `${tag}[name="${attrs.name}"]`
+          else if (attrs.placeholder) selector = `${tag}[placeholder="${attrs.placeholder}"]`
+          else if (attrs.class) selector = tag + '.' + attrs.class.split(' ').filter(Boolean).join('.')
+          else if (attrs['aria-label']) selector = `${tag}[aria-label="${attrs['aria-label']}"]`
+          else selector = tag
+          const text = (node.children || [])
+            .filter(c => c.nodeType === 3)
+            .map(c => (c.nodeValue || '').trim())
+            .join(' ').slice(0, 50)
+          const key = tag + ':' + selector
+          if (!seen.has(key)) {
+            seen.add(key)
+            elements.push({ tag, type: attrs.type || undefined, selector, text: text || undefined, interactive: true })
+          }
+        }
+        for (const child of node.children || []) walkNodes(child)
+        // Pierce into shadow DOM children
+        for (const child of node.shadowRoots || []) walkNodes(child)
+      }
+      walkNodes(docResult.root)
+      if (elements.length > 0) {
+        info.elements = elements.slice(0, 30)
+      }
+      await sendCDP('DOM.disable', {}, tabId)
+    } catch { /* non-critical fallback */ }
+  }
+
+  return info
 }
 
 async function captureScreenshot(tid) {
