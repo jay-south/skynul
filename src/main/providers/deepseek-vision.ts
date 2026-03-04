@@ -6,7 +6,8 @@
 import { getSupabaseToken } from '../ipc'
 import type { VisionMessage } from './codex-vision'
 
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? ''
+const SUPABASE_URL =
+  (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? process.env.VITE_SUPABASE_URL ?? ''
 
 type ContentPart =
   | { type: 'text'; text: string }
@@ -27,7 +28,9 @@ function convertMessages(messages: VisionMessage[]): EdgeMessage[] {
         const dataUrl = part.image_url
         const commaIdx = dataUrl.indexOf(',')
         const base64 = commaIdx !== -1 ? dataUrl.slice(commaIdx + 1) : dataUrl
-        const mediaType = dataUrl.startsWith('data:') ? dataUrl.slice(5, dataUrl.indexOf(';')) : 'image/png'
+        const mediaType = dataUrl.startsWith('data:')
+          ? dataUrl.slice(5, dataUrl.indexOf(';'))
+          : 'image/png'
         return { type: 'image', mediaType, base64 }
       }
       return { type: 'text', text: part.text }
@@ -72,13 +75,17 @@ export async function deepseekVisionRespond(opts: {
       await new Promise((r) => setTimeout(r, waitMs))
     } else {
       const txt = await res.text().catch(() => '')
-      throw new Error(`Deepseek vision error: 429 Too Many Requests after ${MAX_RETRIES} retries${txt ? ` - ${txt}` : ''}`)
+      throw new Error(
+        `Deepseek vision error: 429 Too Many Requests after ${MAX_RETRIES} retries${txt ? ` - ${txt}` : ''}`
+      )
     }
   }
 
   if (!res!.ok) {
     const txt = await res!.text().catch(() => '')
-    throw new Error(`Deepseek vision error: ${res!.status} ${res!.statusText}${txt ? ` - ${txt}` : ''}`)
+    throw new Error(
+      `Deepseek vision error: ${res!.status} ${res!.statusText}${txt ? ` - ${txt}` : ''}`
+    )
   }
 
   const data = (await res!.json()) as { content?: string }
