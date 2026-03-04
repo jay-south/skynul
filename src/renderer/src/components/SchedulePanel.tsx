@@ -5,17 +5,14 @@ import type { Schedule, ScheduleFrequency } from '../../../shared/schedule'
 /* ── Helpers ───────────────────────────────────────────────────────── */
 
 function fmtNext(ts: number): string {
-  const d = new Date(ts)
   const now = Date.now()
-  const diffH = Math.round((ts - now) / 3_600_000)
-  if (diffH < 1) return 'soon'
+  const diffMs = ts - now
+  if (diffMs < 60_000) return 'now'
+  const diffMin = Math.round(diffMs / 60_000)
+  if (diffMin < 60) return `in ${diffMin}m`
+  const diffH = Math.round(diffMs / 3_600_000)
   if (diffH < 24) return `in ${diffH}h`
-  return d.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
 type SchedPreset = {
@@ -60,7 +57,7 @@ const PRESETS: SchedPreset[] = [
   {
     id: 'daily',
     label: 'Once a day',
-    desc: 'Pick a time below',
+    desc: 'Runs daily at the selected time',
     frequency: 'daily',
     cronExpr: '',
     needsTime: true,
@@ -78,7 +75,7 @@ const PRESETS: SchedPreset[] = [
   {
     id: 'weekly',
     label: 'Once a week',
-    desc: 'Pick day + time',
+    desc: 'Runs weekly on the selected day and time',
     frequency: 'weekly',
     cronExpr: '',
     needsTime: true,
@@ -300,17 +297,20 @@ export function NewScheduleForm(props: {
       <div className="schedCard">
         <div className="schedCardRow">
           <div className="schedCardLabel">Frequency</div>
-          <div className="schedPresets">
-            {PRESETS.map((p) => (
-              <button
-                key={p.id}
-                className={`schedPresetChip ${presetId === p.id ? 'active' : ''}`}
-                onClick={() => setPresetId(p.id)}
-                title={p.desc}
-              >
-                {p.label}
-              </button>
-            ))}
+          <div className="schedRowBody">
+            <div className="schedPresets" role="list" aria-label="Frequency presets">
+              {PRESETS.map((p) => (
+                <button
+                  key={p.id}
+                  className={`schedPresetChip ${presetId === p.id ? 'active' : ''}`}
+                  onClick={() => setPresetId(p.id)}
+                  title={p.desc}
+                  aria-pressed={presetId === p.id}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -357,7 +357,8 @@ export function NewScheduleForm(props: {
 
         <div className="schedCardFooter">
           <div className="schedPreview">
-            <code>{cronExpr}</code>
+            <span className="schedPreviewDesc">{preset.desc}</span>
+            {preset.needsCustomCron && <code>{cronExpr}</code>}
             {nextRunAtPreview > 0 && (
               <span className="schedPreviewNext">Next run {fmtNext(nextRunAtPreview)}</span>
             )}
@@ -373,42 +374,93 @@ export function NewScheduleForm(props: {
 
 /* ── Schedule Detail (center panel) ────────────────────────────────── */
 
+import type { Task } from '../../../shared/task'
+
+function fmtDuration(startMs: number, endMs: number): string {
+  const s = Math.round((endMs - startMs) / 1000)
+  if (s < 60) return `${s}s`
+  const m = Math.floor(s / 60)
+  return `${m}m ${s % 60}s`
+}
+
+function statusDot(status: string): string {
+  if (status === 'completed') return '🟢'
+  if (status === 'failed') return '🔴'
+  if (status === 'running') return '🟡'
+  return '⚪'
+}
+
 export function ScheduleDetail(props: {
   schedule: Schedule
+  tasks: Task[]
   onToggle: () => void
   onDelete: () => void
   onBack: () => void
+  onViewProcess: (taskId: string) => void
 }): React.JSX.Element {
   const s = props.schedule
+
+  const runs = props.tasks
+    .filter((t) => t.prompt === s.prompt)
+    .sort((a, b) => b.createdAt - a.createdAt)
+
   return (
     <div className="schedDetail">
-      <button className="schedDetailBack" onClick={props.onBack}>
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-          <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z" />
-        </svg>
-        Back
-      </button>
-      <div className="schedDetailPrompt">{s.prompt}</div>
-      <div className="schedDetailGrid">
-        <div className="schedDetailLabel">Status</div>
-        <div style={{ color: s.enabled ? 'var(--nb-accent-2)' : 'var(--nb-muted)' }}>
+      <div className="schedDetailHeader">
+        <button className="schedDetailBack" onClick={props.onBack}>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
+            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z" />
+          </svg>
+          Back
+        </button>
+
+        <span className={`schedDetailStatus ${s.enabled ? 'on' : 'off'}`}>
           {s.enabled ? 'Active' : 'Paused'}
-        </div>
-        <div className="schedDetailLabel">Frequency</div>
-        <div>{s.frequency}</div>
-        <div className="schedDetailLabel">Cron</div>
-        <div>
-          <code className="schedDetailCode">{s.cronExpr}</code>
-        </div>
-        <div className="schedDetailLabel">Next run</div>
-        <div>{fmtNext(s.nextRunAt)}</div>
-        {s.lastRunAt && (
-          <>
-            <div className="schedDetailLabel">Last run</div>
-            <div>{new Date(s.lastRunAt).toLocaleString()}</div>
-          </>
-        )}
+        </span>
       </div>
+
+      <div className="schedDetailPrompt">{s.prompt}</div>
+
+      <div className="schedDetailCard">
+        <div className="schedDetailGrid">
+          <div className="schedDetailLabel">Frequency</div>
+          <div className="schedDetailValue">{s.frequency}</div>
+
+          <div className="schedDetailLabel">Cron</div>
+          <div className="schedDetailCronRow">
+            <code className="schedDetailCode">{s.cronExpr}</code>
+            <button
+              className="schedDetailCopy"
+              type="button"
+              title="Copy cron"
+              onClick={() => {
+                try {
+                  void navigator.clipboard?.writeText(s.cronExpr)
+                } catch {
+                  // noop
+                }
+              }}
+            >
+              Copy
+            </button>
+          </div>
+
+          <div className="schedDetailLabel">Next run</div>
+          <div className="schedDetailValue" title={new Date(s.nextRunAt).toLocaleString()}>
+            {fmtNext(s.nextRunAt)}
+          </div>
+
+          {s.lastRunAt && (
+            <>
+              <div className="schedDetailLabel">Last run</div>
+              <div className="schedDetailValue" title={new Date(s.lastRunAt).toLocaleString()}>
+                {new Date(s.lastRunAt).toLocaleString()}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
       <div className="schedDetailActions">
         <button className="btn schedDetailBtn" onClick={props.onToggle}>
           {s.enabled ? 'Pause' : 'Enable'}
@@ -416,6 +468,37 @@ export function ScheduleDetail(props: {
         <button className="btn schedDetailBtn danger" onClick={props.onDelete}>
           Delete
         </button>
+      </div>
+
+      {/* ── Run history ─────────────────────────────────────────── */}
+      <div className="schedRunHistory">
+        <div className="schedRunHistoryTitle">Run history</div>
+        {runs.length === 0 && <div className="schedRunEmpty">No runs yet.</div>}
+        {runs.map((t) => (
+          <button
+            key={t.id}
+            className="schedRunItem"
+            onClick={() => props.onViewProcess(t.id)}
+          >
+            <span className="schedRunDot">{statusDot(t.status)}</span>
+            <span className="schedRunDate">
+              {new Date(t.createdAt).toLocaleString(undefined, {
+                month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+              })}
+            </span>
+            <span className="schedRunDuration">
+              {t.updatedAt > t.createdAt ? fmtDuration(t.createdAt, t.updatedAt) : '—'}
+            </span>
+            {t.usage && (
+              <span className="schedRunTokens">
+                {((t.usage.inputTokens + t.usage.outputTokens) / 1000).toFixed(1)}k tok
+              </span>
+            )}
+            <svg className="schedRunArrow" viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+              <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z" />
+            </svg>
+          </button>
+        ))}
       </div>
     </div>
   )
@@ -450,7 +533,7 @@ export function SchedulePanel(props: {
         {props.schedules.map((s) => (
           <div
             key={s.id}
-            className={`rbItem ${props.activeScheduleId === s.id ? 'active' : ''}`}
+            className={`rbItem schedItem ${props.activeScheduleId === s.id ? 'active' : ''}`}
             role="tab"
             aria-selected={props.activeScheduleId === s.id}
           >
@@ -459,54 +542,76 @@ export function SchedulePanel(props: {
               style={{ opacity: s.enabled ? 1 : 0.5 }}
               onClick={() => props.onSelect(s.id)}
             >
-              <div className="rbItemTitle">{s.prompt.slice(0, 40)}</div>
-              <div className="rbItemMeta">
-                <span style={{ color: s.enabled ? 'var(--nb-accent-2)' : 'var(--nb-muted)' }}>
+              <div className="rbItemTitle" title={s.prompt}>
+                {s.prompt.slice(0, 40)}
+              </div>
+              <div className="schedItemMeta">
+                <span className={`schedPill ${s.enabled ? 'on' : 'off'}`}>
                   {s.enabled ? 'Active' : 'Paused'}
                 </span>
-                {' · '}
-                {s.frequency}
-                {' · next: '}
-                {fmtNext(s.nextRunAt)}
+                <span className="schedPill">{s.frequency}</span>
+                <span
+                  className="schedPill schedPillNext"
+                  title={new Date(s.nextRunAt).toLocaleString()}
+                >
+                  Next {fmtNext(s.nextRunAt)}
+                  <span className="schedPillTime">
+                    {new Date(s.nextRunAt).toLocaleTimeString(undefined, {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </span>
+                </span>
               </div>
             </div>
-            <button
-              className="scheduleToggleBtn"
-              onClick={() => props.onToggle(s.id)}
-              aria-label={s.enabled ? 'Pause schedule' : 'Enable schedule'}
-              title={s.enabled ? 'Pause' : 'Enable'}
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 6,
-                border: 'none',
-                background: s.enabled ? 'var(--nb-accent-2)' : 'var(--nb-surface-2)',
-                color: s.enabled ? '#fff' : 'var(--nb-muted)',
-                cursor: 'pointer',
-                fontSize: 14,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0
-              }}
-            >
-              {s.enabled ? '||' : '>'}
-            </button>
-            <button
-              className="rbMenuBtn"
-              aria-label="Schedule options"
-              onClick={(e) => {
-                e.stopPropagation()
-                if (menuOpenId === s.id) {
-                  closeMenu()
-                } else {
-                  setMenuOpenId(s.id)
-                  setMenuAnchor(e.currentTarget)
-                }
-              }}
-            >
-              ···
-            </button>
+            <div className="rbItemActions">
+              <button
+                className={`scheduleToggleBtn ${s.enabled ? 'on' : 'off'}`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  props.onToggle(s.id)
+                }}
+                aria-label={s.enabled ? 'Pause schedule' : 'Enable schedule'}
+                title={s.enabled ? 'Pause' : 'Enable'}
+              >
+                {s.enabled ? (
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z" />
+                  </svg>
+                ) : (
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path d="M8 5v14l11-7L8 5z" />
+                  </svg>
+                )}
+              </button>
+              <button
+                className="rbMenuBtn"
+                aria-label="Schedule options"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (menuOpenId === s.id) {
+                    closeMenu()
+                  } else {
+                    setMenuOpenId(s.id)
+                    setMenuAnchor(e.currentTarget)
+                  }
+                }}
+              >
+                ···
+              </button>
+            </div>
           </div>
         ))}
       </div>

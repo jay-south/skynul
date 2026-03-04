@@ -132,6 +132,44 @@ function AgentCard(props: {
   )
 }
 
+function fmtNext(ts: number): string {
+  const diffMs = ts - Date.now()
+  if (diffMs < 60_000) return 'now'
+  const diffMin = Math.round(diffMs / 60_000)
+  if (diffMin < 60) return `in ${diffMin}m`
+  const diffH = Math.round(diffMs / 3_600_000)
+  if (diffH < 24) return `in ${diffH}h`
+  return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+function ScheduleCard(props: { schedule: Schedule; onClick: () => void }): React.JSX.Element {
+  const s = props.schedule
+  return (
+    <div className="agentCard" style={{ cursor: 'pointer' }} onClick={props.onClick}>
+      <div className="agentCardTop">
+        <div className="agentCardPrompt">{s.prompt.slice(0, 80)}</div>
+        <div className="agentCardMeta">
+          <span className="agentStatusDot" style={{ background: 'var(--nb-accent-2)' }} />
+          <span style={{ color: 'var(--nb-accent-2)' }}>Scheduled</span>
+          {' · '}
+          {s.frequency}
+        </div>
+      </div>
+      <div className="agentCardBottom">
+        <div className="agentCardPills">
+          <span className="agentPill">
+            Next: {fmtNext(s.nextRunAt)}{' '}
+            {new Date(s.nextRunAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+          </span>
+          {s.lastRunAt && (
+            <span className="agentPill">Last: {formatAgo(s.lastRunAt)}</span>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function formatAgo(ts: number): string {
   const diff = Date.now() - ts
   const mins = Math.floor(diff / 60_000)
@@ -157,10 +195,12 @@ export function TaskDashboard(props: {
   tasks: Task[]
   schedules: Schedule[]
   onSelectTask: (id: string) => void
+  onSelectSchedule?: (id: string) => void
 }): React.JSX.Element {
   const { tasks, schedules } = props
 
   const [agentDetailsId, setAgentDetailsId] = useState<string | null>(null)
+  const [scheduleDetailsId, setScheduleDetailsId] = useState<string | null>(null)
   const [runtime, setRuntime] = useState<RuntimeStats | null>(null)
 
   const stats = useMemo(() => {
@@ -229,7 +269,7 @@ export function TaskDashboard(props: {
   const selectedSubAgents = selectedAgent ? (activeByParent.get(selectedAgent.id) ?? []) : []
 
   useEffect(() => {
-    if (!agentDetailsId && activeTasks.length === 0) return
+    if (!agentDetailsId && !scheduleDetailsId && activeTasks.length === 0) return
     let alive = true
     const tick = (): void => {
       void window.skynul
@@ -247,7 +287,225 @@ export function TaskDashboard(props: {
     }
   }, [agentDetailsId, activeTasks.length])
 
+  const selectedSchedule = scheduleDetailsId
+    ? (schedules.find((s) => s.id === scheduleDetailsId) ?? null)
+    : null
+
+  // Tasks spawned by the selected schedule (match by prompt)
+  const scheduleHistory = useMemo(() => {
+    if (!selectedSchedule) return []
+    return tasks
+      .filter((t) => t.prompt === selectedSchedule.prompt)
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .slice(0, 20)
+  }, [selectedSchedule, tasks])
+
   const hasTasks = tasks.length > 0
+
+  // ── Schedule detail screen ──────────────────────────────────────
+  if (selectedSchedule) {
+    const totalTokens = scheduleHistory.reduce((sum, t) => {
+      return sum + (t.usage ? t.usage.inputTokens + t.usage.outputTokens : 0)
+    }, 0)
+    const completedRuns = scheduleHistory.filter((t) => t.status === 'completed').length
+    const failedRuns = scheduleHistory.filter((t) => t.status === 'failed').length
+
+    // Find currently running task from this schedule (if any)
+    const schedRunning = scheduleHistory.find(
+      (t) => t.status === 'running' || t.status === 'approved'
+    )
+    const schedSubAgents = schedRunning
+      ? tasks.filter((t) => t.parentTaskId === schedRunning.id)
+      : []
+
+    return (
+      <div className="dashWrap">
+        <button
+          className="schedDetailBack"
+          onClick={() => setScheduleDetailsId(null)}
+          style={{ marginBottom: 16 }}
+        >
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z" />
+          </svg>
+          Back
+        </button>
+
+        <div className="agentDetailsPrompt" style={{ fontSize: 15, marginBottom: 16 }}>
+          {selectedSchedule.prompt}
+        </div>
+
+        <div className="dashStats" style={{ marginBottom: 20 }}>
+          <StatCard label="Frequency" value={selectedSchedule.frequency} />
+          <StatCard
+            label="Next run"
+            value={fmtNext(selectedSchedule.nextRunAt)}
+            sub={new Date(selectedSchedule.nextRunAt).toLocaleTimeString(undefined, {
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
+          />
+          <StatCard label="Total runs" value={completedRuns + failedRuns} />
+          <StatCard
+            label="Success rate"
+            value={
+              completedRuns + failedRuns > 0
+                ? `${Math.round((completedRuns / (completedRuns + failedRuns)) * 100)}%`
+                : '—'
+            }
+            color={failedRuns > 0 ? 'var(--nb-danger)' : 'var(--nb-accent-2)'}
+          />
+          <StatCard label="Total tokens" value={totalTokens > 0 ? totalTokens.toLocaleString() : '—'} />
+          <StatCard
+            label="Status"
+            value={selectedSchedule.enabled ? 'Active' : 'Paused'}
+            color={selectedSchedule.enabled ? 'var(--nb-accent-2)' : 'var(--nb-muted)'}
+          />
+        </div>
+
+        {schedRunning && schedSubAgents.length > 0 && (
+          <div className="dashSection">
+            <div className="dashSectionTitle">Subagents</div>
+            <div className="agentSubList">
+              {schedSubAgents
+                .sort((a, b) => b.updatedAt - a.updatedAt)
+                .map((t) => (
+                  <button
+                    key={t.id}
+                    className="agentSubItem"
+                    onClick={() => props.onSelectTask(t.id)}
+                  >
+                    <div className="agentSubTitle">
+                      {t.prompt.slice(0, 80)}
+                      {t.prompt.length > 80 ? '…' : ''}
+                    </div>
+                    <div className="agentSubMeta">
+                      {t.status} · {t.mode} · {t.steps.length} steps · {formatAgo(t.updatedAt)}
+                    </div>
+                  </button>
+                ))}
+            </div>
+          </div>
+        )}
+
+        <div className="dashSection">
+          <div className="dashSectionTitle">System</div>
+          <div className="agentDetailsMeta">
+            <span className="agentPill">
+              CPU: {runtime ? `${runtime.app.cpuPercent.toFixed(1)}%` : '—'}
+            </span>
+            <span className="agentPill">
+              RAM: {runtime ? `${runtime.app.memoryMB.toFixed(0)} MB` : '—'}
+            </span>
+            <span className="agentPill">
+              System free: {runtime ? `${runtime.system.freeMemMB.toFixed(0)} MB` : '—'}
+            </span>
+          </div>
+        </div>
+
+        <div className="dashSection">
+          <div className="dashSectionTitle">Run history</div>
+          {scheduleHistory.length === 0 ? (
+            <div className="dashEmpty">No runs yet.</div>
+          ) : (
+            <div className="dashRecentList">
+              {scheduleHistory.map((t) => (
+                <RecentTask key={t.id} task={t} onClick={() => props.onSelectTask(t.id)} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // ── Agent detail screen ─────────────────────────────────────────
+  if (selectedAgent) {
+    return (
+      <div className="dashWrap">
+        <button
+          className="schedDetailBack"
+          onClick={() => setAgentDetailsId(null)}
+          style={{ marginBottom: 16 }}
+        >
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z" />
+          </svg>
+          Back
+        </button>
+
+        <div className="agentDetailsPrompt" style={{ fontSize: 15, marginBottom: 16 }}>
+          {selectedAgent.prompt}
+        </div>
+
+        <div className="dashStats" style={{ marginBottom: 20 }}>
+          <StatCard
+            label="Status"
+            value={statusLabel[selectedAgent.status] ?? selectedAgent.status}
+            color={statusColor[selectedAgent.status] ?? 'var(--nb-muted)'}
+          />
+          <StatCard label="Mode" value={selectedAgent.mode} />
+          <StatCard label="Steps" value={selectedAgent.steps.length} />
+          <StatCard
+            label="Tokens"
+            value={
+              selectedAgent.usage
+                ? (selectedAgent.usage.inputTokens + selectedAgent.usage.outputTokens).toLocaleString()
+                : '—'
+            }
+          />
+          <StatCard label="Updated" value={formatAgo(selectedAgent.updatedAt)} />
+          <StatCard label="Subagents" value={selectedSubAgents.length} />
+        </div>
+
+        {selectedSubAgents.length > 0 && (
+          <div className="dashSection">
+            <div className="dashSectionTitle">Subagents</div>
+            <div className="agentSubList">
+              {selectedSubAgents
+                .sort((a, b) => b.updatedAt - a.updatedAt)
+                .map((t) => (
+                  <button
+                    key={t.id}
+                    className="agentSubItem"
+                    onClick={() => props.onSelectTask(t.id)}
+                  >
+                    <div className="agentSubTitle">
+                      {t.prompt.slice(0, 80)}
+                      {t.prompt.length > 80 ? '…' : ''}
+                    </div>
+                    <div className="agentSubMeta">
+                      {t.status} · {t.mode} · {t.steps.length} steps · {formatAgo(t.updatedAt)}
+                    </div>
+                  </button>
+                ))}
+            </div>
+          </div>
+        )}
+
+        <div className="dashSection">
+          <div className="dashSectionTitle">System</div>
+          <div className="agentDetailsMeta">
+            <span className="agentPill">
+              CPU: {runtime ? `${runtime.app.cpuPercent.toFixed(1)}%` : '—'}
+            </span>
+            <span className="agentPill">
+              RAM: {runtime ? `${runtime.app.memoryMB.toFixed(0)} MB` : '—'}
+            </span>
+            <span className="agentPill">
+              System free: {runtime ? `${runtime.system.freeMemMB.toFixed(0)} MB` : '—'}
+            </span>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+          <button className="btn" onClick={() => props.onSelectTask(selectedAgent.id)}>
+            Open agent
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="dashWrap">
@@ -284,10 +542,19 @@ export function TaskDashboard(props: {
 
           <div className="dashSection">
             <div className="dashSectionTitle">Agents</div>
-            {activeRoots.length === 0 ? (
+            {activeRoots.length === 0 && schedules.filter((s) => s.enabled).length === 0 ? (
               <div className="dashEmpty">No active agents right now.</div>
             ) : (
               <div className="agentGrid">
+                {schedules
+                  .filter((s) => s.enabled)
+                  .map((s) => (
+                    <ScheduleCard
+                      key={`sched-${s.id}`}
+                      schedule={s}
+                      onClick={() => setScheduleDetailsId(s.id)}
+                    />
+                  ))}
                 {activeRoots
                   .sort((a, b) => b.updatedAt - a.updatedAt)
                   .map((t) => (
@@ -312,111 +579,6 @@ export function TaskDashboard(props: {
             </div>
           </div>
 
-          {selectedAgent && (
-            <div className="modalBackdrop" onMouseDown={() => setAgentDetailsId(null)}>
-              <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-                <div className="modalHeader">
-                  <div className="modalTitle">Agent details</div>
-                  <button
-                    className="modalClose"
-                    onClick={() => setAgentDetailsId(null)}
-                    aria-label="Close"
-                  >
-                    &times;
-                  </button>
-                </div>
-
-                <div
-                  className="modalBody"
-                  style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
-                >
-                  <div className="agentDetailsBlock">
-                    <div className="agentDetailsPrompt">{selectedAgent.prompt}</div>
-                    <div className="agentDetailsMeta">
-                      <span className="agentPill">Status: {selectedAgent.status}</span>
-                      <span className="agentPill">Mode: {selectedAgent.mode}</span>
-                      <span className="agentPill">Steps: {selectedAgent.steps.length}</span>
-                      <span className="agentPill">
-                        Tokens:{' '}
-                        {selectedAgent.usage
-                          ? selectedAgent.usage.inputTokens + selectedAgent.usage.outputTokens
-                          : '—'}
-                      </span>
-                      <span className="agentPill">
-                        Updated: {formatAgo(selectedAgent.updatedAt)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="agentDetailsBlock">
-                    <div className="dashSectionTitle" style={{ marginBottom: 6 }}>
-                      Subagents
-                    </div>
-                    {selectedSubAgents.length === 0 ? (
-                      <div className="dashEmpty">No subagents currently running.</div>
-                    ) : (
-                      <div className="agentSubList">
-                        {selectedSubAgents
-                          .sort((a, b) => b.updatedAt - a.updatedAt)
-                          .map((t) => (
-                            <button
-                              key={t.id}
-                              className="agentSubItem"
-                              onClick={() => props.onSelectTask(t.id)}
-                            >
-                              <div className="agentSubTitle">
-                                {t.prompt.slice(0, 80)}
-                                {t.prompt.length > 80 ? '…' : ''}
-                              </div>
-                              <div className="agentSubMeta">
-                                {t.status} · {t.mode} · {t.steps.length} steps ·{' '}
-                                {formatAgo(t.updatedAt)}
-                              </div>
-                            </button>
-                          ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="agentDetailsBlock">
-                    <div className="dashSectionTitle" style={{ marginBottom: 6 }}>
-                      Computer (app)
-                    </div>
-                    <div className="agentDetailsMeta">
-                      <span className="agentPill">
-                        CPU: {runtime ? `${runtime.app.cpuPercent.toFixed(1)}%` : '—'}
-                      </span>
-                      <span className="agentPill">
-                        RAM: {runtime ? `${runtime.app.memoryMB.toFixed(0)} MB` : '—'}
-                      </span>
-                      <span className="agentPill">
-                        Processes: {runtime ? runtime.app.processCount : '—'}
-                      </span>
-                      <span className="agentPill">
-                        System free: {runtime ? `${runtime.system.freeMemMB.toFixed(0)} MB` : '—'}
-                      </span>
-                    </div>
-                    <div className="settingsFieldHint">
-                      Per-agent CPU/RAM is not available yet (all tasks run inside the same Electron
-                      processes).
-                    </div>
-                  </div>
-                </div>
-
-                <div
-                  className="modalActions"
-                  style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}
-                >
-                  <button className="btnSecondary" onClick={() => setAgentDetailsId(null)}>
-                    Close
-                  </button>
-                  <button className="btn" onClick={() => props.onSelectTask(selectedAgent.id)}>
-                    Open agent
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </>
       )}
 

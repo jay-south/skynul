@@ -83,6 +83,9 @@ export function nextCronTime(cronExpr: string, afterMs: number): number {
 export class ScheduleRunner {
   private timer: ReturnType<typeof setInterval> | null = null
   private taskManager: TaskManager
+  private ticking = false
+  /** Schedule IDs already triggered this tick cycle — prevents double-fire */
+  private recentlyFired = new Set<string>()
 
   constructor(taskManager: TaskManager) {
     this.taskManager = taskManager
@@ -103,6 +106,8 @@ export class ScheduleRunner {
   }
 
   private async tick(): Promise<void> {
+    if (this.ticking) return // prevent overlapping ticks
+    this.ticking = true
     try {
       const schedules = await loadSchedules()
       const now = Date.now()
@@ -111,8 +116,12 @@ export class ScheduleRunner {
       for (const sched of schedules) {
         if (!sched.enabled) continue
         if (sched.nextRunAt > now) continue
+        if (this.recentlyFired.has(sched.id)) continue
 
-        // Time to run this schedule
+        // Mark as fired BEFORE running to prevent double-fire
+        this.recentlyFired.add(sched.id)
+        setTimeout(() => this.recentlyFired.delete(sched.id), 120_000) // clear after 2min
+
         await this.runSchedule(sched)
 
         sched.lastRunAt = now
@@ -125,6 +134,8 @@ export class ScheduleRunner {
       }
     } catch (e) {
       console.warn('[ScheduleRunner] tick error:', e)
+    } finally {
+      this.ticking = false
     }
   }
 
