@@ -56,14 +56,15 @@ nativeTheme.themeSource = 'dark'
 
 function createWindow(): BrowserWindow {
   // Create the browser window.
+  const useNativeFrame = process.platform === 'linux'
   const mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
     minWidth: 600,
     minHeight: 400,
     show: false,
-    frame: true,
-    transparent: false,
+    frame: useNativeFrame,
+    transparent: !useNativeFrame,
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
