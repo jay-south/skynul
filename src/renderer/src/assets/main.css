@@ -921,6 +921,7 @@ code {
 .modalBackdrop {
   position: fixed;
   inset: 0;
+  z-index: 200;
   background: rgba(0, 0, 0, 0.35);
   display: flex;
   align-items: center;
@@ -1014,6 +1015,207 @@ code {
   font-weight: 600;
   color: var(--nb-muted);
   margin-bottom: 10px;
+}
+
+/* ── Auth modal (login) — utilitario/industrial, sin "purple" ─────────── */
+
+.authModalBackdrop {
+  background: color-mix(in srgb, #000, transparent 50%);
+  backdrop-filter: blur(10px) saturate(120%);
+  animation: authModalBackdropIn 160ms ease;
+}
+
+.authModal {
+  width: 460px;
+  max-width: 100%;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--nb-border), transparent 25%);
+  background:
+    radial-gradient(
+      700px 220px at 20% 0%,
+      color-mix(in srgb, var(--nb-accent-2), transparent 88%),
+      transparent 60%
+    ),
+    linear-gradient(180deg, color-mix(in srgb, var(--nb-panel-2), #000 6%), var(--nb-panel-2));
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 26px 70px rgba(0, 0, 0, 0.55);
+  animation: authModalIn 190ms cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.authModalHeader {
+  padding: 16px 16px 12px;
+}
+
+.authModalHeaderText {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.authModalTitle {
+  font-size: 16px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.authModalSubtitle {
+  font-size: 12px;
+  font-weight: 520;
+  color: var(--nb-muted);
+}
+
+.authModalClose {
+  background: color-mix(in srgb, var(--nb-panel), transparent 10%);
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    transform 120ms ease;
+}
+
+.authModalClose:hover {
+  background: color-mix(in srgb, var(--nb-text), transparent 92%);
+  border-color: color-mix(in srgb, var(--nb-text), transparent 78%);
+}
+
+.authModalClose:active {
+  transform: translateY(1px);
+}
+
+.authModalClose:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 40%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--nb-accent-2), transparent 84%);
+}
+
+.authModalBody {
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: 14px 16px 16px;
+}
+
+.authModalHint {
+  border: 1px dashed color-mix(in srgb, var(--nb-border), transparent 20%);
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 520;
+  color: var(--nb-muted);
+  background: color-mix(in srgb, var(--nb-panel), transparent 35%);
+}
+
+.authModalError {
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.authModalProviders {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.authModalProviderBtn {
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--nb-border);
+  background: color-mix(in srgb, var(--nb-panel), transparent 6%);
+  color: var(--nb-text);
+  font-size: 13px;
+  font-weight: 650;
+  transition:
+    transform 120ms ease,
+    background 140ms ease,
+    border-color 140ms ease;
+}
+
+.authModalProviderIcon {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--nb-border), transparent 15%);
+  background: color-mix(in srgb, var(--nb-text), transparent 93%);
+  color: color-mix(in srgb, var(--nb-text), transparent 6%);
+}
+
+.authModalProviderLabel {
+  min-width: 0;
+}
+
+.authModalProviderBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 55%);
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 92%);
+}
+
+.authModalProviderBtn:active:not(:disabled) {
+  transform: translateY(0px);
+}
+
+.authModalProviderBtn:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 40%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--nb-accent-2), transparent 84%);
+}
+
+.authModalProviderBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.authModalFooter {
+  padding: 12px 16px;
+}
+
+.authModalCancelBtn:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 50%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--nb-accent-2), transparent 86%);
+}
+
+.authModal[data-busy='true'] .authModalProviderBtn {
+  transform: none;
+}
+
+@keyframes authModalBackdropIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes authModalIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .authModalBackdrop,
+  .authModal {
+    animation: none !important;
+  }
+  .authModalProviderBtn,
+  .authModalClose {
+    transition: none !important;
+  }
 }
 
 .formGrid {
@@ -2985,7 +3187,9 @@ code {
   padding: 0;
   align-self: flex-start;
 }
-.schedDetailBack:hover { color: var(--nb-text); }
+.schedDetailBack:hover {
+  color: var(--nb-text);
+}
 
 .schedDetailPrompt {
   font-size: 18px;
@@ -3033,6 +3237,12 @@ code {
   color: var(--nb-text);
   cursor: pointer;
 }
-.schedDetailBtn:hover { background: var(--nb-panel-2); }
-.schedDetailBtn.danger { color: var(--nb-danger, #e55); }
-.schedDetailBtn.danger:hover { background: color-mix(in srgb, var(--nb-danger, #e55), transparent 90%); }
+.schedDetailBtn:hover {
+  background: var(--nb-panel-2);
+}
+.schedDetailBtn.danger {
+  color: var(--nb-danger, #e55);
+}
+.schedDetailBtn.danger:hover {
+  background: color-mix(in srgb, var(--nb-danger, #e55), transparent 90%);
+}
