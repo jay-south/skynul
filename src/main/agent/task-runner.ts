@@ -815,6 +815,22 @@ export class TaskRunner {
         const { kimiVisionRespond } = await import('../providers/kimi-vision')
         return kimiVisionRespond({ systemPrompt, messages })
       }
+      case 'glm': {
+        const { glmVisionRespond } = await import('../providers/glm-vision')
+        return glmVisionRespond({ systemPrompt, messages })
+      }
+      case 'minimax': {
+        const { minimaxVisionRespond } = await import('../providers/minimax-vision')
+        return minimaxVisionRespond({ systemPrompt, messages })
+      }
+      case 'openrouter': {
+        const { openrouterVisionRespond } = await import('../providers/openrouter-vision')
+        return openrouterVisionRespond({ systemPrompt, messages })
+      }
+      case 'gemini': {
+        const { geminiVisionRespond } = await import('../providers/gemini-vision')
+        return geminiVisionRespond({ systemPrompt, messages })
+      }
       default:
         throw new Error(`Unsupported provider: ${this.opts.provider}`)
     }

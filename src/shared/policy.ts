@@ -4,7 +4,15 @@ export type LanguageCode = 'en' | 'es'
 
 export type ThemeMode = 'system' | 'light' | 'dark'
 
-export type ProviderId = 'chatgpt' | 'claude' | 'deepseek' | 'kimi'
+export type ProviderId =
+  | 'chatgpt'
+  | 'claude'
+  | 'deepseek'
+  | 'kimi'
+  | 'glm'
+  | 'minimax'
+  | 'openrouter'
+  | 'gemini'
 
 export type PolicyState = {
   workspaceRoot: string | null

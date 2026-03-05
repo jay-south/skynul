@@ -24,6 +24,10 @@ import chatgptIcon from './assets/chatgpt.svg'
 import claudeIcon from './assets/claude-logo.svg'
 import deepseekIcon from './assets/deepseek.svg'
 import kimiIcon from './assets/kimi.svg'
+import glmIcon from './assets/glm.svg'
+import minimaxIcon from './assets/minimax.svg'
+import openrouterIcon from './assets/openrouter.svg'
+import geminiIcon from './assets/gemini.svg'
 import skynulLogo from './assets/logo-skynul.svg'
 
 const CAPABILITIES: Array<{ id: CapabilityId; title: string; desc: string }> = [
@@ -58,7 +62,11 @@ const PROVIDERS: Array<{
   { id: 'chatgpt', label: 'ChatGPT Pro', icon: chatgptIcon, desc: 'OAuth · gpt-5.2 via Codex' },
   { id: 'claude', label: 'Claude', icon: claudeIcon, desc: 'Supabase edge function' },
   { id: 'deepseek', label: 'DeepSeek', icon: deepseekIcon, desc: 'Supabase edge function' },
-  { id: 'kimi', label: 'Kimi', icon: kimiIcon, desc: 'API key · api.kimi.com (Kimi for Coding)' }
+  { id: 'kimi', label: 'Kimi', icon: kimiIcon, desc: 'API key · api.kimi.com (Kimi for Coding)' },
+  { id: 'glm', label: 'GLM', icon: glmIcon, desc: 'API key · open.bigmodel.cn' },
+  { id: 'minimax', label: 'MiniMax M2.5', icon: minimaxIcon, desc: 'API key · api.minimax.chat' },
+  { id: 'openrouter', label: 'OpenRouter', icon: openrouterIcon, desc: 'API key · openrouter.ai' },
+  { id: 'gemini', label: 'Gemini', icon: geminiIcon, desc: 'API key · ai.google.dev' }
 ]
 
 type SidebarTab = 'tasks' | 'settings' | 'dashboard'
@@ -402,7 +410,7 @@ function App(): React.JSX.Element {
   // Refresh API key status for provider badges when opening Settings
   useEffect(() => {
     if (sidebarTab !== 'settings') return
-    const ids: ProviderId[] = ['kimi', 'claude', 'deepseek']
+    const ids: ProviderId[] = ['kimi', 'claude', 'deepseek', 'glm', 'minimax', 'openrouter', 'gemini']
     let alive = true
     void Promise.all(
       ids.map((id) => window.skynul.hasProviderApiKey(id).then((has) => [id, has] as const))
@@ -417,7 +425,15 @@ function App(): React.JSX.Element {
   // When an API-key provider is selected, check if it has a key and clear draft
   const apiKeyProvider = policy?.provider.active
   useEffect(() => {
-    if (apiKeyProvider !== 'kimi' && apiKeyProvider !== 'claude' && apiKeyProvider !== 'deepseek')
+    if (
+      apiKeyProvider !== 'kimi' &&
+      apiKeyProvider !== 'claude' &&
+      apiKeyProvider !== 'deepseek' &&
+      apiKeyProvider !== 'glm' &&
+      apiKeyProvider !== 'minimax' &&
+      apiKeyProvider !== 'openrouter' &&
+      apiKeyProvider !== 'gemini'
+    )
       return
     setApiKeyDraft('')
     let alive = true
@@ -535,7 +551,16 @@ function App(): React.JSX.Element {
 
   const saveProviderApiKey = async (): Promise<void> => {
     const active = policy?.provider.active
-    if (active !== 'kimi' && active !== 'claude' && active !== 'deepseek') return
+    if (
+      active !== 'kimi' &&
+      active !== 'claude' &&
+      active !== 'deepseek' &&
+      active !== 'glm' &&
+      active !== 'minimax' &&
+      active !== 'openrouter' &&
+      active !== 'gemini'
+    )
+      return
     const key = apiKeyDraft.trim()
     if (!key) {
       setError('API key is required.')
@@ -1260,16 +1285,41 @@ function App(): React.JSX.Element {
                           ((p.id === 'chatgpt' && chatgptConnected) ||
                             (p.id !== 'chatgpt' && providerApiKeys[p.id]))
                         const isKimi = p.id === 'kimi'
+                        const isGLM = p.id === 'glm'
+                        const isMiniMax = p.id === 'minimax'
+                        const isOpenRouter = p.id === 'openrouter'
+                        const isGemini = p.id === 'gemini'
                         return (
                           <button
                             key={p.id}
                             type="button"
-                            className={`providerCard ${isActive ? 'active' : ''} ${isKimi ? 'providerCard--kimi' : ''}`}
+                            className={`providerCard ${isActive ? 'active' : ''} ${isKimi ? 'providerCard--kimi' : ''} ${isGLM ? 'providerCard--glm' : ''} ${isMiniMax ? 'providerCard--minimax' : ''} ${isOpenRouter ? 'providerCard--openrouter' : ''} ${isGemini ? 'providerCard--gemini' : ''}`}
                             onClick={() => void setActiveProvider(p.id)}
                             disabled={providerSwitchBusy}
                           >
-                            <img src={p.icon} alt={p.label} className="providerIcon" />
+                            {isGLM ? (
+                              <div
+                                className="providerTextLogo providerTextLogo--bold"
+                                aria-label={p.label}
+                              >
+                                GLM
+                              </div>
+                            ) : isMiniMax ? (
+                              <div
+                                className="providerTextLogo providerTextLogo--regular"
+                                aria-label={p.label}
+                              >
+                                MiniMax M2.5
+                              </div>
+                            ) : (
+                              <img src={p.icon} alt={p.label} className="providerIcon" />
+                            )}
                             {isKimi && <div className="providerCardLabel">KIMI k2-5</div>}
+                            {isOpenRouter && (
+                              <div className="providerCardLabel providerCardLabel--medium">
+                                OPEN ROUTER
+                              </div>
+                            )}
                             {showConnected && (
                               <div className="providerCardBadge">
                                 <span className="providerCardBadgeCheck" aria-hidden>
@@ -1321,7 +1371,11 @@ function App(): React.JSX.Element {
                   {/* ── API key for Kimi / Claude / DeepSeek (when that provider is active) ── */}
                   {(policy?.provider.active === 'kimi' ||
                     policy?.provider.active === 'claude' ||
-                    policy?.provider.active === 'deepseek') && (
+                    policy?.provider.active === 'deepseek' ||
+                    policy?.provider.active === 'glm' ||
+                    policy?.provider.active === 'minimax' ||
+                    policy?.provider.active === 'openrouter' ||
+                    policy?.provider.active === 'gemini') && (
                     <div className="settingsSection">
                       <div className="settingsLabel">
                         {t(
@@ -1330,6 +1384,10 @@ function App(): React.JSX.Element {
                             | 'settings_kimi_key'
                             | 'settings_claude_key'
                             | 'settings_deepseek_key'
+                            | 'settings_glm_key'
+                            | 'settings_minimax_key'
+                            | 'settings_openrouter_key'
+                            | 'settings_gemini_key'
                         )}
                       </div>
                       <div className="settingsField">
@@ -1341,6 +1399,10 @@ function App(): React.JSX.Element {
                                 | 'kimi_key_configured'
                                 | 'claude_key_configured'
                                 | 'deepseek_key_configured'
+                                | 'glm_key_configured'
+                                | 'minimax_key_configured'
+                                | 'openrouter_key_configured'
+                                | 'gemini_key_configured'
                             )}
                           </div>
                         )}
@@ -1367,6 +1429,10 @@ function App(): React.JSX.Element {
                               | 'kimi_key_get_from'
                               | 'claude_key_get_from'
                               | 'deepseek_key_get_from'
+                              | 'glm_key_get_from'
+                              | 'minimax_key_get_from'
+                              | 'openrouter_key_get_from'
+                              | 'gemini_key_get_from'
                           )}
                         </div>
                       </div>
