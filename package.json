@@ -1,9 +1,13 @@
 {
   "name": "skynul",
-  "version": "1.0.0",
+  "version": "0.1.0-alpha.1",
   "description": "Skynul - local-first desktop agent with explicit permissions",
   "main": "./out/main/index.js",
   "author": "Skynul",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jay-south/skynul.git"
+  },
   "homepage": "https://example.com",
   "scripts": {
     "format": "prettier --write .",

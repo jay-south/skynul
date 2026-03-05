@@ -39,6 +39,17 @@ const MESSAGES = {
     common_close: 'Close',
     common_cancel: 'Cancel',
 
+    auth_login: 'Sign in',
+    auth_logout: 'Sign out',
+    auth_choose_provider: 'Choose a sign-in method',
+    auth_provider_google: 'Google',
+    auth_provider_github: 'GitHub',
+    auth_not_signed_in: 'Not signed in',
+    auth_loading: 'Loading...',
+    auth_loading_account: 'Loading account...',
+    auth_supabase_not_configured_hint:
+      'Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.',
+
     workspace_none: 'No workspace',
 
     composer_placeholder: 'Ask anything. Files and images work too.',
@@ -79,6 +90,7 @@ const MESSAGES = {
     account_supabase_not_configured: 'Supabase not configured.',
     account_sign_out: 'Sign out',
     account_sign_in_google: 'Sign in with Google',
+    account_sign_in_github: 'Sign in with GitHub',
     account_network_cap_hint: 'Network capability must be enabled to chat.',
 
     chatgpt_status_connected: 'Connected — using your ChatGPT Pro subscription.',
@@ -93,7 +105,7 @@ const MESSAGES = {
     provider_openai: 'OpenAI',
     provider_claude: 'Claude',
     provider_deepseek: 'Deepseek',
-    provider_requires_account: 'Sign in with Google to use this provider.',
+    provider_requires_account: 'Sign in to use this provider.',
     provider_connected: 'Connected',
 
     settings_deepseek_key: 'DeepSeek API Key',
@@ -145,7 +157,6 @@ const MESSAGES = {
 
     task_dropdown_save_prompt: 'Save prompt',
     task_dropdown_delete: 'Delete',
-
 
     task_approve_title: 'Approve Task',
     task_approve_task: 'Task',
@@ -227,6 +238,17 @@ const MESSAGES = {
     common_close: 'Cerrar',
     common_cancel: 'Cancelar',
 
+    auth_login: 'Iniciar sesión',
+    auth_logout: 'Cerrar sesión',
+    auth_choose_provider: 'Elegí un método para iniciar sesión',
+    auth_provider_google: 'Google',
+    auth_provider_github: 'GitHub',
+    auth_not_signed_in: 'No iniciaste sesión',
+    auth_loading: 'Cargando...',
+    auth_loading_account: 'Cargando cuenta...',
+    auth_supabase_not_configured_hint:
+      'Supabase no está configurado. Seteá VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.',
+
     workspace_none: 'Sin workspace',
 
     composer_placeholder: 'Preguntá lo que quieras. Archivos e imágenes también.',
@@ -240,7 +262,8 @@ const MESSAGES = {
     settings_open_title: 'Configuracion',
     settings_workspace: 'Workspace',
     settings_pick_workspace: 'Elegir workspace',
-    settings_workspace_hint: 'Carpeta en la que el asistente puede leer y trabajar. Elegí una para empezar.',
+    settings_workspace_hint:
+      'Carpeta en la que el asistente puede leer y trabajar. Elegí una para empezar.',
     settings_capabilities: 'Capabilities',
     settings_theme: 'Tema',
     settings_language: 'Idioma',
@@ -264,9 +287,10 @@ const MESSAGES = {
     account_connected_as: 'Conectado como {email}.',
     account_connected: 'Conectado.',
     account_not_connected: 'No conectado.',
-    account_supabase_not_configured: 'Supabase no esta configurado.',
-    account_sign_out: 'Cerrar sesion',
-    account_sign_in_google: 'Iniciar sesion con Google',
+    account_supabase_not_configured: 'Supabase no está configurado.',
+    account_sign_out: 'Cerrar sesión',
+    account_sign_in_google: 'Iniciar sesión con Google',
+    account_sign_in_github: 'Iniciar sesión con GitHub',
     account_network_cap_hint: 'Para chatear, tenes que habilitar la capability de red.',
 
     chatgpt_status_connected: 'Conectado — usando tu suscripcion de ChatGPT Pro.',
@@ -281,7 +305,7 @@ const MESSAGES = {
     provider_openai: 'OpenAI',
     provider_claude: 'Claude',
     provider_deepseek: 'Deepseek',
-    provider_requires_account: 'Inicia sesion con Google para usar este proveedor.',
+    provider_requires_account: 'Iniciá sesión para usar este proveedor.',
     provider_connected: 'Conectado',
 
     settings_deepseek_key: 'Clave API de DeepSeek',

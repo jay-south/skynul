@@ -56,14 +56,15 @@ nativeTheme.themeSource = 'dark'
 
 function createWindow(): BrowserWindow {
   // Create the browser window.
+  const useNativeFrame = process.platform === 'linux'
   const mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
     minWidth: 600,
     minHeight: 400,
     show: false,
-    frame: false,
-    transparent: true,
+    frame: useNativeFrame,
+    transparent: !useNativeFrame,
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
@@ -78,6 +79,9 @@ function createWindow(): BrowserWindow {
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
   })
+
+  // Show window immediately (ready-to-show not firing on some Wayland setups)
+  mainWindow.show()
 
   // Notify renderer when maximize state changes so it can adapt the layout.
   // On Windows, frameless+transparent windows overflow the work area when maximized.
@@ -207,11 +211,14 @@ app.whenReady().then(() => {
 
   // Start CDP relay for browser extension tasks
   const cdpRelay = new CdpRelay()
-  void cdpRelay.start().then(() => {
-    taskManager!.setCdpRelay(cdpRelay)
-  }).catch((e) => {
-    console.warn('[CdpRelay] Failed to start:', e)
-  })
+  void cdpRelay
+    .start()
+    .then(() => {
+      taskManager!.setCdpRelay(cdpRelay)
+    })
+    .catch((e) => {
+      console.warn('[CdpRelay] Failed to start:', e)
+    })
 
   registerIpcHandlers({
     openAuthUrl: (url) => openAuthUrl(win, url),

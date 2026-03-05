@@ -16,6 +16,7 @@ import { ScheduleDetail, SchedulePanel, NewScheduleForm } from './components/Sch
 import { t } from './i18n'
 import { SkillGraph } from './components/SkillGraph'
 import { ChannelSettings } from './components/ChannelSettings'
+import { AuthModal, type AuthProvider } from './components/AuthModal'
 import type { Skill } from '../../shared/skill'
 import type { Schedule } from '../../shared/schedule'
 
@@ -223,6 +224,10 @@ function App(): React.JSX.Element {
   const [accountEmail, setAccountEmail] = useState<string>('')
   const [accountConnected, setAccountConnected] = useState<boolean>(false)
   const [accountBusy, setAccountBusy] = useState<boolean>(false)
+  const [accountLoading, setAccountLoading] = useState<boolean>(() => SUPABASE_CONFIGURED)
+
+  const [authModalOpen, setAuthModalOpen] = useState(false)
+  const [authError, setAuthError] = useState<string>('')
 
   const [chatgptConnected, setChatgptConnected] = useState<boolean>(false)
   const [chatgptBusy, setChatgptBusy] = useState<boolean>(false)
@@ -309,17 +314,29 @@ function App(): React.JSX.Element {
     return window.skynul.onWindowMaximized(setIsMaximized)
   }, [])
 
-  // ── ESC key: back to tasks dashboard ──────────────────────────────────
+  // ── ESC key: close UI layers, then back ───────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent): void => {
       if (e.key !== 'Escape') return
+
+      if (authModalOpen) {
+        setAuthModalOpen(false)
+        setAuthError('')
+        return
+      }
+
+      if (profileOpen) {
+        setProfileOpen(false)
+        return
+      }
+
       if (sidebarTab === 'settings') {
         setSidebarTab('tasks')
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [sidebarTab])
+  }, [authModalOpen, profileOpen, sidebarTab])
 
   // ── Task update listener ─────────────────────────────────────────────
   useEffect(() => {
@@ -359,22 +376,29 @@ function App(): React.JSX.Element {
     if (!SUPABASE_CONFIGURED || !supabase) return
 
     let alive = true
-    void supabase.auth.getUser().then(({ data, error }) => {
-      if (!alive) return
-      if (error || !data.user) {
-        setAccountConnected(false)
-        setAccountEmail('')
-        return
-      }
-      setAccountConnected(true)
-      setAccountEmail(data.user.email ?? '')
-    })
+    setAccountLoading(true)
+    void supabase.auth
+      .getUser()
+      .then(({ data, error }) => {
+        if (!alive) return
+        if (error || !data.user) {
+          setAccountConnected(false)
+          setAccountEmail('')
+          return
+        }
+        setAccountConnected(true)
+        setAccountEmail(data.user.email ?? '')
+      })
+      .finally(() => {
+        if (alive) setAccountLoading(false)
+      })
 
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!alive) return
       const email = session?.user?.email ?? ''
       setAccountConnected(Boolean(session))
       setAccountEmail(email)
+      setAccountLoading(false)
     })
 
     return () => {
@@ -581,17 +605,14 @@ function App(): React.JSX.Element {
     }
   }
 
-  const signIn = async (): Promise<void> => {
-    if (!SUPABASE_CONFIGURED || !supabase) {
-      setError('Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.')
-      return
-    }
+  const signIn = async (provider: AuthProvider): Promise<boolean> => {
+    if (!SUPABASE_CONFIGURED || !supabase) return false
 
-    setError('')
+    setAuthError('')
     setAccountBusy(true)
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+        provider,
         options: {
           redirectTo: OAUTH_REDIRECT_TO,
           skipBrowserRedirect: true
@@ -600,11 +621,18 @@ function App(): React.JSX.Element {
       if (error) throw error
       if (!data?.url) throw new Error('No OAuth URL returned')
       await window.skynul.openExternal(data.url)
+      return true
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setAuthError(e instanceof Error ? e.message : String(e))
+      return false
     } finally {
       setAccountBusy(false)
     }
+  }
+
+  const openAuthModal = (): void => {
+    setAuthError('')
+    setAuthModalOpen(true)
   }
 
   const signOut = async (): Promise<void> => {
@@ -979,7 +1007,11 @@ function App(): React.JSX.Element {
           <div style={{ position: 'relative' }}>
             <button className="profileBtn" onClick={() => setProfileOpen(!profileOpen)}>
               <div className="profileAvatar">{(accountEmail || 'U').slice(0, 2).toUpperCase()}</div>
-              <span className="profileEmail">{accountEmail || 'Not signed in'}</span>
+              <span className="profileEmail">
+                {accountLoading
+                  ? t(lang, 'auth_loading_account')
+                  : accountEmail || t(lang, 'auth_not_signed_in')}
+              </span>
               <svg
                 viewBox="0 0 24 24"
                 width="12"
@@ -1016,18 +1048,37 @@ function App(): React.JSX.Element {
                   </svg>
                   Settings
                 </button>
-                <button
-                  className="profileDropdownItem danger"
-                  onClick={() => {
-                    void signOut()
-                    setProfileOpen(false)
-                  }}
-                >
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                    <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
-                  </svg>
-                  Log out
-                </button>
+                {accountLoading ? (
+                  <button className="profileDropdownItem" disabled>
+                    {t(lang, 'auth_loading')}
+                  </button>
+                ) : accountConnected ? (
+                  <button
+                    className="profileDropdownItem danger"
+                    onClick={() => {
+                      void signOut()
+                      setProfileOpen(false)
+                    }}
+                  >
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                      <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+                    </svg>
+                    {t(lang, 'auth_logout')}
+                  </button>
+                ) : (
+                  <button
+                    className="profileDropdownItem"
+                    onClick={() => {
+                      setProfileOpen(false)
+                      openAuthModal()
+                    }}
+                  >
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                      <path d="M10 17l5-5-5-5v10zm9-14H5c-1.1 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z" />
+                    </svg>
+                    {t(lang, 'auth_login')}
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -1077,8 +1128,17 @@ function App(): React.JSX.Element {
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                   <div className="schedProcessBackBar">
-                    <button className="schedProcessBackBtn" onClick={() => setViewingProcessTaskId(null)}>
-                      <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
+                    <button
+                      className="schedProcessBackBtn"
+                      onClick={() => setViewingProcessTaskId(null)}
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        width="14"
+                        height="14"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
                         <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z" />
                       </svg>
                       Back
@@ -1104,7 +1164,10 @@ function App(): React.JSX.Element {
                     tasks={tasks}
                     onToggle={() => void handleToggleSchedule(s.id)}
                     onDelete={() => void handleDeleteSchedule(s.id)}
-                    onBack={() => { setActiveScheduleId(null); setViewingProcessTaskId(null) }}
+                    onBack={() => {
+                      setActiveScheduleId(null)
+                      setViewingProcessTaskId(null)
+                    }}
                     onViewProcess={(taskId) => setViewingProcessTaskId(taskId)}
                   />
                 )
@@ -1524,13 +1587,15 @@ function App(): React.JSX.Element {
                     <div className="settingsLabel">{t(lang, 'settings_account')}</div>
                     <div className="settingsField">
                       <div className="settingsFieldHint">
-                        {SUPABASE_CONFIGURED
-                          ? accountConnected
-                            ? accountEmail
-                              ? t(lang, 'account_connected_as', { email: accountEmail })
-                              : t(lang, 'account_connected')
-                            : t(lang, 'account_not_connected')
-                          : t(lang, 'account_supabase_not_configured')}
+                        {!SUPABASE_CONFIGURED
+                          ? t(lang, 'account_supabase_not_configured')
+                          : accountLoading
+                            ? t(lang, 'auth_loading_account')
+                            : accountConnected
+                              ? accountEmail
+                                ? t(lang, 'account_connected_as', { email: accountEmail })
+                                : t(lang, 'account_connected')
+                              : t(lang, 'account_not_connected')}
                       </div>
                       {accountConnected ? (
                         <button
@@ -1543,10 +1608,10 @@ function App(): React.JSX.Element {
                       ) : (
                         <button
                           className="btn"
-                          onClick={() => void signIn()}
-                          disabled={accountBusy}
+                          onClick={openAuthModal}
+                          disabled={accountBusy || accountLoading}
                         >
-                          {t(lang, 'account_sign_in_google')}
+                          {t(lang, 'auth_login')}
                         </button>
                       )}
                     </div>
@@ -1810,6 +1875,24 @@ function App(): React.JSX.Element {
           </div>
         </div>
       )}
+
+      <AuthModal
+        open={authModalOpen}
+        lang={lang}
+        supabaseConfigured={SUPABASE_CONFIGURED}
+        busy={accountBusy}
+        error={authError}
+        onClearError={() => setAuthError('')}
+        onClose={() => {
+          setAuthModalOpen(false)
+          setAuthError('')
+        }}
+        onSignIn={(provider) => {
+          void signIn(provider).then((ok) => {
+            if (ok) setAuthModalOpen(false)
+          })
+        }}
+      />
     </div>
   )
 }
