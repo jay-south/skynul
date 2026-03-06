@@ -9,11 +9,12 @@ export function InputBar(props: {
   autoCaps: TaskCapabilityId[]
   /** true = compact mode (inside feed, full-width border) */
   compact: boolean
-  onSubmit: (text: string) => void
+  onSubmit: (text: string, attachments?: string[]) => void
   onTextChange?: (text: string) => void
   onStop?: () => void
 }): React.JSX.Element {
   const [text, setText] = useState('')
+  const [attachments, setAttachments] = useState<string[]>([])
   const [isRecording, setIsRecording] = useState(false)
   const recognitionRef = useRef<InstanceType<typeof SpeechRecognition> | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -21,9 +22,24 @@ export function InputBar(props: {
   const submit = (): void => {
     const trimmed = text.trim()
     if (!trimmed) return
-    props.onSubmit(trimmed)
+    props.onSubmit(trimmed, attachments.length ? attachments : undefined)
     setText('')
+    setAttachments([])
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
+  }
+
+  const pickFiles = async (): Promise<void> => {
+    try {
+      const res = await window.skynul.showOpenFilesDialog()
+      if (res.canceled) return
+      const next = [...attachments]
+      for (const p of res.filePaths) {
+        if (!next.includes(p)) next.push(p)
+      }
+      setAttachments(next)
+    } catch {
+      // ignore
+    }
   }
 
   const toggleMic = (): void => {
@@ -54,7 +70,10 @@ export function InputBar(props: {
   }
 
   const handleKeyDown = (e: React.KeyboardEvent): void => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      submit()
+    }
   }
 
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>): void => {
@@ -91,6 +110,37 @@ export function InputBar(props: {
     </button>
   )
 
+  const attachButton = (
+    <button className="inputBarAttachBtn" onClick={() => void pickFiles()} title="Attach files">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+        <path d="M19 11h-6V5h-2v6H5v2h6v6h2v-6h6z" />
+      </svg>
+    </button>
+  )
+
+  const attachmentsRow =
+    attachments.length > 0 ? (
+      <div className="inputBarAttachments" aria-label="Attachments">
+        {attachments.slice(0, 8).map((p) => (
+          <div key={p} className="inputBarAttachment" title={p}>
+            <span className="inputBarAttachmentName">{p.split(/[\\/]/).pop() || p}</span>
+            <button
+              className="inputBarAttachmentRemove"
+              onClick={() => setAttachments((prev) => prev.filter((x) => x !== p))}
+              title="Remove"
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                <path d="M18.3 5.71 12 12l6.3 6.29-1.41 1.42L10.59 13.4 4.29 19.7 2.88 18.29 9.17 12 2.88 5.71 4.29 4.29l6.3 6.3 6.29-6.3z" />
+              </svg>
+            </button>
+          </div>
+        ))}
+        {attachments.length > 8 ? (
+          <div className="inputBarAttachmentMore">+{attachments.length - 8}</div>
+        ) : null}
+      </div>
+    ) : null
+
   const sendButton = (
     <button
       className="inputBarSendBtn"
@@ -110,6 +160,7 @@ export function InputBar(props: {
       <div className="inputBarWrap">
         <div className="inputBar">
           <div className="inputBarInner">
+            {attachButton}
             <textarea
               ref={textareaRef}
               className="inputBarTextarea"
@@ -131,6 +182,7 @@ export function InputBar(props: {
               {sendButton}
             </div>
           </div>
+          {attachmentsRow}
         </div>
       </div>
     )
@@ -141,6 +193,7 @@ export function InputBar(props: {
     <div className="inputBar">
       {capsHint && <div className="inputBarCapsHint">{capsHint}</div>}
       <div className="inputBarInner">
+        {attachButton}
         <textarea
           ref={textareaRef}
           className="inputBarTextarea"
@@ -155,6 +208,7 @@ export function InputBar(props: {
           {sendButton}
         </div>
       </div>
+      {attachmentsRow}
     </div>
   )
 }

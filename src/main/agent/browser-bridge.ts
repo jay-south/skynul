@@ -38,6 +38,15 @@ export class BrowserBridge {
     this.tabId = res.tabId
   }
 
+  /** Reuse an existing task tab (e.g. shared root tab for sub-agents). */
+  useExistingTab(tabId: number): void {
+    this.tabId = tabId
+  }
+
+  get activeTabId(): number | null {
+    return this.tabId
+  }
+
   /** Send a command scoped to this bridge's tab. */
   private cmd(action: string, params?: Record<string, unknown>): Promise<unknown> {
     return this.relay.sendCommand(action, { ...params, tabId: this.tabId })
@@ -100,7 +109,18 @@ export class BrowserBridge {
     return typeof result === 'string' ? result : JSON.stringify(result)
   }
 
-  async getFrames(): Promise<Array<{ id: string; url: string; name: string; parentId: string | null }>> {
+  async screenshot(): Promise<string> {
+    const result = (await this.cmd('screenshot')) as { data?: string }
+    return result?.data ?? ''
+  }
+
+  async uploadFile(selector: string, filePaths: string[], frameId?: string): Promise<void> {
+    await this.cmd('uploadFile', { selector, filePaths, frameId })
+  }
+
+  async getFrames(): Promise<
+    Array<{ id: string; url: string; name: string; parentId: string | null }>
+  > {
     const result = await this.cmd('getFrames')
     return result as Array<{ id: string; url: string; name: string; parentId: string | null }>
   }

@@ -94,9 +94,9 @@ export function formatMemoriesForPrompt(memories: TaskMemory[]): string {
   if (memories.length === 0) return ''
   const lines = memories.map((m, i) => {
     const status = m.outcome === 'completed' ? 'SUCCESS' : 'FAILED'
-    return `[Memory ${i + 1}] (${status}) Task: "${m.prompt}"\nLearnings: ${m.learnings}`
+    return `[Memory ${i + 1}] (${status}) Task: "${m.prompt}"\n${m.learnings}`
   })
-  return `\n## Relevant past experience:\n${lines.join('\n\n')}\n`
+  return `\n## Past experience (use working selectors and avoid failed strategies):\n${lines.join('\n\n')}\n`
 }
 
 export function closeMemoryDb(): void {

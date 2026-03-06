@@ -40,7 +40,12 @@ declare global {
       taskCreate: (
         prompt: string,
         capabilities: TaskCapabilityId[],
-        opts?: { mode?: 'browser' | 'code'; maxSteps?: number; timeoutMs?: number }
+        opts?: {
+          mode?: 'browser' | 'code'
+          maxSteps?: number
+          timeoutMs?: number
+          attachments?: string[]
+        }
       ) => Promise<TaskCreateResponse>
       taskApprove: (taskId: string) => Promise<Task>
       taskCancel: (taskId: string) => Promise<Task>

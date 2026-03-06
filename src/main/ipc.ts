@@ -44,10 +44,7 @@ import { geminiRespond } from './providers/gemini'
 import type { TaskManager } from './agent/task-manager'
 import type { ChannelManager } from './channels/channel-manager'
 import type { RuntimeStats } from '../shared/runtime'
-import type { CdpRelay } from './agent/cdp-relay'
-import { BrowserBridge } from './agent/browser-bridge'
-import { loadSnapshots, saveSnapshot, deleteSnapshot } from './browser-snapshots'
-import type { BrowserSnapshot } from './browser-snapshots'
+import { loadSnapshots, deleteSnapshot } from './browser-snapshots'
 import type { ChannelId } from '../shared/channel'
 import type { Skill } from '../shared/skill'
 import { loadSkills, saveSkills, createSkillId } from './skill-store'
@@ -125,7 +122,6 @@ export function registerIpcHandlers(opts: {
   openAuthUrl: (url: string) => void
   taskManager: TaskManager
   channelManager: ChannelManager
-  cdpRelay: CdpRelay
 }): void {
   // Give TaskManager access to current policy (provider, model, etc.)
   opts.taskManager.setPolicyGetter(() => policy)
@@ -238,7 +234,12 @@ export function registerIpcHandlers(opts: {
       properties: ['openFile', 'multiSelections'] as Array<'openFile' | 'multiSelections'>,
       filters: [
         { name: 'Imágenes', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] },
-        { name: 'Documentos', extensions: ['pdf', 'txt', 'md', 'json'] },
+        { name: 'Videos', extensions: ['mp4', 'mov', 'webm', 'mkv', 'avi'] },
+        {
+          name: 'Documentos',
+          extensions: ['pdf', 'txt', 'md', 'json', 'doc', 'docx', 'ppt', 'pptx']
+        },
+        { name: 'Spreadsheets', extensions: ['xls', 'xlsx', 'csv'] },
         { name: 'Todos', extensions: ['*'] }
       ]
     }
@@ -709,34 +710,14 @@ export function registerIpcHandlers(opts: {
   })
 
   // ── Browser Snapshots ────────────────────────────────────────────────
-  const bridge = new BrowserBridge(opts.cdpRelay)
-
   ipcMain.handle(IPC.browserSnapshotList, async () => loadSnapshots())
 
-  ipcMain.handle(IPC.browserSnapshotSave, async (_evt, name: string) => {
-    const raw = await bridge.saveSnapshot()
-    const snap: BrowserSnapshot = {
-      id: `snap_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      name: name || 'Untitled',
-      url: String(raw.url ?? ''),
-      title: String(raw.title ?? ''),
-      cookies: (raw.cookies as BrowserSnapshot['cookies']) ?? [],
-      localStorage: (raw.localStorage as Record<string, string>) ?? {},
-      sessionStorage: (raw.sessionStorage as Record<string, string>) ?? {},
-      scrollX: Number(raw.scrollX ?? 0),
-      scrollY: Number(raw.scrollY ?? 0),
-      createdAt: Date.now()
-    }
-    await saveSnapshot(snap)
-    return snap
+  ipcMain.handle(IPC.browserSnapshotSave, async () => {
+    throw new Error('Browser snapshots require the Playwright browser to be running. Start a browser task first.')
   })
 
-  ipcMain.handle(IPC.browserSnapshotRestore, async (_evt, snapshotId: string) => {
-    const snapshots = await loadSnapshots()
-    const snap = snapshots.find((s) => s.id === snapshotId)
-    if (!snap) throw new Error('Snapshot not found')
-    await bridge.restoreSnapshot(snap as unknown as Record<string, unknown>)
-    return { success: true }
+  ipcMain.handle(IPC.browserSnapshotRestore, async () => {
+    throw new Error('Browser snapshot restore requires the Playwright browser to be running. Start a browser task first.')
   })
 
   ipcMain.handle(IPC.browserSnapshotDelete, async (_evt, id: string) => {

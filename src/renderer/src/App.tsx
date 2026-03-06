@@ -10,6 +10,8 @@ import type { Task, TaskCapabilityId } from '../../shared/task'
 import { OAUTH_REDIRECT_TO, supabase, SUPABASE_CONFIGURED } from './supabase'
 import { TaskPanel } from './components/TaskPanel'
 import { ChatFeed } from './components/ChatFeed'
+import { CollectiveChatFeed } from './components/CollectiveChatFeed'
+import { MultiAgentControlRoom } from './components/MultiAgentControlRoom'
 import { InputBar } from './components/InputBar'
 import { TaskDashboard } from './components/TaskDashboard'
 import { ScheduleDetail, SchedulePanel, NewScheduleForm } from './components/SchedulePanel'
@@ -283,6 +285,40 @@ function App(): React.JSX.Element {
     [tasks, activeTaskId]
   )
 
+  // Default ON. Can be disabled via VITE_MULTI_AGENT_PANEL=0 if needed.
+  const multiAgentPanelEnabled =
+    (import.meta.env.VITE_MULTI_AGENT_PANEL as string | undefined) !== '0'
+
+  const rootTaskForActive = useMemo(() => {
+    if (!activeTask) return null
+    const byId = new Map(tasks.map((t) => [t.id, t] as const))
+    let cur: Task | undefined = activeTask
+    let hops = 0
+    while (cur?.parentTaskId && hops < 50) {
+      const next = byId.get(cur.parentTaskId)
+      if (!next) break
+      cur = next
+      hops++
+    }
+    return cur ?? activeTask
+  }, [activeTask, tasks])
+
+  const hasMultiAgents = useMemo(() => {
+    if (!rootTaskForActive) return false
+    const byId = new Map(tasks.map((t) => [t.id, t] as const))
+    return tasks.some((t) => {
+      if (t.id === rootTaskForActive.id) return false
+      let cur: Task | undefined = t
+      let hops = 0
+      while (cur?.parentTaskId && hops < 50) {
+        if (cur.parentTaskId === rootTaskForActive.id) return true
+        cur = byId.get(cur.parentTaskId)
+        hops++
+      }
+      return false
+    })
+  }, [rootTaskForActive, tasks])
+
   const lang: LanguageCode = policy?.language ?? 'en'
 
   const workspaceLabel = useMemo(() => {
@@ -410,7 +446,15 @@ function App(): React.JSX.Element {
   // Refresh API key status for provider badges when opening Settings
   useEffect(() => {
     if (sidebarTab !== 'settings') return
-    const ids: ProviderId[] = ['kimi', 'claude', 'deepseek', 'glm', 'minimax', 'openrouter', 'gemini']
+    const ids: ProviderId[] = [
+      'kimi',
+      'claude',
+      'deepseek',
+      'glm',
+      'minimax',
+      'openrouter',
+      'gemini'
+    ]
     let alive = true
     void Promise.all(
       ids.map((id) => window.skynul.hasProviderApiKey(id).then((has) => [id, has] as const))
@@ -684,10 +728,14 @@ function App(): React.JSX.Element {
   const handleNewTask = async (
     prompt: string,
     caps: TaskCapabilityId[],
-    mode?: 'browser' | 'code'
+    mode?: 'browser' | 'code',
+    attachments?: string[]
   ): Promise<void> => {
     try {
-      const { task } = await window.skynul.taskCreate(prompt, caps, { mode: mode ?? 'browser' })
+      const { task } = await window.skynul.taskCreate(prompt, caps, {
+        mode: mode ?? 'browser',
+        attachments
+      })
       setTasks((prev) => [task, ...prev])
       setActiveTaskId(task.id)
       if (policy?.taskAutoApprove) {
@@ -868,11 +916,18 @@ function App(): React.JSX.Element {
     return () => document.removeEventListener('click', close)
   }, [profileOpen])
 
-  const isActiveTaskRunning = activeTask?.status === 'running'
+  const isCollectiveMode = Boolean(multiAgentPanelEnabled && rootTaskForActive && hasMultiAgents)
+  const controlTaskId = isCollectiveMode ? (rootTaskForActive?.id ?? activeTaskId) : activeTaskId
+  const controlTask = useMemo(
+    () => (controlTaskId ? (tasks.find((t) => t.id === controlTaskId) ?? null) : null),
+    [controlTaskId, tasks]
+  )
+  const isActiveTaskRunning = (controlTask ?? activeTask)?.status === 'running'
 
-  const handleInputSubmit = (text: string): void => {
-    if (activeTask && isActiveTaskRunning) {
-      void window.skynul.taskSendMessage(activeTask.id, text)
+  const handleInputSubmit = (text: string, attachments?: string[]): void => {
+    const target = isCollectiveMode ? controlTask : activeTask
+    if (target && target.status === 'running') {
+      void window.skynul.taskSendMessage(target.id, text)
       return
     }
     // Create new task — detect mode from prompt
@@ -893,7 +948,7 @@ function App(): React.JSX.Element {
       ]
       if (codeWords.some((w) => text.toLowerCase().includes(w))) detectedMode = 'code'
     }
-    void handleNewTask(text, caps, detectedMode)
+    void handleNewTask(text, caps, detectedMode, attachments)
     setComposerPrompt('')
     setComposerCapsOverride(null)
   }
@@ -1090,19 +1145,33 @@ function App(): React.JSX.Element {
         {sidebarTab === 'tasks' &&
           (activeTask ? (
             <div className="chatFeedLayout">
-              <ChatFeed
-                task={activeTask}
-                onApprove={() => void handleApproveTask(activeTask.id)}
-                onCancel={() => void handleCancelTask(activeTask.id)}
-                onDontAskAgain={() => void window.skynul.setTaskAutoApprove(true).then(setPolicy)}
-              />
+              {multiAgentPanelEnabled && rootTaskForActive && hasMultiAgents && (
+                <MultiAgentControlRoom
+                  rootTask={rootTaskForActive}
+                  tasks={tasks}
+                  activeTaskId={activeTask.id}
+                  onSelectTask={(id) => setActiveTaskId(id)}
+                />
+              )}
+              {isCollectiveMode && controlTask ? (
+                <CollectiveChatFeed rootTask={controlTask} tasks={tasks} />
+              ) : (
+                <ChatFeed
+                  task={activeTask}
+                  onApprove={() => void handleApproveTask(activeTask.id)}
+                  onCancel={() => void handleCancelTask(activeTask.id)}
+                  onDontAskAgain={() => void window.skynul.setTaskAutoApprove(true).then(setPolicy)}
+                />
+              )}
               <InputBar
                 lang={lang}
                 autoCaps={composerAutoCaps}
                 compact={true}
                 onSubmit={handleInputSubmit}
                 onStop={
-                  isActiveTaskRunning ? () => void handleCancelTask(activeTask.id) : undefined
+                  isActiveTaskRunning
+                    ? () => void handleCancelTask((controlTask ?? activeTask).id)
+                    : undefined
                 }
                 onTextChange={(t) => {
                   setComposerPrompt(t)

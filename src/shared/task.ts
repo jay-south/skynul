@@ -51,6 +51,7 @@ export type TaskAction =
   | { type: 'web_scrape'; url: string; instruction: string }
   | { type: 'save_to_excel'; filename: string; filter?: string }
   | { type: 'shell'; command: string; cwd?: string; timeout?: number }
+  | { type: 'upload_file'; selector: string; filePaths: string[] }
   | { type: 'done'; summary: string }
   | { type: 'fail'; reason: string }
   | { type: 'user_message'; text: string }
@@ -80,7 +81,7 @@ export type TaskAction =
   | { type: 'file_search'; pattern: string; path?: string; glob?: string; cwd?: string }
   // Inter-task communication
   | { type: 'task_list_peers' }
-  | { type: 'task_send'; prompt: string }
+  | { type: 'task_send'; prompt: string; agentName?: string; agentRole?: string }
   | { type: 'task_read'; taskId: string }
   | { type: 'task_message'; taskId: string; message: string }
 
@@ -109,7 +110,13 @@ export type Task = {
   id: string
   /** If present, this task was spawned from another task (sub-agent). */
   parentTaskId?: string
+  /** Optional display name for multi-agent UI. */
+  agentName?: string
+  /** Optional role label for multi-agent UI (e.g. "Copy", "Imagen", "Browser"). */
+  agentRole?: string
   prompt: string
+  /** Optional local file paths attached by the user (absolute paths). */
+  attachments?: string[]
   status: TaskStatus
   mode: TaskMode
   capabilities: TaskCapabilityId[]
@@ -137,11 +144,15 @@ export type TaskMode = 'browser' | 'code'
 export type TaskCreateRequest = {
   prompt: string
   capabilities: TaskCapabilityId[]
+  /** Optional local file paths attached by the user (absolute paths). */
+  attachments?: string[]
   mode?: TaskMode
   maxSteps?: number
   timeoutMs?: number
   source?: TaskSource
   parentTaskId?: string
+  agentName?: string
+  agentRole?: string
 }
 
 export type TaskCreateResponse = {
