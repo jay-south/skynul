@@ -12,15 +12,19 @@
 
 import type { Task, TaskAction, TaskStep } from '../../shared/task'
 import type { ProviderId } from '../../shared/policy'
-import { WindowsBridge } from './windows-bridge'
-import { BrowserBridge } from './browser-bridge'
-import type { CdpRelay } from './cdp-relay'
-import { buildCdpSystemPrompt, buildCodeSystemPrompt } from './system-prompt'
+import {
+  buildCdpSystemPrompt,
+  buildCodeSystemPrompt,
+  buildPlaywrightSystemPrompt
+} from './system-prompt'
 import { parseModelResponse } from './action-parser'
 import { codexVisionRespond, type VisionMessage } from '../providers/codex-vision'
 import { PolymarketClient } from '../polymarket-client'
 import { scrapeUrl } from './web-scraper'
 import { createExcelFromTsv } from './excel-writer'
+
+import { acquirePlaywrightPage } from '../browser/playwright-cdp'
+import { PlaywrightBridge } from '../browser/playwright-bridge'
 
 export type TaskRunnerCallbacks = {
   onUpdate: (task: Task) => void
@@ -29,26 +33,73 @@ export type TaskRunnerCallbacks = {
 export type TaskRunnerOpts = {
   provider: ProviderId
   openaiModel: string
-  cdpRelay?: CdpRelay | null
   memoryContext?: string
   taskManager?: import('./task-manager').TaskManager | null
   taskId?: string
 }
 
 export class TaskRunner {
-  private bridge: WindowsBridge | null = null
   private aborted = false
   private timeoutHandle: ReturnType<typeof setTimeout> | null = null
   private task: Task
   private lastScrapeData = ''
-  /** When true, next CDP turn includes a screenshot (for after launch/native app interaction). */
-  private cdpNeedsScreenshot = false
-  private activeFrameId: string | undefined = undefined
-  /** Scale factors from last CDP screenshot — needed to convert screenshot coords to native coords. */
-  private cdpScaleX = 1
-  private cdpScaleY = 1
   /** Best-effort accumulated token usage (when provider returns usage). */
   private usageTotals: { inputTokens: number; outputTokens: number } | null = null
+  private autoDelegated = false
+
+
+  private shouldAutoDelegate(prompt: string): boolean {
+    const p = prompt.toLowerCase()
+    const wantsPost =
+      /(\bpost\b|\btweet\b|\bpublish\b|poste(a|ar)|public(a|ar)|borrador|draft)/.test(p)
+    const wantsX = /(\bx\b|twitter|x\.com)/.test(p)
+    const wantsImage = /(\bimage\b|\bimagen\b|\bmeme\b|\bpicture\b|\bgenerate\b.*\bimage\b)/.test(p)
+    const wantsCopy = /(\bcopy\b|caption|two\s*lines|2\s*lines|dos\s*lineas|hashtags|cta)/.test(p)
+    return (
+      (wantsPost && wantsX && wantsImage && wantsCopy) || (wantsPost && wantsImage && wantsCopy)
+    )
+  }
+
+  private async autoDelegateForSocialPost(history: VisionMessage[]): Promise<void> {
+    if (this.autoDelegated) return
+    const tm = this.opts.taskManager
+    if (!tm) return
+    if (this.task.parentTaskId) return
+    if (!this.shouldAutoDelegate(this.task.prompt)) return
+
+    this.autoDelegated = true
+
+    this.pushStatus('Setting up multi-agent plan (Copy + Design)...')
+
+    const copyPrompt =
+      'You MUST respond using the Skynul agent JSON protocol (thought + action). ' +
+      'Return ONE JSON object only. action.type MUST be "done". ' +
+      'action.summary must contain plain text with: 3 numbered options (TWO lines each) and then "Recommended:". ' +
+      'Constraints: English, bullish BTC meme vibe, short and punchy, subtle Argentine wink, avoid spam/repeated hashtags.'
+    const designPrompt =
+      'You MUST respond using the Skynul agent JSON protocol (thought + action). ' +
+      'Return ONE JSON object only. action.type MUST be "done". ' +
+      'action.summary must contain plain text with: (1) image-gen prompt, (2) on-image text, (3) composition notes, (4) aspect ratio for X.'
+
+    const [copyRes, designRes] = await Promise.all([
+      tm.spawnAndWait(copyPrompt, [], this.task.id, { agentRole: 'Copy' }),
+      tm.spawnAndWait(designPrompt, [], this.task.id, { agentRole: 'Design' })
+    ])
+
+    history.push({
+      role: 'user',
+      content: [
+        {
+          type: 'input_text',
+          text:
+            `Sub-agent outputs (use these; do NOT redo):\n` +
+            `- Copy (${copyRes.taskId}): ${copyRes.output}\n` +
+            `- Design (${designRes.taskId}): ${designRes.output}\n\n` +
+            `Now execute the full flow in X: open composer, generate/upload image based on Design, paste final chosen copy, and POST.`
+        }
+      ]
+    })
+  }
 
   constructor(
     task: Task,
@@ -67,8 +118,213 @@ export class TaskRunner {
       return this.runCode()
     }
 
-    // Default: CDP text-based loop via Chrome extension
+    // Browser tasks → Playwright snapshot-based loop (generic, works on any site)
+    const needsBrowser =
+      this.task.capabilities.includes('browser.cdp') ||
+      this.task.capabilities.includes('app.launch')
+    if (needsBrowser) {
+      return this.runPlaywright()
+    }
+
+    // API-only tasks (Polymarket, etc.) → CDP text loop
     return this.runCdp()
+  }
+
+  /**
+   * Playwright snapshot-based agent loop — generic browser automation.
+   * The model sees a text snapshot of the page each turn and decides actions.
+   */
+  private async runPlaywright(): Promise<Task> {
+    this.pushStatus('Launching browser (Playwright)...')
+
+    let pw: PlaywrightBridge
+    let release: (() => Promise<void>) | null = null
+    try {
+      const acquired = await acquirePlaywrightPage()
+      pw = new PlaywrightBridge(acquired.page)
+      release = acquired.release
+      this.pushStatus('Browser ready')
+    } catch (e) {
+      return this.finish(
+        'failed',
+        `Browser launch failed: ${e instanceof Error ? e.message : String(e)}`
+      )
+    }
+
+    if (this.aborted) {
+      if (release) await release().catch(() => {})
+      return this.finish('cancelled')
+    }
+
+    this.timeoutHandle = setTimeout(() => {
+      this.abort('Task timed out')
+    }, this.task.timeoutMs)
+
+    const systemPrompt = buildPlaywrightSystemPrompt()
+    const history: VisionMessage[] = []
+
+    const memCtx = this.opts.memoryContext
+      ? `\n\nContext from memory:\n${this.opts.memoryContext}`
+      : ''
+
+    try {
+      for (let step = 0; step < this.task.maxSteps && !this.aborted; step++) {
+        // Take a snapshot of the current page
+        const snap = await pw.snapshot().catch(() => ({
+          url: '',
+          title: '',
+          snapshot: '(page not available)'
+        }))
+
+        // Build action history
+        let actionLog = ''
+        if (this.task.steps.length > 0) {
+          const recent = this.task.steps.slice(-8)
+          actionLog =
+            '\n\nRecent actions:\n' +
+            recent
+              .map((s) => {
+                const res = s.result ? ` → ${s.result.slice(0, 200)}` : ''
+                const err = s.error ? ` [ERROR: ${s.error.slice(0, 100)}]` : ''
+                return `Step ${s.index + 1}: ${s.action.type}${res}${err}`
+              })
+              .join('\n') +
+            '\n\nDo NOT repeat actions that already succeeded.'
+        }
+
+        // Build turn message
+        const turnText =
+          step === 0
+            ? `Task: ${this.task.prompt}${memCtx}\n\nCurrent page:\nURL: ${snap.url}\nTitle: ${snap.title}\n\nPage snapshot:\n${snap.snapshot}`
+            : `Step ${step + 1}.\nURL: ${snap.url}\nTitle: ${snap.title}\n\nPage snapshot:\n${snap.snapshot}${actionLog}`
+
+        const inboxBlock = this.drainInbox()
+        const turnMessage: VisionMessage = {
+          role: 'user',
+          content: [{ type: 'input_text', text: turnText + inboxBlock }]
+        }
+
+        if (history.length > 20) history.splice(1, history.length - 19)
+        history.push(turnMessage)
+
+        const { text: rawResponse, usage } = await this.callVisionModel(systemPrompt, history)
+        if (usage) this.addUsage(usage)
+        const { thought, action } = parseModelResponse(rawResponse)
+
+        history.push({
+          role: 'assistant',
+          content: [{ type: 'output_text', text: rawResponse }]
+        })
+
+        const taskStep: TaskStep = {
+          index: this.task.steps.length,
+          timestamp: Date.now(),
+          screenshotBase64: '',
+          action,
+          thought
+        }
+
+        if (action.type === 'done') {
+          this.task.summary = action.summary
+          this.task.steps.push(taskStep)
+          this.pushUpdate()
+          if (release) await release().catch(() => {})
+          return this.finish('completed')
+        }
+
+        if (action.type === 'fail') {
+          this.task.steps.push(taskStep)
+          this.pushUpdate()
+          if (release) await release().catch(() => {})
+          return this.finish('failed', action.reason)
+        }
+
+        // Execute action via PlaywrightBridge
+        try {
+          const result = await this.executePlaywrightAction(pw, action)
+          if (result) taskStep.result = result
+        } catch (e) {
+          taskStep.error = e instanceof Error ? e.message : String(e)
+        }
+
+        this.task.steps.push(taskStep)
+        this.pushUpdate()
+        await this.sleep(500)
+      }
+    } catch (e) {
+      if (release) await release().catch(() => {})
+      if (this.aborted) return this.finish('cancelled')
+      return this.finish(
+        'failed',
+        `Browser loop error: ${e instanceof Error ? e.message : String(e)}`
+      )
+    }
+
+    if (release) await release().catch(() => {})
+    if (this.aborted) return this.finish('cancelled')
+    return this.finish('failed', `Reached max steps (${this.task.maxSteps})`)
+  }
+
+  /**
+   * Execute a single action from the Playwright agent loop.
+   */
+  private async executePlaywrightAction(
+    pw: PlaywrightBridge,
+    action: TaskAction
+  ): Promise<string | undefined> {
+    const raw = action as Record<string, unknown>
+    const type = raw.type as string
+    switch (type) {
+      case 'navigate':
+        await pw.navigate(raw.url as string)
+        await this.sleep(1500)
+        break
+      case 'click':
+        await pw.click(raw.selector as string)
+        break
+      case 'type':
+        await pw.type(raw.selector as string, raw.text as string)
+        break
+      case 'pressKey':
+        await pw.pressKey(raw.key as string)
+        break
+      case 'key':
+        await pw.pressKey((raw.key as string) || (raw.combo as string))
+        break
+      case 'evaluate': {
+        const result = await pw.evaluate(raw.script as string)
+        return result || undefined
+      }
+      case 'upload_file': {
+        const selector = raw.selector as string
+        const filePaths = raw.filePaths as string[]
+        if (!selector || !Array.isArray(filePaths) || filePaths.length === 0) {
+          throw new Error('upload_file requires selector + filePaths[]')
+        }
+        await pw.uploadFile(selector, filePaths)
+        break
+      }
+      case 'screenshot': {
+        const b64 = await pw.screenshot()
+        return b64 ? `Screenshot taken (${b64.length} bytes base64)` : '(empty screenshot)'
+      }
+      case 'wait':
+        await this.sleep((raw.ms as number) ?? 1000)
+        break
+      case 'scroll':
+        await pw.evaluate(
+          `window.scrollBy(0, ${(raw.direction as string) === 'up' ? -400 : 400})`
+        )
+        break
+      case 'task_list_peers':
+      case 'task_send':
+      case 'task_read':
+      case 'task_message':
+        return this.executeInterTaskAction(action)
+      default:
+        throw new Error(`Unknown action type: ${action.type}`)
+    }
+    return undefined
   }
 
   /**
@@ -78,125 +334,39 @@ export class TaskRunner {
     // Set initial status immediately, before any validation
     this.pushStatus(`Connecting to ${this.getProviderDisplayName()}...`)
 
-    // Check if this task actually needs the browser (CDP)
-    const needsBrowser =
-      this.task.capabilities.includes('browser.cdp') ||
-      this.task.capabilities.includes('app.launch')
-    let browserBridge: BrowserBridge | null = null
-
-    if (needsBrowser) {
-      // Check if aborted before validating CDP relay
-      if (this.aborted) {
-        return this.finish('cancelled')
-      }
-
-      const relay = this.opts.cdpRelay
-      if (!relay) {
-        return this.finish('failed', 'CDP relay not available')
-      }
-      browserBridge = new BrowserBridge(relay)
-
-      // Check if aborted before checking connection
-      if (this.aborted) {
-        return this.finish('cancelled')
-      }
-
-      if (!browserBridge.isConnected) {
-        return this.finish('failed', 'Chrome extension not connected to CDP relay')
-      }
-      // Check if aborted before creating task tab
-      if (this.aborted) {
-        return this.finish('cancelled')
-      }
-
-      // Always create a new tab for the task; never close or reuse the user's current tab
-      try {
-        await browserBridge.ensureTaskTab()
-      } catch (e) {
-        return this.finish(
-          'failed',
-          `Could not create task tab: ${e instanceof Error ? e.message : String(e)}`
-        )
-      }
-
-      // Browser bridge is ready
-      this.pushStatus('Setting up browser bridge...')
-    }
+    // CDP mode is now API-only (Polymarket, etc.) — browser tasks go through runPlaywright().
 
     this.timeoutHandle = setTimeout(() => {
       this.abort('Task timed out')
     }, this.task.timeoutMs)
 
-    this.pushStatus(needsBrowser ? 'Preparing agent loop...' : 'Starting agent loop...')
+    this.pushStatus('Starting agent loop...')
 
     const systemPrompt = buildCdpSystemPrompt(this.task.capabilities)
     const history: VisionMessage[] = []
 
     const memCtxCdp = this.opts.memoryContext ?? ''
+    const attachments = (this.task.attachments ?? []).filter((x) => typeof x === 'string')
+    const attachmentsBlock =
+      attachments.length > 0
+        ? `\n\nAttached local files (absolute paths):\n${attachments
+            .slice(0, 12)
+            .map((p) => `- ${p}`)
+            .join('\n')}`
+        : ''
     history.push({
       role: 'user',
-      content: [{ type: 'input_text', text: `Task: ${this.task.prompt}${memCtxCdp}` }]
+      content: [
+        { type: 'input_text', text: `Task: ${this.task.prompt}${attachmentsBlock}${memCtxCdp}` }
+      ]
     })
+
+    // Deterministic auto-delegation for multi-modal social posting tasks.
+    // This creates sub-agents (shown in the UI) before browser execution begins.
+    await this.autoDelegateForSocialPost(history)
 
     while (!this.aborted && this.task.steps.length < this.task.maxSteps) {
       try {
-        // Get page info if browser is available
-        let pageUrl = ''
-        let pageTitle = ''
-        let pageText = ''
-        let elementsBlock = ''
-
-        if (browserBridge) {
-          try {
-            let pageInfo = await browserBridge.getPageInfo()
-
-            // If main frame has no interactive elements, check iframes
-            this.activeFrameId = undefined
-            const tryIframes = async (): Promise<boolean> => {
-              try {
-                const frames = await browserBridge.getFrames()
-                const childFrames = frames.filter((f) => f.parentId !== null && f.url.startsWith('http'))
-                for (const frame of childFrames.slice(0, 3)) {
-                  const frameInfo = await browserBridge.getPageInfo(frame.id)
-                  if (frameInfo.elements.length > 0) {
-                    pageInfo = frameInfo
-                    this.activeFrameId = frame.id
-                    return true
-                  }
-                }
-              } catch { /* ignore */ }
-              return false
-            }
-
-            if (pageInfo.elements.length === 0) {
-              if (!(await tryIframes())) {
-                // SPA may still be mounting — wait once and retry
-                await this.sleep(2500)
-                pageInfo = await browserBridge.getPageInfo()
-                if (pageInfo.elements.length === 0) await tryIframes()
-              }
-            }
-
-            pageUrl = pageInfo.url
-            pageTitle = pageInfo.title
-            pageText = pageInfo.text.slice(0, 2800)
-            elementsBlock =
-              pageInfo.elements.length > 0
-                ? `\n\nInteractive elements (use these exact selectors for click/type):\n${pageInfo.elements
-                    .map(
-                      (el) =>
-                        `  ${el.selector}  ${el.text ? `| "${el.text.slice(0, 40)}${el.text.length > 40 ? '…' : ''}"` : ''}`
-                    )
-                    .join('\n')}`
-                : ''
-          } catch (e) {
-            return this.finish(
-              'failed',
-              `getPageInfo failed: ${e instanceof Error ? e.message : String(e)}`
-            )
-          }
-        }
-
         const stepIndex = this.task.steps.length
         let actionLog = ''
         if (stepIndex > 0) {
@@ -205,7 +375,7 @@ export class TaskRunner {
             '\n\nRecent actions:\n' +
             recentSteps
               .map((s) => {
-                let desc = s.action.type
+                const desc = s.action.type
                 const resultSuffix = s.result ? ` → ${s.result.slice(0, 200)}` : ''
                 const errorSuffix = s.error ? ` [ERROR: ${s.error.slice(0, 100)}]` : ''
                 return `Step ${s.index + 1}: ${desc}${resultSuffix}${errorSuffix}`
@@ -214,52 +384,19 @@ export class TaskRunner {
             '\n\nDo NOT repeat actions that already succeeded.'
         }
 
-        let turnText: string
-        if (!browserBridge) {
-          // No browser — API-only mode (e.g. Polymarket trading)
-          turnText =
-            stepIndex === 0
-              ? `Task: ${this.task.prompt}\n\nYou are in API-only mode. Use the polymarket_* actions directly. Do NOT use shell, navigate, or evaluate.`
-              : `Step ${stepIndex + 1}.${actionLog}`
-        } else {
-          turnText =
-            stepIndex === 0
-              ? `Task: ${this.task.prompt}\n\nCurrent page:\nURL: ${pageUrl}\nTitle: ${pageTitle}\nText: ${pageText}${elementsBlock}`
-              : `Step ${stepIndex + 1}.\nURL: ${pageUrl}\nTitle: ${pageTitle}\nText: ${pageText}${elementsBlock}${actionLog}`
-        }
+        const turnText =
+          stepIndex === 0
+            ? `Task: ${this.task.prompt}\n\nYou are in API-only mode. Use the polymarket_* actions directly. Do NOT use shell, navigate, or evaluate.`
+            : `Step ${stepIndex + 1}.${actionLog}`
 
-        // Inject incoming messages from other tasks
         const inboxBlock = this.drainInbox()
-
-        const turnContent: VisionMessage['content'] = [
-          { type: 'input_text', text: turnText + inboxBlock }
-        ]
-
-        // After launch/native actions, include a screenshot so the model can see the app
-        if (this.cdpNeedsScreenshot) {
-          this.cdpNeedsScreenshot = false
-          try {
-            const wb = await this.getScreenBridge()
-            const shot = await wb.captureScreen({ maxWidth: 1280, maxHeight: 720 })
-            this.cdpScaleX = shot.scaleX
-            this.cdpScaleY = shot.scaleY
-            turnContent.push({
-              type: 'input_image',
-              image_url: `data:image/png;base64,${shot.buffer.toString('base64')}`
-            })
-          } catch {
-            // non-critical — model continues without screenshot
-          }
-        }
 
         const turnMessage: VisionMessage = {
           role: 'user',
-          content: turnContent
+          content: [{ type: 'input_text', text: turnText + inboxBlock }]
         }
 
-        if (history.length > 20) {
-          history.splice(1, history.length - 19)
-        }
+        if (history.length > 20) history.splice(1, history.length - 19)
         history.push(turnMessage)
 
         const { text: rawResponse, usage } = await this.callVisionModel(systemPrompt, history)
@@ -283,22 +420,17 @@ export class TaskRunner {
           this.task.summary = action.summary
           this.task.steps.push(step)
           this.pushUpdate()
-          browserBridge?.destroy()
           return this.finish('completed')
         }
 
         if (action.type === 'fail') {
           this.task.steps.push(step)
           this.pushUpdate()
-          browserBridge?.destroy()
           return this.finish('failed', action.reason)
         }
 
-        // Execute action
         try {
-          const result = browserBridge
-            ? await this.executeCdpAction(browserBridge, action)
-            : await this.executeApiOnlyAction(action)
+          const result = await this.executeApiOnlyAction(action)
           if (result) step.result = result
         } catch (e) {
           step.error = e instanceof Error ? e.message : String(e)
@@ -309,15 +441,13 @@ export class TaskRunner {
         await this.sleep(500)
       } catch (e) {
         if (this.aborted) break
-        browserBridge?.destroy()
         return this.finish(
           'failed',
-          `CDP loop error: ${e instanceof Error ? e.message : String(e)}`
+          `API loop error: ${e instanceof Error ? e.message : String(e)}`
         )
       }
     }
 
-    browserBridge?.destroy()
     if (this.aborted) return this.finish('cancelled')
     return this.finish('failed', `Reached max steps (${this.task.maxSteps})`)
   }
@@ -640,15 +770,6 @@ export class TaskRunner {
     })
   }
 
-  /** Lazy-init a WindowsBridge for hybrid CDP+screen actions (launch, file uploads). */
-  private async getScreenBridge(): Promise<WindowsBridge> {
-    if (!this.bridge || !this.bridge.isAlive) {
-      this.bridge = new WindowsBridge()
-      await this.bridge.init()
-    }
-    return this.bridge
-  }
-
   /** Execute actions in API-only mode (no browser). Only polymarket + inter-task + wait/done/fail. */
   private async executeApiOnlyAction(action: TaskAction): Promise<string | undefined> {
     const type = action.type
@@ -672,124 +793,6 @@ export class TaskRunner {
     }
   }
 
-  private async executeCdpAction(
-    bridge: BrowserBridge,
-    action: TaskAction
-  ): Promise<string | undefined> {
-    const raw = action as Record<string, unknown>
-    const type = raw.type as string
-
-    switch (type) {
-      case 'navigate':
-        await bridge.navigate(raw.url as string)
-        this.activeFrameId = undefined
-        break
-      case 'click':
-        if (raw.x != null && raw.y != null) {
-          // Coordinate click → use screen bridge (after launch), scale to native resolution
-          const wb = await this.getScreenBridge()
-          const nx = Math.round((raw.x as number) * this.cdpScaleX)
-          const ny = Math.round((raw.y as number) * this.cdpScaleY)
-          await wb.click(nx, ny, (raw.button as 'left' | 'right') ?? 'left')
-          this.cdpNeedsScreenshot = true
-        } else {
-          await bridge.click(raw.selector as string, this.activeFrameId)
-        }
-        break
-      case 'type':
-        if (raw.selector) {
-          await bridge.type(raw.selector as string, raw.text as string, this.activeFrameId)
-        } else {
-          // No selector → type via screen bridge (after launch)
-          const wb = await this.getScreenBridge()
-          await wb.type(raw.text as string)
-          this.cdpNeedsScreenshot = true
-        }
-        break
-      case 'key': {
-        if (this.cdpNeedsScreenshot || this.bridge?.isAlive) {
-          // In screen mode after launch → use bridge for key combos
-          const wb = await this.getScreenBridge()
-          await wb.keyCombo((raw.combo as string) || (raw.key as string))
-          this.cdpNeedsScreenshot = true
-        } else {
-          await bridge.pressKey((raw.key as string) || (raw.combo as string))
-        }
-        break
-      }
-      case 'pressKey':
-        if (this.bridge?.isAlive) {
-          const wb = await this.getScreenBridge()
-          await wb.keyCombo(raw.key as string)
-          this.cdpNeedsScreenshot = true
-        } else {
-          await bridge.pressKey(raw.key as string)
-        }
-        break
-      case 'evaluate': {
-        const evalResult = await bridge.evaluate(raw.script as string, this.activeFrameId)
-        // If evaluate returns TSV data, accumulate into lastScrapeData so save_to_excel can use it
-        if (evalResult && evalResult.includes('\t')) {
-          if (this.lastScrapeData) {
-            // Append rows only (skip header of subsequent evaluates)
-            const newLines = evalResult.split('\n').filter((l) => l.includes('\t'))
-            const existingHeader = this.lastScrapeData.split('\n')[0]
-            const newRows = newLines.filter((l) => l !== existingHeader)
-            if (newRows.length > 0) this.lastScrapeData += '\n' + newRows.join('\n')
-          } else {
-            this.lastScrapeData = evalResult
-          }
-        }
-        return evalResult || undefined
-      }
-      case 'wait':
-        await this.sleep((raw.ms as number) ?? 1000)
-        break
-      case 'launch': {
-        // Hybrid: use WindowsBridge to launch native apps from CDP mode
-        const wb = await this.getScreenBridge()
-        await wb.launchApp(raw.app as string)
-        this.cdpNeedsScreenshot = true
-        return `Launched ${raw.app}. Next turn will include a screenshot of the screen.`
-      }
-      case 'web_scrape': {
-        const data = await scrapeUrl(raw.url as string, raw.instruction as string)
-        if (data.includes('\t')) this.lastScrapeData += (this.lastScrapeData ? '\n' : '') + data
-        return data
-      }
-      case 'save_to_excel': {
-        if (!this.lastScrapeData)
-          return '[Error: no data available. Use web_scrape or evaluate (returning TSV) first.]'
-        try {
-          const filePath = await createExcelFromTsv(
-            this.lastScrapeData,
-            raw.filename as string,
-            raw.filter as string | undefined
-          )
-          return `Excel saved and opened: ${filePath}`
-        } catch (e) {
-          return `[Error creating Excel: ${e instanceof Error ? e.message : String(e)}. Data had ${this.lastScrapeData.split('\\n').length} lines.]`
-        }
-      }
-      case 'polymarket_get_account_summary':
-      case 'polymarket_get_trader_leaderboard':
-      case 'polymarket_search_markets':
-      case 'polymarket_place_order':
-      case 'polymarket_close_position':
-        return this.executePolymarketAction(action)
-      case 'task_list_peers':
-      case 'task_send':
-      case 'task_read':
-      case 'task_message':
-        return this.executeInterTaskAction(action)
-      case 'shell':
-      case 'file_read':
-      case 'file_write':
-      case 'file_edit':
-        return `[Error: "${type}" is not available in browser mode. Use the built-in actions like polymarket_*, navigate, evaluate, etc.]`
-    }
-    return undefined
-  }
 
   /**
    * Route vision call to the correct provider.
@@ -868,8 +871,11 @@ export class TaskRunner {
         return JSON.stringify(peers)
       }
       case 'task_send': {
-        const result = await tm.spawnAndWait(action.prompt, this.task.capabilities, this.task.id)
-        return `Sub-task ${result.taskId} finished: ${result.summary}`
+        const result = await tm.spawnAndWait(action.prompt, this.task.capabilities, this.task.id, {
+          agentName: action.agentName,
+          agentRole: action.agentRole
+        })
+        return `Sub-task ${result.taskId} ${result.status}: ${result.output}`
       }
       case 'task_read': {
         const target = tm.get(action.taskId)
@@ -1002,10 +1008,6 @@ export class TaskRunner {
     if (this.timeoutHandle) {
       clearTimeout(this.timeoutHandle)
       this.timeoutHandle = null
-    }
-    if (this.bridge) {
-      this.bridge.destroy()
-      this.bridge = null
     }
   }
 

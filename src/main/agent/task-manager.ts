@@ -13,12 +13,68 @@ import { app, type BrowserWindow } from 'electron'
 import type { Task, TaskCreateRequest } from '../../shared/task'
 import type { PolicyState } from '../../shared/policy'
 import { TaskRunner } from './task-runner'
-import type { CdpRelay } from './cdp-relay'
 import { saveMemory, searchMemories, formatMemoriesForPrompt, closeMemoryDb } from './task-memory'
 import { loadSkills, getActiveSkillPrompts } from '../skill-store'
 
 const DEFAULT_MAX_STEPS = 200
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000 // 30 minutes
+
+function hash32(s: string): number {
+  // Simple non-crypto hash for stable name selection.
+  let h = 2166136261
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return h >>> 0
+}
+
+function inferAgentRole(prompt: string): string {
+  const p = prompt.toLowerCase()
+  if (/(\bcopy\b|caption|cta|hashtags|post copy|copywriter)/.test(p)) return 'Copy'
+  if (/(\bimage\b|imagen|meme|design|visual|thumbnail|banner)/.test(p)) return 'Design'
+  if (/(\bbrowser\b|navigate|open\s+x\b|open\s+twitter\b|x\.com|instagram|draft|borrador)/.test(p))
+    return 'Browser'
+  if (/(\bresearch\b|investigate|find\b|lookup|look up|buscar|averigua|averigu[aá])/i.test(prompt))
+    return 'Research'
+  if (/(\bqa\b|review|verify|checklist|proofread)/.test(p)) return 'QA'
+  return 'Agent'
+}
+
+function pickAgentName(role: string, seed: string): string {
+  const r = role.trim().toLowerCase()
+  const pools: Record<string, string[]> = {
+    manager: ['Atlas', 'Kernel', 'Director', 'Control'],
+    browser: ['Orbit', 'Navigator', 'Relay', 'Pilot'],
+    copy: ['Quill', 'Copydesk', 'Scribe', 'Draft'],
+    design: ['Prism', 'Vector', 'Canvas', 'Studio'],
+    research: ['Glyph', 'Index', 'Scout', 'Signal'],
+    qa: ['Aegis', 'Verifier', 'Audit', 'Gate'],
+    code: ['Forge', 'Compiler', 'Builder', 'Refactor'],
+    agent: ['Node', 'Module', 'Echo', 'Nova']
+  }
+
+  const pool =
+    r === 'manager' || r === 'orchestrator'
+      ? pools.manager
+      : r === 'browser' || r === 'navigator'
+        ? pools.browser
+        : r === 'copy' || r === 'copywriter'
+          ? pools.copy
+          : r === 'design' || r === 'image' || r === 'imagen'
+            ? pools.design
+            : r === 'research' || r === 'investigator'
+              ? pools.research
+              : r === 'qa' || r === 'review'
+                ? pools.qa
+                : r === 'code' || r === 'dev'
+                  ? pools.code
+                  : pools.agent
+
+  const idx = hash32(seed) % pool.length
+  return pool[idx]!
+}
+
 
 /** Per-mode concurrency limits */
 const MAX_CONCURRENT: Record<import('../../shared/task').TaskMode, number> = {
@@ -34,7 +90,6 @@ export class TaskManager extends EventEmitter {
   private persistPath: string
   private persistTimer: ReturnType<typeof setTimeout> | null = null
   private getPolicy: (() => PolicyState) | null = null
-  private cdpRelay: CdpRelay | null = null
 
   constructor() {
     super()
@@ -49,9 +104,6 @@ export class TaskManager extends EventEmitter {
     this.getPolicy = fn
   }
 
-  setCdpRelay(relay: CdpRelay): void {
-    this.cdpRelay = relay
-  }
 
   setMainWindow(win: BrowserWindow): void {
     this.mainWindow = win
@@ -62,10 +114,19 @@ export class TaskManager extends EventEmitter {
    */
   create(req: TaskCreateRequest): Task {
     const id = `task_${Date.now().toString(36)}_${randomBytes(4).toString('hex')}`
+
+    // Auto-assign agent identity for sub-tasks when missing.
+    const agentRole = req.agentRole ?? (req.parentTaskId ? inferAgentRole(req.prompt) : undefined)
+    const agentName =
+      req.agentName ?? (req.parentTaskId ? pickAgentName(agentRole ?? 'Agent', id) : undefined)
+
     const task: Task = {
       id,
       parentTaskId: req.parentTaskId,
+      agentName,
+      agentRole,
       prompt: req.prompt,
+      attachments: req.attachments,
       status: 'pending_approval',
       mode: req.mode ?? 'browser',
       capabilities: req.capabilities,
@@ -133,7 +194,6 @@ export class TaskManager extends EventEmitter {
       {
         provider,
         openaiModel,
-        cdpRelay: this.cdpRelay,
         memoryContext: memoryContext + skillContext,
         taskManager: this,
         taskId: task.id
@@ -181,9 +241,22 @@ export class TaskManager extends EventEmitter {
   async spawnAndWait(
     prompt: string,
     parentCapabilities: import('../../shared/task').TaskCapabilityId[],
-    parentTaskId?: string
-  ): Promise<{ taskId: string; summary: string }> {
-    const task = this.create({ prompt, capabilities: parentCapabilities, parentTaskId })
+    parentTaskId?: string,
+    agentIdentity?: { agentName?: string; agentRole?: string }
+  ): Promise<{
+    taskId: string
+    status: Task['status']
+    output: string
+    summary?: string
+    error?: string
+  }> {
+    const task = this.create({
+      prompt,
+      capabilities: parentCapabilities,
+      parentTaskId,
+      agentName: agentIdentity?.agentName,
+      agentRole: agentIdentity?.agentRole
+    })
 
     // Auto-approve (starts the runner internally)
     await this.approve(task.id)
@@ -213,9 +286,23 @@ export class TaskManager extends EventEmitter {
       this.on('taskUpdate', onUpdate)
     })
 
+    const doneStep = [...result.steps].reverse().find((s) => (s.action as any)?.type === 'done') as
+      | (import('../../shared/task').TaskStep & { action: { type: 'done'; summary: string } })
+      | undefined
+
+    const doneSummary = doneStep?.action?.summary
+    const status = result.status
+    const output =
+      status === 'completed'
+        ? (doneSummary ?? result.summary ?? '')
+        : (result.error ?? doneSummary ?? result.summary ?? '')
+
     return {
       taskId: result.id,
-      summary: result.summary ?? result.error ?? `Sub-task ${result.status}`
+      status,
+      output: output || `Sub-task ${status}`,
+      summary: result.summary ?? undefined,
+      error: result.error ?? undefined
     }
   }
 
@@ -334,18 +421,63 @@ export class TaskManager extends EventEmitter {
     if (task.status !== 'completed' && task.status !== 'failed') return
 
     const outcome = task.status === 'completed' ? 'completed' : 'failed'
-    const lastActions = task.steps
-      .slice(-5)
-      .map((s) => s.action.type)
-      .join(', ')
     const summary = task.summary ?? task.error ?? 'No summary'
-    const learnings = `${summary}. Steps: ${task.steps.length}. Last actions: ${lastActions}. Duration: ${Math.round(durationMs / 1000)}s.`
+
+    // Extract actionable insights from steps
+    const selectors: string[] = []
+    const urls: string[] = []
+    const failedActions: string[] = []
+    const successHints: string[] = []
+
+    for (const step of task.steps) {
+      const raw = step.action as Record<string, unknown>
+      const type = raw.type as string
+
+      // Collect selectors that worked (no error on this step)
+      if ((type === 'click' || type === 'type' || type === 'upload_file') && raw.selector) {
+        const sel = String(raw.selector)
+        if (!step.error && !selectors.includes(sel)) {
+          selectors.push(sel)
+        }
+      }
+
+      // Collect URLs visited
+      if (type === 'navigate' && raw.url) {
+        const u = String(raw.url)
+        if (!urls.includes(u)) urls.push(u)
+      }
+
+      // Collect failed actions with reason
+      if (step.error) {
+        failedActions.push(`${type}${raw.selector ? ` on "${raw.selector}"` : ''}: ${step.error.slice(0, 120)}`)
+      }
+
+      // Extract key insights from model thoughts
+      if (step.thought && !step.error) {
+        const t = step.thought
+        // Capture thoughts that mention specific strategies or discoveries
+        if (t.length > 20 && t.length < 300 && (
+          /found|discover|work|success|correct|need to|should|instead/i.test(t)
+        )) {
+          const hint = t.slice(0, 200)
+          if (successHints.length < 3) successHints.push(hint)
+        }
+      }
+    }
+
+    // Build rich learnings string
+    const parts: string[] = [`Outcome: ${summary}. Steps: ${task.steps.length}. Duration: ${Math.round(durationMs / 1000)}s.`]
+
+    if (urls.length > 0) parts.push(`URLs: ${urls.slice(0, 5).join(', ')}`)
+    if (selectors.length > 0) parts.push(`Working selectors: ${selectors.slice(0, 10).join(' | ')}`)
+    if (failedActions.length > 0) parts.push(`Failed: ${failedActions.slice(0, 5).join('; ')}`)
+    if (successHints.length > 0) parts.push(`Insights: ${successHints.join(' | ')}`)
 
     saveMemory({
       taskId: task.id,
       prompt: task.prompt,
       outcome,
-      learnings,
+      learnings: parts.join('\n'),
       provider,
       durationMs
     })

@@ -124,10 +124,15 @@ export function parseModelResponse(raw: string): ModelResponse {
       consecutiveTruncations = 0
       return {
         thought: 'Model keeps generating truncated responses — aborting task',
-        action: { type: 'fail', reason: 'Model output repeatedly truncated. Try a simpler task or shorter prompt.' } as unknown as TaskAction
+        action: {
+          type: 'fail',
+          reason: 'Model output repeatedly truncated. Try a simpler task or shorter prompt.'
+        } as unknown as TaskAction
       }
     }
-    console.warn(`[action-parser] Truncated response (${consecutiveTruncations}/${MAX_TRUNCATION_RETRIES}) — injecting wait`)
+    console.warn(
+      `[action-parser] Truncated response (${consecutiveTruncations}/${MAX_TRUNCATION_RETRIES}) — injecting wait`
+    )
     return {
       thought: '(truncated response — retrying with fresh screenshot)',
       action: { type: 'wait', ms: 1000 } as unknown as TaskAction
@@ -198,6 +203,10 @@ const VALID_ACTION_TYPES = new Set([
   'evaluate',
   // Shell
   'shell',
+  // CDP file upload
+  'upload_file',
+  // Screenshot
+  'screenshot',
   // Code mode file operations
   'file_read',
   'file_write',

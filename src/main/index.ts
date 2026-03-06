@@ -12,7 +12,8 @@ if (!process.env.TZ) {
   try {
     const tz = require('child_process')
       .execSync('powershell.exe -NoProfile -Command "[TimeZoneInfo]::Local.Id"', { timeout: 3000 })
-      .toString().trim()
+      .toString()
+      .trim()
     // Map common Windows timezone IDs to IANA
     const winToIana: Record<string, string> = {
       'Argentina Standard Time': 'America/Argentina/Buenos_Aires',
@@ -21,10 +22,12 @@ if (!process.env.TZ) {
       'Eastern Standard Time': 'America/New_York',
       'Central Standard Time': 'America/Chicago',
       'Mountain Standard Time': 'America/Denver',
-      'UTC': 'UTC'
+      UTC: 'UTC'
     }
     process.env.TZ = winToIana[tz] || tz
-  } catch { /* not on WSL or powershell not available — keep system default */ }
+  } catch {
+    /* not on WSL or powershell not available — keep system default */
+  }
 }
 
 import { app, shell, BrowserWindow, screen, session, nativeTheme } from 'electron'
@@ -34,7 +37,7 @@ import icon from '../../resources/icon.png?asset'
 import { initPolicy, registerIpcHandlers, tryHandleChatGPTCallback } from './ipc'
 import { startAuthCallbackServer } from './auth-callback-server'
 import { TaskManager } from './agent/task-manager'
-import { CdpRelay } from './agent/cdp-relay'
+import { closeSharedPlaywrightChromeCdp } from './browser/playwright-cdp'
 import { ChannelManager } from './channels/channel-manager'
 import { ScheduleRunner } from './schedule-runner'
 
@@ -54,9 +57,20 @@ if (process.env.TZ && process.env.TZ !== 'UTC') {
 
 nativeTheme.themeSource = 'dark'
 
+function isWslHost(): boolean {
+  if (process.platform !== 'linux') return false
+  if (process.env.WSL_INTEROP || process.env.WSL_DISTRO_NAME) return true
+  try {
+    const version = require('fs').readFileSync('/proc/version', 'utf8') as string
+    return version.toLowerCase().includes('microsoft')
+  } catch {
+    return false
+  }
+}
+
 function createWindow(): BrowserWindow {
   // Create the browser window.
-  const useNativeFrame = process.platform === 'linux'
+  const useNativeFrame = process.platform === 'linux' && !isWslHost()
   const mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
@@ -205,26 +219,17 @@ app.whenReady().then(() => {
   scheduleRunner.start()
 
   channelManager = new ChannelManager(taskManager)
-  void channelManager.loadGlobal().then(() => channelManager!.startAll()).catch((e) => {
-    console.warn('[ChannelManager] Failed to start:', e)
-  })
-
-  // Start CDP relay for browser extension tasks
-  const cdpRelay = new CdpRelay()
-  void cdpRelay
-    .start()
-    .then(() => {
-      taskManager!.setCdpRelay(cdpRelay)
-    })
+  void channelManager
+    .loadGlobal()
+    .then(() => channelManager!.startAll())
     .catch((e) => {
-      console.warn('[CdpRelay] Failed to start:', e)
+      console.warn('[ChannelManager] Failed to start:', e)
     })
 
   registerIpcHandlers({
     openAuthUrl: (url) => openAuthUrl(win, url),
     taskManager,
-    channelManager,
-    cdpRelay
+    channelManager
   })
 
   // Local callback server used for OAuth redirects.
@@ -259,6 +264,7 @@ app.on('before-quit', () => {
   taskManager?.destroyAll()
   void channelManager?.stopAll()
   void authServer?.close()
+  void closeSharedPlaywrightChromeCdp()
 })
 
 // Quit when all windows are closed, except on macOS. There, it's common

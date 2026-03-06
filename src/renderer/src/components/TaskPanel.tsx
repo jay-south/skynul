@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import type { Task } from '../../../shared/task'
 
@@ -91,6 +91,24 @@ export function TaskPanel(props: {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
 
+  const byId = useMemo(() => new Map(props.tasks.map((t) => [t.id, t] as const)), [props.tasks])
+
+  const activeRootId = useMemo(() => {
+    if (!props.activeTaskId) return null
+    let cur = byId.get(props.activeTaskId)
+    let hops = 0
+    while (cur?.parentTaskId && hops < 50) {
+      const next = byId.get(cur.parentTaskId)
+      if (!next) break
+      cur = next
+      hops++
+    }
+    return cur?.id ?? props.activeTaskId
+  }, [byId, props.activeTaskId])
+
+  // Sub-agent tasks are shown in the Multi-Agent Control Room, not as separate items.
+  const rootTasks = useMemo(() => props.tasks.filter((t) => !t.parentTaskId), [props.tasks])
+
   const closeMenu = useCallback(() => {
     setMenuOpenId(null)
     setMenuAnchor(null)
@@ -106,15 +124,15 @@ export function TaskPanel(props: {
       </div>
 
       <div className="rbList" role="tablist" aria-label="Tasks">
-        {props.tasks.length === 0 && (
+        {rootTasks.length === 0 && (
           <div className="taskEmpty">No tasks yet. Click &quot;New&quot; to create one.</div>
         )}
-        {props.tasks.map((t) => (
+        {rootTasks.map((t) => (
           <div
             key={t.id}
-            className={`rbItem ${t.id === props.activeTaskId ? 'active' : ''}`}
+            className={`rbItem ${t.id === activeRootId ? 'active' : ''}`}
             role="tab"
-            aria-selected={t.id === props.activeTaskId}
+            aria-selected={t.id === activeRootId}
           >
             <div className="rbItemContent" onClick={() => props.onSelectTask(t.id)}>
               <div className="rbItemTitle">{t.prompt.slice(0, 40)}</div>

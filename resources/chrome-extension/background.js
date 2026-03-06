@@ -113,6 +113,9 @@ async function handleCommand(msg) {
       case 'screenshot':
         result = await captureScreenshot(tid)
         break
+      case 'uploadFile':
+        result = await uploadFile(msg.selector, msg.filePaths, msg.frameId, tid)
+        break
       case 'cdp':
         result = await sendCDP(method, params, tid ? await resolveTabId(tid) : undefined)
         break
@@ -179,22 +182,33 @@ async function ensureAttached(tabId) {
   await sendCDP('Runtime.enable', {}, tabId)
   // Collect contexts that already exist (iframes loaded before attach)
   try {
-    const { result } = await sendCDP('Runtime.evaluate', {
-      expression: '1', returnByValue: true
-    }, tabId) // triggers main context
+    const { result } = await sendCDP(
+      'Runtime.evaluate',
+      {
+        expression: '1',
+        returnByValue: true
+      },
+      tabId
+    ) // triggers main context
     const tree = await sendCDP('Page.getFrameTree', {}, tabId)
     const walkFrames = (node) => {
       const f = node.frame
       if (!frameContexts.has(f.id)) {
         // Probe each frame to force context creation
-        sendCDP('Page.createIsolatedWorld', { frameId: f.id, worldName: '__skynul_probe' }, tabId).catch(() => {})
+        sendCDP(
+          'Page.createIsolatedWorld',
+          { frameId: f.id, worldName: '__skynul_probe' },
+          tabId
+        ).catch(() => {})
       }
       for (const child of node.childFrames || []) walkFrames(child)
     }
     walkFrames(tree.frameTree)
     // Give contexts a moment to register via the event listener
-    await new Promise(r => setTimeout(r, 200))
-  } catch { /* non-critical */ }
+    await new Promise((r) => setTimeout(r, 200))
+  } catch {
+    /* non-critical */
+  }
 }
 
 chrome.debugger.onEvent.addListener((source, method, params) => {
@@ -206,7 +220,10 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
   }
   if (method === 'Runtime.executionContextDestroyed') {
     for (const [fid, cid] of frameContexts) {
-      if (cid === params.executionContextId) { frameContexts.delete(fid); break }
+      if (cid === params.executionContextId) {
+        frameContexts.delete(fid)
+        break
+      }
     }
   }
 })
@@ -255,25 +272,30 @@ async function cdpQuerySelector(selector, tabId) {
       const tag = (node.localName || '').toLowerCase()
       const attrs = {}
       if (node.attributes) {
-        for (let i = 0; i < node.attributes.length; i += 2) attrs[node.attributes[i]] = node.attributes[i + 1]
+        for (let i = 0; i < node.attributes.length; i += 2)
+          attrs[node.attributes[i]] = node.attributes[i + 1]
       }
       // Check if this node matches the selector
       const matches =
         (selector.startsWith('#') && attrs.id === selector.slice(1)) ||
-        (selector.startsWith('[') && (() => {
-          const m = selector.match(/\[([^=]+)="([^"]+)"\]/)
-          return m && attrs[m[1]] === m[2]
-        })()) ||
-        (selector.includes('.') && !selector.startsWith('[') && (() => {
-          const parts = selector.split('.')
-          const sTag = parts[0] || tag
-          const classes = (attrs.class || '').split(' ')
-          return sTag === tag && parts.slice(1).every(c => classes.includes(c))
-        })()) ||
-        (selector.includes('[aria-label=') && (() => {
-          const m = selector.match(/\[aria-label="([^"]+)"\]/)
-          return m && attrs['aria-label'] === m[1]
-        })())
+        (selector.startsWith('[') &&
+          (() => {
+            const m = selector.match(/\[([^=]+)="([^"]+)"\]/)
+            return m && attrs[m[1]] === m[2]
+          })()) ||
+        (selector.includes('.') &&
+          !selector.startsWith('[') &&
+          (() => {
+            const parts = selector.split('.')
+            const sTag = parts[0] || tag
+            const classes = (attrs.class || '').split(' ')
+            return sTag === tag && parts.slice(1).every((c) => classes.includes(c))
+          })()) ||
+        (selector.includes('[aria-label=') &&
+          (() => {
+            const m = selector.match(/\[aria-label="([^"]+)"\]/)
+            return m && attrs['aria-label'] === m[1]
+          })())
       if (matches) return node
       for (const child of node.children || []) {
         const found = findNode(child)
@@ -288,7 +310,9 @@ async function cdpQuerySelector(selector, tabId) {
     const target = findNode(doc.root)
     if (target?.nodeId) return target.nodeId
     return null
-  } catch { return null }
+  } catch {
+    return null
+  }
 }
 
 async function clickSelector(selector, frameId, tid) {
@@ -298,7 +322,10 @@ async function clickSelector(selector, frameId, tid) {
     expression: `(() => { ${deepQueryFn} const el = deepQuery(${JSON.stringify(selector)}); if (!el) return { error: 'Element not found: ${selector}' }; el.scrollIntoView({ block: 'center' }); el.click(); return { success: true, tag: el.tagName }; })()`,
     returnByValue: true
   }
-  if (frameId) { const ctxId = frameContexts.get(frameId); if (ctxId) opts.contextId = ctxId }
+  if (frameId) {
+    const ctxId = frameContexts.get(frameId)
+    if (ctxId) opts.contextId = ctxId
+  }
   const result = await sendCDP('Runtime.evaluate', opts, tabId)
   const val = result?.result?.value
   // Fallback: if JS deepQuery failed, try CDP DOM pierce for closed shadow DOM
@@ -312,8 +339,16 @@ async function clickSelector(selector, frameId, tid) {
         const cx = (q[0] + q[2] + q[4] + q[6]) / 4
         const cy = (q[1] + q[3] + q[5] + q[7]) / 4
         await sendCDP('DOM.scrollIntoViewIfNeeded', { nodeId }, tabId)
-        await sendCDP('Input.dispatchMouseEvent', { type: 'mousePressed', x: cx, y: cy, button: 'left', clickCount: 1 }, tabId)
-        await sendCDP('Input.dispatchMouseEvent', { type: 'mouseReleased', x: cx, y: cy, button: 'left', clickCount: 1 }, tabId)
+        await sendCDP(
+          'Input.dispatchMouseEvent',
+          { type: 'mousePressed', x: cx, y: cy, button: 'left', clickCount: 1 },
+          tabId
+        )
+        await sendCDP(
+          'Input.dispatchMouseEvent',
+          { type: 'mouseReleased', x: cx, y: cy, button: 'left', clickCount: 1 },
+          tabId
+        )
         return { success: true, via: 'cdp-dom' }
       } catch (e) {
         throw new Error(`CDP click failed: ${e.message}`)
@@ -331,7 +366,10 @@ async function typeInto(selector, text, frameId, tid) {
     expression: `(() => { ${deepQueryFn} const el = deepQuery(${JSON.stringify(selector)}); if (!el) return { error: 'Element not found' }; el.focus(); el.select?.(); return { success: true }; })()`,
     returnByValue: true
   }
-  if (frameId) { const ctxId = frameContexts.get(frameId); if (ctxId) opts.contextId = ctxId }
+  if (frameId) {
+    const ctxId = frameContexts.get(frameId)
+    if (ctxId) opts.contextId = ctxId
+  }
   const focusResult = await sendCDP('Runtime.evaluate', opts, tabId)
   const focusVal = focusResult?.result?.value
   // Fallback: if JS deepQuery failed, focus via CDP DOM
@@ -539,7 +577,15 @@ async function getPageInfo(frameId, tid) {
       const docResult = await sendCDP('DOM.getDocument', { depth: -1, pierce: true }, tabId)
       const elements = []
       const interactiveTags = new Set(['button', 'a', 'input', 'textarea', 'select'])
-      const interactiveRoles = new Set(['button', 'link', 'textbox', 'combobox', 'searchbox', 'tab', 'menuitem'])
+      const interactiveRoles = new Set([
+        'button',
+        'link',
+        'textbox',
+        'combobox',
+        'searchbox',
+        'tab',
+        'menuitem'
+      ])
       const seen = new Set()
 
       const walkNodes = (node) => {
@@ -552,25 +598,36 @@ async function getPageInfo(frameId, tid) {
           }
         }
         const role = attrs.role || ''
-        const isInteractive = interactiveTags.has(tag) || interactiveRoles.has(role) ||
-          attrs.onclick || attrs['data-action']
+        const isInteractive =
+          interactiveTags.has(tag) ||
+          interactiveRoles.has(role) ||
+          attrs.onclick ||
+          attrs['data-action']
         if (isInteractive && tag !== 'script' && tag !== 'style') {
           let selector = ''
           if (attrs.id) selector = '#' + attrs.id
           else if (attrs['data-testid']) selector = `[data-testid="${attrs['data-testid']}"]`
           else if (attrs.name) selector = `${tag}[name="${attrs.name}"]`
           else if (attrs.placeholder) selector = `${tag}[placeholder="${attrs.placeholder}"]`
-          else if (attrs.class) selector = tag + '.' + attrs.class.split(' ').filter(Boolean).join('.')
+          else if (attrs.class)
+            selector = tag + '.' + attrs.class.split(' ').filter(Boolean).join('.')
           else if (attrs['aria-label']) selector = `${tag}[aria-label="${attrs['aria-label']}"]`
           else selector = tag
           const text = (node.children || [])
-            .filter(c => c.nodeType === 3)
-            .map(c => (c.nodeValue || '').trim())
-            .join(' ').slice(0, 50)
+            .filter((c) => c.nodeType === 3)
+            .map((c) => (c.nodeValue || '').trim())
+            .join(' ')
+            .slice(0, 50)
           const key = tag + ':' + selector
           if (!seen.has(key)) {
             seen.add(key)
-            elements.push({ tag, type: attrs.type || undefined, selector, text: text || undefined, interactive: true })
+            elements.push({
+              tag,
+              type: attrs.type || undefined,
+              selector,
+              text: text || undefined,
+              interactive: true
+            })
           }
         }
         for (const child of node.children || []) walkNodes(child)
@@ -582,7 +639,9 @@ async function getPageInfo(frameId, tid) {
         info.elements = elements.slice(0, 30)
       }
       await sendCDP('DOM.disable', {}, tabId)
-    } catch { /* non-critical fallback */ }
+    } catch {
+      /* non-critical fallback */
+    }
   }
 
   return info
@@ -593,6 +652,134 @@ async function captureScreenshot(tid) {
   await ensureAttached(tabId)
   const result = await sendCDP('Page.captureScreenshot', { format: 'png' }, tabId)
   return { data: result.data }
+}
+
+async function uploadFile(selector, filePaths, frameId, tid) {
+  const tabId = await resolveTabId(tid)
+  await ensureAttached(tabId)
+
+  if (!Array.isArray(filePaths) || filePaths.length === 0) {
+    throw new Error('uploadFile: filePaths is required')
+  }
+
+  await sendCDP('DOM.enable', {}, tabId)
+
+  let nodeId = null
+  try {
+    // Preferred: CDP DOM.querySelector with pierce=true document tree.
+    const doc = await sendCDP('DOM.getDocument', { depth: -1, pierce: true }, tabId)
+    const rootNodeId = doc?.root?.nodeId
+    if (rootNodeId) {
+      const q = await sendCDP('DOM.querySelector', { nodeId: rootNodeId, selector }, tabId)
+      if (q?.nodeId) nodeId = q.nodeId
+    }
+  } catch {
+    // ignore
+  }
+
+  // Also try DOM.performSearch which can traverse deeper trees.
+  if (!nodeId) {
+    try {
+      const search = await sendCDP(
+        'DOM.performSearch',
+        {
+          query: selector,
+          includeUserAgentShadowDOM: true
+        },
+        tabId
+      )
+      const sid = search?.searchId
+      const count = search?.resultCount ?? 0
+      if (sid && count > 0) {
+        const res = await sendCDP(
+          'DOM.getSearchResults',
+          {
+            searchId: sid,
+            fromIndex: 0,
+            toIndex: Math.min(1, count)
+          },
+          tabId
+        )
+        const ids = res?.nodeIds || []
+        if (ids.length > 0) nodeId = ids[0]
+        try {
+          await sendCDP('DOM.discardSearchResults', { searchId: sid }, tabId)
+        } catch {}
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // If not found in main document, try inside iframe documents.
+  if (!nodeId) {
+    try {
+      const tree = await sendCDP('Page.getFrameTree', {}, tabId)
+      const ids = []
+      const walk = (n) => {
+        if (!n) return
+        if (n.frame?.id) ids.push(n.frame.id)
+        for (const c of n.childFrames || []) walk(c)
+      }
+      walk(tree.frameTree)
+
+      // Skip the first (root) frame.
+      for (const fid of ids.slice(1)) {
+        try {
+          const owner = await sendCDP('DOM.getFrameOwner', { frameId: fid }, tabId)
+          const backendNodeId = owner?.backendNodeId
+          if (!backendNodeId) continue
+          const desc = await sendCDP('DOM.describeNode', { backendNodeId }, tabId)
+          const docNodeId = desc?.node?.contentDocument?.nodeId
+          if (!docNodeId) continue
+          const q = await sendCDP('DOM.querySelector', { nodeId: docNodeId, selector }, tabId)
+          if (q?.nodeId) {
+            nodeId = q.nodeId
+            break
+          }
+        } catch {
+          // keep trying other frames
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  if (!nodeId) {
+    // Fallback: Runtime.evaluate (deepQuery) + DOM.requestNode.
+    const evalOpts = {
+      expression: `(() => { ${deepQueryFn} const el = deepQuery(${JSON.stringify(selector)}); return el || null; })()`,
+      returnByValue: false
+    }
+    if (frameId) {
+      const ctxId = frameContexts.get(frameId)
+      if (ctxId) evalOpts.contextId = ctxId
+    }
+    const evalRes = await sendCDP('Runtime.evaluate', evalOpts, tabId)
+    const objId = evalRes?.result?.objectId
+    if (objId) {
+      try {
+        const node = await sendCDP('DOM.requestNode', { objectId: objId }, tabId)
+        if (node?.nodeId) nodeId = node.nodeId
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  if (!nodeId) {
+    // Last resort: limited matcher.
+    nodeId = await cdpQuerySelector(selector, tabId)
+  }
+
+  if (!nodeId) throw new Error(`uploadFile: Could not resolve nodeId for selector: ${selector}`)
+
+  await sendCDP('DOM.setFileInputFiles', { nodeId, files: filePaths }, tabId)
+  try {
+    await sendCDP('DOM.disable', {}, tabId)
+  } catch {}
+  return { success: true }
 }
 
 // ── Snapshot helpers ────────────────────────────────────────────

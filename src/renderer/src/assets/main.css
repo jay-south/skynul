@@ -2700,6 +2700,159 @@ code {
    Chat Feed UI
    ══════════════════════════════════════════════════════════════════════ */
 
+/* ── Multi-agent control room (header panel) ───────────────────────── */
+
+.maPanel {
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--nb-border);
+  background: var(--nb-panel);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.maTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 24px;
+}
+
+.maTitle {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--nb-muted);
+  white-space: nowrap;
+}
+
+.maMeta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.maMetaPill {
+  font-size: 12px;
+  color: var(--nb-muted);
+  padding: 2px 8px;
+  border: 1px solid var(--nb-border);
+  border-radius: 999px;
+  background: var(--nb-panel-2);
+}
+
+.maRow {
+  display: flex;
+  gap: 10px;
+  padding: 0 24px 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-gutter: stable;
+}
+
+.maRow::-webkit-scrollbar {
+  height: 6px;
+}
+
+.maRow::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.maRow::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--nb-text), transparent 88%);
+  border-radius: 999px;
+}
+
+.maCard {
+  min-width: 220px;
+  max-width: 260px;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--nb-border);
+  background: var(--nb-panel-2);
+  box-shadow: none;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 120ms ease,
+    border-color 120ms ease,
+    background 120ms ease;
+}
+
+.maCard:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--nb-accent-2), var(--nb-border) 70%);
+}
+
+.maCard.active {
+  border-color: color-mix(in srgb, var(--nb-accent-2), var(--nb-border) 30%);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--nb-accent-2), transparent 82%);
+}
+
+.maCardTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.maName {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--nb-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.maRole {
+  font-size: 12px;
+  color: var(--nb-muted);
+  white-space: nowrap;
+}
+
+.maCardBottom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.maStatus {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--nb-border);
+  background: color-mix(in srgb, var(--nb-bg), transparent 20%);
+  color: var(--nb-muted);
+}
+
+.maStatus.running,
+.maStatus.approved {
+  color: color-mix(in srgb, var(--nb-accent-2), var(--nb-text) 10%);
+  border-color: color-mix(in srgb, var(--nb-accent-2), var(--nb-border) 65%);
+}
+
+.maStatus.completed {
+  color: color-mix(in srgb, var(--nb-accent), var(--nb-text) 10%);
+  border-color: color-mix(in srgb, var(--nb-accent), var(--nb-border) 65%);
+}
+
+.maStatus.failed {
+  color: color-mix(in srgb, var(--nb-danger), var(--nb-text) 10%);
+  border-color: color-mix(in srgb, var(--nb-danger), var(--nb-border) 65%);
+}
+
+.maTiny {
+  font-size: 12px;
+  color: var(--nb-muted);
+}
+
 .chatFeedLayout {
   display: flex;
   flex-direction: column;
@@ -2808,6 +2961,21 @@ code {
   gap: 0;
   padding: 0;
   background: none;
+}
+
+/* ── Collective feed agent header ─────────────────────────────────── */
+
+.cAgentHeader {
+  font-size: 12px;
+  color: var(--nb-muted);
+  padding: 8px 0 2px;
+  letter-spacing: 0.02em;
+}
+
+.cFeedMeta {
+  font-size: 13px;
+  color: var(--nb-muted);
+  white-space: pre-wrap;
 }
 
 .feedStep {
@@ -3028,6 +3196,80 @@ code {
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
+}
+
+.inputBarAttachBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--nb-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition:
+    color 0.12s,
+    background 0.12s;
+}
+
+.inputBarAttachBtn:hover {
+  color: var(--nb-text);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.inputBarAttachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  padding-left: 2px;
+}
+
+.inputBarAttachment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--nb-border);
+  background: var(--nb-surface-2);
+  color: var(--nb-text);
+  font-size: 12px;
+}
+
+.inputBarAttachmentName {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inputBarAttachmentRemove {
+  border: none;
+  background: none;
+  color: var(--nb-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.inputBarAttachmentRemove:hover {
+  color: var(--nb-text);
+}
+
+.inputBarAttachmentMore {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px dashed var(--nb-border);
+  color: var(--nb-muted);
+  font-size: 12px;
 }
 
 .inputBarModeToggle {

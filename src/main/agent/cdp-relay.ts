@@ -27,7 +27,7 @@ export class CdpRelay {
       })
 
       this.wss.on('connection', (socket) => {
-        console.log('[CdpRelay] Extension connected')
+        // silent — extension reconnects frequently
         this.extension = socket
 
         socket.on('message', (data) => {
