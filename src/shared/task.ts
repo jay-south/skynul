@@ -6,6 +6,18 @@ export type TaskCapabilityId =
   | 'polymarket.trading'
   | 'office.professional'
 
+// ── Router / Envelope (v1) ───────────────────────────────────────────────────
+
+export type TaskIntent = 'automation' | 'dev' | 'infra' | 'unknown'
+
+export type TaskVisibility = 'user' | 'internal'
+
+export type TaskContextRef = {
+  kind: string
+  ref: string
+  hint?: string
+}
+
 export const ALL_TASK_CAPABILITIES: Array<{
   id: TaskCapabilityId
   title: string
@@ -109,6 +121,8 @@ export type Task = {
   id: string
   /** If present, this task was spawned from another task (sub-agent). */
   parentTaskId?: string
+  /** Internal tasks/subtasks MUST NOT be exposed to renderer list/get APIs. */
+  visibility?: TaskVisibility
   prompt: string
   status: TaskStatus
   mode: TaskMode

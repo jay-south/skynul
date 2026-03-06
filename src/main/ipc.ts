@@ -46,6 +46,7 @@ import type { ChannelManager } from './channels/channel-manager'
 import type { RuntimeStats } from '../shared/runtime'
 import type { CdpRelay } from './agent/cdp-relay'
 import { BrowserBridge } from './agent/browser-bridge'
+import { toRendererTask, toRendererTaskList } from './agent/task-public'
 import { loadSnapshots, saveSnapshot, deleteSnapshot } from './browser-snapshots'
 import type { BrowserSnapshot } from './browser-snapshots'
 import type { ChannelId } from '../shared/channel'
@@ -475,11 +476,16 @@ export function registerIpcHandlers(opts: {
 
   ipcMain.handle(IPC.taskCreate, async (_evt, req: TaskCreateRequest) => {
     const task = tm.create(req)
-    return { task }
+    const safe = toRendererTask(task)
+    if (!safe) throw new Error('Task not found')
+    return { task: safe }
   })
 
   ipcMain.handle(IPC.taskApprove, async (_evt, req: TaskApproveRequest) => {
-    return tm.approve(req.taskId)
+    const task = await tm.approve(req.taskId)
+    const safe = toRendererTask(task)
+    if (!safe) throw new Error('Task not found')
+    return safe
   })
 
   ipcMain.handle(IPC.taskCancel, async (_evt, req: TaskCancelRequest) => {
@@ -495,17 +501,21 @@ export function registerIpcHandlers(opts: {
     // Resume not implemented yet — return current state
     const task = tm.get(req.taskId)
     if (!task) throw new Error('Task not found')
-    return task
+    const safe = toRendererTask(task)
+    if (!safe) throw new Error('Task not found')
+    return safe
   })
 
   ipcMain.handle(IPC.taskGet, async (_evt, req: TaskGetRequest) => {
     const task = tm.get(req.taskId)
     if (!task) throw new Error('Task not found')
-    return task
+    const safe = toRendererTask(task)
+    if (!safe) throw new Error('Task not found')
+    return safe
   })
 
   ipcMain.handle(IPC.taskList, async () => {
-    return { tasks: tm.list() }
+    return { tasks: toRendererTaskList(tm.list()) }
   })
 
   ipcMain.handle(IPC.taskDelete, async (_evt, req: { taskId: string }) => {

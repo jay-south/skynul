@@ -6,8 +6,9 @@
 import { getSupabaseToken } from '../ipc'
 import type { VisionMessage } from './codex-vision'
 
-const SUPABASE_URL =
-  (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? process.env.VITE_SUPABASE_URL ?? ''
+// NOTE: This module runs in the Electron main process (Node). Avoid `import.meta.env`
+// so unit tests can compile with CommonJS.
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? ''
 
 type ContentPart =
   | { type: 'text'; text: string }

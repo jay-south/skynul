@@ -10,8 +10,9 @@
  * 7. Repeat until done, fail, timeout, or max steps
  */
 
-import type { Task, TaskAction, TaskStep } from '../../shared/task'
+import type { Task, TaskAction, TaskCapabilityId, TaskStep } from '../../shared/task'
 import type { ProviderId } from '../../shared/policy'
+import type { PolicyState } from '../../shared/policy'
 import { WindowsBridge } from './windows-bridge'
 import { BrowserBridge } from './browser-bridge'
 import type { CdpRelay } from './cdp-relay'
@@ -21,6 +22,7 @@ import { codexVisionRespond, type VisionMessage } from '../providers/codex-visio
 import { PolymarketClient } from '../polymarket-client'
 import { scrapeUrl } from './web-scraper'
 import { createExcelFromTsv } from './excel-writer'
+import { resolveWithinWorkspace } from './workspace-path'
 
 export type TaskRunnerCallbacks = {
   onUpdate: (task: Task) => void
@@ -33,6 +35,12 @@ export type TaskRunnerOpts = {
   memoryContext?: string
   taskManager?: import('./task-manager').TaskManager | null
   taskId?: string
+  /** Policy state snapshot used for enforcement (not UI). */
+  policy?: Pick<PolicyState, 'workspaceRoot' | 'capabilities'>
+  /** Effective task capabilities (intersection) enforced by the runner. */
+  effectiveTaskCapabilities?: TaskCapabilityId[]
+  /** Internal execution prompt (may differ from task.prompt shown in UI). */
+  executionPrompt?: string
 }
 
 export class TaskRunner {
@@ -49,6 +57,10 @@ export class TaskRunner {
   private cdpScaleY = 1
   /** Best-effort accumulated token usage (when provider returns usage). */
   private usageTotals: { inputTokens: number; outputTokens: number } | null = null
+  private readonly effectiveCaps: Set<TaskCapabilityId>
+  private readonly policyCaps: PolicyState['capabilities']
+  private readonly workspaceRoot: string | null
+  private readonly executionPrompt: string
 
   constructor(
     task: Task,
@@ -56,6 +68,16 @@ export class TaskRunner {
     private callbacks: TaskRunnerCallbacks
   ) {
     this.task = { ...task }
+
+    this.effectiveCaps = new Set(opts.effectiveTaskCapabilities ?? task.capabilities)
+    this.policyCaps = opts.policy?.capabilities ?? {
+      'fs.read': false,
+      'fs.write': false,
+      'cmd.run': false,
+      'net.http': false
+    }
+    this.workspaceRoot = opts.policy?.workspaceRoot ?? null
+    this.executionPrompt = opts.executionPrompt?.trim() ? opts.executionPrompt : task.prompt
   }
 
   /**
@@ -80,8 +102,7 @@ export class TaskRunner {
 
     // Check if this task actually needs the browser (CDP)
     const needsBrowser =
-      this.task.capabilities.includes('browser.cdp') ||
-      this.task.capabilities.includes('app.launch')
+      this.effectiveCaps.has('browser.cdp') || this.effectiveCaps.has('app.launch')
     let browserBridge: BrowserBridge | null = null
 
     if (needsBrowser) {
@@ -129,13 +150,13 @@ export class TaskRunner {
 
     this.pushStatus(needsBrowser ? 'Preparing agent loop...' : 'Starting agent loop...')
 
-    const systemPrompt = buildCdpSystemPrompt(this.task.capabilities)
+    const systemPrompt = buildCdpSystemPrompt([...this.effectiveCaps])
     const history: VisionMessage[] = []
 
     const memCtxCdp = this.opts.memoryContext ?? ''
     history.push({
       role: 'user',
-      content: [{ type: 'input_text', text: `Task: ${this.task.prompt}${memCtxCdp}` }]
+      content: [{ type: 'input_text', text: `Task: ${this.executionPrompt}${memCtxCdp}` }]
     })
 
     while (!this.aborted && this.task.steps.length < this.task.maxSteps) {
@@ -155,7 +176,9 @@ export class TaskRunner {
             const tryIframes = async (): Promise<boolean> => {
               try {
                 const frames = await browserBridge.getFrames()
-                const childFrames = frames.filter((f) => f.parentId !== null && f.url.startsWith('http'))
+                const childFrames = frames.filter(
+                  (f) => f.parentId !== null && f.url.startsWith('http')
+                )
                 for (const frame of childFrames.slice(0, 3)) {
                   const frameInfo = await browserBridge.getPageInfo(frame.id)
                   if (frameInfo.elements.length > 0) {
@@ -164,7 +187,9 @@ export class TaskRunner {
                     return true
                   }
                 }
-              } catch { /* ignore */ }
+              } catch {
+                /* ignore */
+              }
               return false
             }
 
@@ -219,12 +244,12 @@ export class TaskRunner {
           // No browser — API-only mode (e.g. Polymarket trading)
           turnText =
             stepIndex === 0
-              ? `Task: ${this.task.prompt}\n\nYou are in API-only mode. Use the polymarket_* actions directly. Do NOT use shell, navigate, or evaluate.`
+              ? `Task: ${this.executionPrompt}\n\nYou are in API-only mode. Use the polymarket_* actions directly. Do NOT use shell, navigate, or evaluate.`
               : `Step ${stepIndex + 1}.${actionLog}`
         } else {
           turnText =
             stepIndex === 0
-              ? `Task: ${this.task.prompt}\n\nCurrent page:\nURL: ${pageUrl}\nTitle: ${pageTitle}\nText: ${pageText}${elementsBlock}`
+              ? `Task: ${this.executionPrompt}\n\nCurrent page:\nURL: ${pageUrl}\nTitle: ${pageTitle}\nText: ${pageText}${elementsBlock}`
               : `Step ${stepIndex + 1}.\nURL: ${pageUrl}\nTitle: ${pageTitle}\nText: ${pageText}${elementsBlock}${actionLog}`
         }
 
@@ -350,7 +375,7 @@ export class TaskRunner {
       content: [
         {
           type: 'input_text',
-          text: `Task: ${this.task.prompt}${memCtx}\n\n[CODE MODE] You have NO screen access. Use file_read, file_write, file_edit, file_list, file_search, and shell to accomplish the task. Do NOT use click, scroll, move, or other screen actions.`
+          text: `Task: ${this.executionPrompt}${memCtx}\n\n[CODE MODE] You have NO screen access. Use file_read, file_write, file_edit, file_list, file_search, and shell to accomplish the task. Do NOT use click, scroll, move, or other screen actions.`
         }
       ]
     })
@@ -360,7 +385,7 @@ export class TaskRunner {
         const stepIndex = this.task.steps.length
         let turnText: string
         if (stepIndex === 0) {
-          turnText = `Task: ${this.task.prompt}\n\n[CODE MODE] No screen. Use file_read/file_write/file_edit/file_list/file_search/shell/done/fail actions.`
+          turnText = `Task: ${this.executionPrompt}\n\n[CODE MODE] No screen. Use file_read/file_write/file_edit/file_list/file_search/shell/done/fail actions.`
         } else {
           const recentSteps = this.task.steps.slice(-8)
           const actionLog = recentSteps
@@ -461,11 +486,13 @@ export class TaskRunner {
   private async executeCodeAction(action: TaskAction): Promise<string | undefined> {
     switch (action.type) {
       case 'shell':
+        this.assertPolicy('cmd.run', 'shell')
         return this.executeShell(action.command, action.cwd, action.timeout)
       case 'wait':
         await this.sleep(action.ms)
         return undefined
       case 'web_scrape': {
+        this.assertPolicy('net.http', 'web_scrape')
         const data = await scrapeUrl(action.url, action.instruction)
         if (data.includes('\t')) this.lastScrapeData += (this.lastScrapeData ? '\n' : '') + data
         return data
@@ -484,6 +511,8 @@ export class TaskRunner {
         }
       }
       case 'launch':
+        this.assertTaskCap('app.launch', 'launch')
+        this.assertPolicy('cmd.run', 'launch')
         return this.executeShell(
           `powershell.exe -NoProfile -Command "Start-Process '${action.app}'"`
         )
@@ -492,16 +521,24 @@ export class TaskRunner {
       case 'polymarket_search_markets':
       case 'polymarket_place_order':
       case 'polymarket_close_position':
+        this.assertTaskCap('polymarket.trading', action.type)
+        this.assertPolicy('net.http', action.type)
         return this.executePolymarketAction(action)
       case 'file_read':
+        this.assertPolicy('fs.read', 'file_read')
         return this.executeFileRead(action.path, action.offset, action.limit, action.cwd)
       case 'file_write':
+        this.assertPolicy('fs.write', 'file_write')
         return this.executeFileWrite(action.path, action.content, action.cwd)
       case 'file_edit':
+        this.assertPolicy('fs.read', 'file_edit')
+        this.assertPolicy('fs.write', 'file_edit')
         return this.executeFileEdit(action.path, action.old_string, action.new_string, action.cwd)
       case 'file_list':
+        this.assertPolicy('fs.read', 'file_list')
         return this.executeFileList(action.pattern, action.cwd)
       case 'file_search':
+        this.assertPolicy('fs.read', 'file_search')
         return this.executeFileSearch(action.pattern, action.path, action.glob, action.cwd)
       case 'task_list_peers':
       case 'task_send':
@@ -521,8 +558,7 @@ export class TaskRunner {
     cwd?: string
   ): Promise<string> {
     const fs = await import('fs/promises')
-    const path = await import('path')
-    const resolved = cwd ? path.resolve(cwd, filePath) : path.resolve(filePath)
+    const resolved = this.resolveWorkspacePath(filePath, cwd)
     try {
       const content = await fs.readFile(resolved, 'utf-8')
       let lines = content.split('\n')
@@ -544,7 +580,7 @@ export class TaskRunner {
   private async executeFileWrite(filePath: string, content: string, cwd?: string): Promise<string> {
     const fs = await import('fs/promises')
     const path = await import('path')
-    const resolved = cwd ? path.resolve(cwd, filePath) : path.resolve(filePath)
+    const resolved = this.resolveWorkspacePath(filePath, cwd)
     try {
       await fs.mkdir(path.dirname(resolved), { recursive: true })
       await fs.writeFile(resolved, content, 'utf-8')
@@ -562,8 +598,7 @@ export class TaskRunner {
     cwd?: string
   ): Promise<string> {
     const fs = await import('fs/promises')
-    const path = await import('path')
-    const resolved = cwd ? path.resolve(cwd, filePath) : path.resolve(filePath)
+    const resolved = this.resolveWorkspacePath(filePath, cwd)
     try {
       const content = await fs.readFile(resolved, 'utf-8')
       const count = content.split(oldStr).length - 1
@@ -581,7 +616,11 @@ export class TaskRunner {
   /** List files matching a glob pattern using fd (fallback to find). */
   private async executeFileList(pattern: string, cwd?: string): Promise<string> {
     const { exec } = require('child_process') as typeof import('child_process')
-    const execOpts = { timeout: 10_000, maxBuffer: 512 * 1024, cwd: cwd || undefined }
+    const execOpts = {
+      timeout: 10_000,
+      maxBuffer: 512 * 1024,
+      cwd: this.resolveWorkspaceDir(cwd)
+    }
     return new Promise((resolve) => {
       // Try fd first, fallback to find
       const fdCmd = `fd --type f --glob '${pattern.replace(/'/g, "'\\''")}'`
@@ -613,10 +652,14 @@ export class TaskRunner {
     cwd?: string
   ): Promise<string> {
     const { exec } = require('child_process') as typeof import('child_process')
-    const execOpts = { timeout: 10_000, maxBuffer: 512 * 1024, cwd: cwd || undefined }
+    const execOpts = {
+      timeout: 10_000,
+      maxBuffer: 512 * 1024,
+      cwd: this.resolveWorkspaceDir(cwd)
+    }
     return new Promise((resolve) => {
       const escapedPattern = pattern.replace(/'/g, "'\\''")
-      const dir = searchPath || '.'
+      const dir = searchPath ? this.resolveWorkspaceDir(searchPath) : '.'
       const globFlag = glob ? ` --glob '${glob.replace(/'/g, "'\\''")}'` : ''
       const rgCmd = `rg -n --max-count 50 '${escapedPattern}' ${dir}${globFlag}`
       exec(rgCmd, execOpts, (err, stdout) => {
@@ -658,6 +701,8 @@ export class TaskRunner {
       case 'polymarket_search_markets':
       case 'polymarket_place_order':
       case 'polymarket_close_position':
+        this.assertTaskCap('polymarket.trading', action.type)
+        this.assertPolicy('net.http', action.type)
         return this.executePolymarketAction(action)
       case 'task_list_peers':
       case 'task_send':
@@ -681,10 +726,12 @@ export class TaskRunner {
 
     switch (type) {
       case 'navigate':
+        this.assertTaskCap('browser.cdp', 'navigate')
         await bridge.navigate(raw.url as string)
         this.activeFrameId = undefined
         break
       case 'click':
+        this.assertTaskCap('browser.cdp', 'click')
         if (raw.x != null && raw.y != null) {
           // Coordinate click → use screen bridge (after launch), scale to native resolution
           const wb = await this.getScreenBridge()
@@ -697,6 +744,7 @@ export class TaskRunner {
         }
         break
       case 'type':
+        this.assertTaskCap('browser.cdp', 'type')
         if (raw.selector) {
           await bridge.type(raw.selector as string, raw.text as string, this.activeFrameId)
         } else {
@@ -707,6 +755,7 @@ export class TaskRunner {
         }
         break
       case 'key': {
+        this.assertTaskCap('browser.cdp', 'key')
         if (this.cdpNeedsScreenshot || this.bridge?.isAlive) {
           // In screen mode after launch → use bridge for key combos
           const wb = await this.getScreenBridge()
@@ -718,6 +767,7 @@ export class TaskRunner {
         break
       }
       case 'pressKey':
+        this.assertTaskCap('browser.cdp', 'pressKey')
         if (this.bridge?.isAlive) {
           const wb = await this.getScreenBridge()
           await wb.keyCombo(raw.key as string)
@@ -727,6 +777,7 @@ export class TaskRunner {
         }
         break
       case 'evaluate': {
+        this.assertTaskCap('browser.cdp', 'evaluate')
         const evalResult = await bridge.evaluate(raw.script as string, this.activeFrameId)
         // If evaluate returns TSV data, accumulate into lastScrapeData so save_to_excel can use it
         if (evalResult && evalResult.includes('\t')) {
@@ -746,6 +797,7 @@ export class TaskRunner {
         await this.sleep((raw.ms as number) ?? 1000)
         break
       case 'launch': {
+        this.assertTaskCap('app.launch', 'launch')
         // Hybrid: use WindowsBridge to launch native apps from CDP mode
         const wb = await this.getScreenBridge()
         await wb.launchApp(raw.app as string)
@@ -753,6 +805,7 @@ export class TaskRunner {
         return `Launched ${raw.app}. Next turn will include a screenshot of the screen.`
       }
       case 'web_scrape': {
+        this.assertPolicy('net.http', 'web_scrape')
         const data = await scrapeUrl(raw.url as string, raw.instruction as string)
         if (data.includes('\t')) this.lastScrapeData += (this.lastScrapeData ? '\n' : '') + data
         return data
@@ -776,6 +829,8 @@ export class TaskRunner {
       case 'polymarket_search_markets':
       case 'polymarket_place_order':
       case 'polymarket_close_position':
+        this.assertTaskCap('polymarket.trading', action.type)
+        this.assertPolicy('net.http', action.type)
         return this.executePolymarketAction(action)
       case 'task_list_peers':
       case 'task_send':
@@ -798,6 +853,7 @@ export class TaskRunner {
     systemPrompt: string,
     messages: VisionMessage[]
   ): Promise<{ text: string; usage?: { inputTokens: number; outputTokens: number } }> {
+    this.assertPolicy('net.http', 'provider')
     switch (this.opts.provider) {
       case 'chatgpt':
         return {
@@ -868,7 +924,7 @@ export class TaskRunner {
         return JSON.stringify(peers)
       }
       case 'task_send': {
-        const result = await tm.spawnAndWait(action.prompt, this.task.capabilities, this.task.id)
+        const result = await tm.spawnAndWait(action.prompt, [...this.effectiveCaps], this.task.id)
         return `Sub-task ${result.taskId} finished: ${result.summary}`
       }
       case 'task_read': {
@@ -915,6 +971,8 @@ export class TaskRunner {
   }
 
   private async executePolymarketAction(action: TaskAction): Promise<string> {
+    this.assertTaskCap('polymarket.trading', action.type)
+    this.assertPolicy('net.http', action.type)
     const client = new PolymarketClient({ mode: 'live' })
 
     switch (action.type) {
@@ -1032,6 +1090,34 @@ export class TaskRunner {
 
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms))
+  }
+
+  private assertPolicy(id: keyof PolicyState['capabilities'], action: string): void {
+    if (!this.policyCaps[id]) {
+      throw new Error(`Policy denied: ${action} requires ${id}`)
+    }
+  }
+
+  private assertTaskCap(id: TaskCapabilityId, action: string): void {
+    if (!this.effectiveCaps.has(id)) {
+      throw new Error(`Capability denied: ${action} requires ${id}`)
+    }
+  }
+
+  private resolveWorkspacePath(userPath: string, cwd?: string): string {
+    if (!this.workspaceRoot) {
+      throw new Error('Policy denied: workspaceRoot is not set')
+    }
+    return resolveWithinWorkspace(this.workspaceRoot, userPath, cwd)
+  }
+
+  private resolveWorkspaceDir(userDir?: string): string {
+    if (!this.workspaceRoot) {
+      throw new Error('Policy denied: workspaceRoot is not set')
+    }
+    if (!userDir) return this.workspaceRoot
+    // Reuse the same resolver but treat the input as a directory segment.
+    return resolveWithinWorkspace(this.workspaceRoot, userDir)
   }
 
   getTask(): Task {

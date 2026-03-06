@@ -9,16 +9,42 @@ import { readFile, writeFile, mkdir } from 'fs/promises'
 import { writeFileSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { EventEmitter } from 'events'
-import { app, type BrowserWindow } from 'electron'
+import type { BrowserWindow } from 'electron'
+import { tmpdir } from 'os'
 import type { Task, TaskCreateRequest } from '../../shared/task'
 import type { PolicyState } from '../../shared/policy'
 import { TaskRunner } from './task-runner'
 import type { CdpRelay } from './cdp-relay'
 import { saveMemory, searchMemories, formatMemoriesForPrompt, closeMemoryDb } from './task-memory'
 import { loadSkills, getActiveSkillPrompts } from '../skill-store'
+import type { TaskEnvelopeInternal } from './task-envelope'
+import { validateChainPlanRestrictOnly } from './task-envelope'
+import { TaskEnvelopeStore } from './task-envelope-store'
+import { routeV1 } from './router/router-v1'
+import { isInternalTask } from './task-public'
+import { DEFAULT_POLICY } from '../../shared/policy'
 
 const DEFAULT_MAX_STEPS = 200
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000 // 30 minutes
+
+function getUserDataPath(): string {
+  const override = process.env.SKYNUL_TEST_USERDATA
+  if (override && typeof override === 'string') return override
+
+  // In plain Node (unit tests), require('electron') returns a string (binary path), not the Electron API.
+  // In Electron runtime it returns the API object.
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const electron = require('electron') as unknown
+    const app = (electron as { app?: { getPath?: (name: string) => string } }).app
+    if (app?.getPath) return app.getPath('userData')
+  } catch {
+    // ignore
+  }
+
+  // Safe fallback for non-Electron environments.
+  return join(tmpdir(), 'skynul-userData')
+}
 
 /** Per-mode concurrency limits */
 const MAX_CONCURRENT: Record<import('../../shared/task').TaskMode, number> = {
@@ -32,13 +58,19 @@ export class TaskManager extends EventEmitter {
   private inboxes = new Map<string, Array<{ from: string; message: string }>>()
   private mainWindow: BrowserWindow | null = null
   private persistPath: string
+  private internalPersistPath: string
+  private internalStore: TaskEnvelopeStore
+  private internalEnvelopes = new Map<string, TaskEnvelopeInternal>()
   private persistTimer: ReturnType<typeof setTimeout> | null = null
   private getPolicy: (() => PolicyState) | null = null
   private cdpRelay: CdpRelay | null = null
 
   constructor() {
     super()
-    this.persistPath = join(app.getPath('userData'), 'tasks.json')
+    const userData = getUserDataPath()
+    this.persistPath = join(userData, 'tasks.json')
+    this.internalPersistPath = join(userData, 'tasks-internal.json')
+    this.internalStore = new TaskEnvelopeStore(this.internalPersistPath)
     void this.loadFromDisk()
   }
 
@@ -61,13 +93,29 @@ export class TaskManager extends EventEmitter {
    * Create a new task in pending_approval status.
    */
   create(req: TaskCreateRequest): Task {
+    return this.createTask(req)
+  }
+
+  private createInternal(req: TaskCreateRequest): Task {
+    return this.createTask(req, { visibility: 'internal' })
+  }
+
+  private createTask(req: TaskCreateRequest, opts?: { visibility?: 'internal' }): Task {
     const id = `task_${Date.now().toString(36)}_${randomBytes(4).toString('hex')}`
+
+    const routed = routeV1({
+      displayPrompt: req.prompt,
+      requestedMode: req.mode,
+      userCapabilities: req.capabilities
+    })
+
     const task: Task = {
       id,
       parentTaskId: req.parentTaskId,
+      visibility: opts?.visibility,
       prompt: req.prompt,
       status: 'pending_approval',
-      mode: req.mode ?? 'browser',
+      mode: req.mode ?? routed.mode,
       capabilities: req.capabilities,
       steps: [],
       createdAt: Date.now(),
@@ -76,6 +124,16 @@ export class TaskManager extends EventEmitter {
       timeoutMs: req.timeoutMs ?? DEFAULT_TIMEOUT_MS,
       source: req.source ?? 'desktop'
     }
+
+    this.internalEnvelopes.set(task.id, {
+      intent: routed.intent,
+      mode: task.mode,
+      intentCaps: routed.intentCaps,
+      contextRefs: routed.contextRefs,
+      chainPlan: routed.chainPlan,
+      internalPrompt: routed.internalPrompt
+    })
+
     this.tasks.set(id, task)
     void this.persistToDisk()
     return task
@@ -89,6 +147,12 @@ export class TaskManager extends EventEmitter {
     if (task.status !== 'pending_approval') {
       throw new Error(`Cannot approve task in status: ${task.status}`)
     }
+
+    if (isInternalTask(task)) {
+      throw new Error('Cannot approve internal task')
+    }
+
+    const internal = this.internalEnvelopes.get(taskId) ?? null
 
     // Rate limit: per-mode concurrency
     const running = [...this.runners.entries()].reduce(
@@ -105,6 +169,18 @@ export class TaskManager extends EventEmitter {
     if (current >= limit) {
       throw new Error(`Max ${limit} concurrent ${task.mode} tasks. Wait for one to finish.`)
     }
+
+    // Validate chain plan restrict-only before starting any runners
+    if (internal) {
+      validateChainPlanRestrictOnly({
+        chainPlan: internal.chainPlan,
+        parentCaps: task.capabilities
+      })
+    }
+
+    const effectiveTaskCapabilities = internal
+      ? intersectCapabilities(task.capabilities, internal.intentCaps)
+      : task.capabilities
 
     task.status = 'approved'
     task.updatedAt = Date.now()
@@ -136,7 +212,13 @@ export class TaskManager extends EventEmitter {
         cdpRelay: this.cdpRelay,
         memoryContext: memoryContext + skillContext,
         taskManager: this,
-        taskId: task.id
+        taskId: task.id,
+        policy: {
+          workspaceRoot: policy?.workspaceRoot ?? null,
+          capabilities: policy?.capabilities ?? DEFAULT_POLICY.capabilities
+        },
+        effectiveTaskCapabilities,
+        executionPrompt: internal?.internalPrompt
       },
       {
         onUpdate: (updated) => {
@@ -183,7 +265,7 @@ export class TaskManager extends EventEmitter {
     parentCapabilities: import('../../shared/task').TaskCapabilityId[],
     parentTaskId?: string
   ): Promise<{ taskId: string; summary: string }> {
-    const task = this.create({ prompt, capabilities: parentCapabilities, parentTaskId })
+    const task = this.createInternal({ prompt, capabilities: parentCapabilities, parentTaskId })
 
     // Auto-approve (starts the runner internally)
     await this.approve(task.id)
@@ -296,6 +378,7 @@ export class TaskManager extends EventEmitter {
     }
 
     this.tasks.delete(taskId)
+    this.internalEnvelopes.delete(taskId)
     void this.persistToDisk()
   }
 
@@ -358,7 +441,7 @@ export class TaskManager extends EventEmitter {
   }
 
   private pushUpdate(task: Task): void {
-    if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+    if (!isInternalTask(task) && this.mainWindow && !this.mainWindow.isDestroyed()) {
       this.mainWindow.webContents.send('skynul:task:update', { task })
     }
     this.emit('taskUpdate', task)
@@ -381,6 +464,7 @@ export class TaskManager extends EventEmitter {
       const stripped = this.buildStripped()
       await mkdir(dirname(this.persistPath), { recursive: true })
       await writeFile(this.persistPath, JSON.stringify(stripped, null, 2), 'utf8')
+      await this.persistInternalToDisk()
     } catch {
       // Non-critical — tasks still live in memory
     }
@@ -392,6 +476,28 @@ export class TaskManager extends EventEmitter {
       const stripped = this.buildStripped()
       mkdirSync(dirname(this.persistPath), { recursive: true })
       writeFileSync(this.persistPath, JSON.stringify(stripped, null, 2), 'utf8')
+      this.persistInternalToDiskSync()
+    } catch {
+      // ignore
+    }
+  }
+
+  private async persistInternalToDisk(): Promise<void> {
+    const obj: Record<string, TaskEnvelopeInternal> = {}
+    for (const [taskId, internal] of this.internalEnvelopes.entries()) {
+      obj[taskId] = internal
+    }
+    await this.internalStore.saveAll(obj)
+  }
+
+  private persistInternalToDiskSync(): void {
+    try {
+      const obj: Record<string, TaskEnvelopeInternal> = {}
+      for (const [taskId, internal] of this.internalEnvelopes.entries()) {
+        obj[taskId] = internal
+      }
+      mkdirSync(dirname(this.internalPersistPath), { recursive: true })
+      writeFileSync(this.internalPersistPath, JSON.stringify(obj, null, 2), 'utf8')
     } catch {
       // ignore
     }
@@ -429,5 +535,23 @@ export class TaskManager extends EventEmitter {
     } catch {
       // No file or invalid JSON — start fresh
     }
+
+    try {
+      const loadedInternal = await this.internalStore.loadAll()
+      for (const [taskId, internal] of Object.entries(loadedInternal)) {
+        this.internalEnvelopes.set(taskId, internal)
+      }
+      // Prune envelopes that don't have a task anymore
+      for (const taskId of this.internalEnvelopes.keys()) {
+        if (!this.tasks.has(taskId)) this.internalEnvelopes.delete(taskId)
+      }
+    } catch {
+      // Non-critical
+    }
   }
+}
+
+function intersectCapabilities<T extends string>(a: T[], b: T[]): T[] {
+  const bs = new Set(b)
+  return a.filter((x) => bs.has(x))
 }
