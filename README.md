@@ -1,3 +1,18 @@
+<p align="center">
+  <picture>
+    <source srcset="src/renderer/src/assets/logo-skynul.svg" media="(prefers-color-scheme: dark)" />
+    <source srcset="src/renderer/src/assets/logo-skynul-light.svg" media="(prefers-color-scheme: light)" />
+    <img src="src/renderer/src/assets/logo-skynul-light.svg" alt="Skynul" width="520" />
+  </picture>
+</p>
+
+<p align="center">Local-first desktop agent with explicit permissions. Deny by default.</p>
+
+<p align="center">
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square" /></a>
+  <img alt="Status" src="https://img.shields.io/badge/status-alpha-lightgrey?style=flat-square" />
+</p>
+
 # Skynul
 
 Skynul is a local-first desktop agent built around a simple premise: deny by default.
