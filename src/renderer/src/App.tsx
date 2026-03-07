@@ -885,7 +885,7 @@ function App(): React.JSX.Element {
       },
       {
         cap: 'polymarket.trading',
-        words: ['polymarket', 'trade', 'bet', 'position', 'market', 'odds']
+        words: ['polymarket']
       },
       {
         cap: 'office.professional',

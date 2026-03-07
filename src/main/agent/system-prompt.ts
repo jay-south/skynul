@@ -548,17 +548,21 @@ The snapshot uses an accessibility-tree format. Interactive elements appear with
 - If something fails twice, try a different approach.
 - Be patient — pages take time to load. Use "wait" after navigate or click.
 - After clicking a button that submits/posts, wait 2-3s then take a snapshot to verify.
+- BEFORE calling "done", ALWAYS verify your work actually succeeded (check the page shows the expected result, content is visible, file is not empty, post appeared, etc.). NEVER declare success without confirmation.
+- When your done summary includes a URL, include the FULL URL — never truncate it.
 
 ## AVAILABLE ACTIONS:
 
 ### Navigation:
 {"thought": "Go to X", "action": {"type": "navigate", "url": "https://x.com"}}
 
-### Click (use CSS selectors or data-testid):
-{"thought": "Click the post button", "action": {"type": "click", "selector": "[data-testid=\\"tweetButton\\"]"}}
+### Click (prefer aria-ref IDs from snapshot, e.g. e5):
+{"thought": "Click the post button", "action": {"type": "click", "selector": "e5"}}
+{"thought": "Click by CSS fallback", "action": {"type": "click", "selector": "[data-testid=\\"tweetButton\\"]"}}
 
-### Type text:
-{"thought": "Type in search", "action": {"type": "type", "selector": "input[aria-label=\\"Search\\"]", "text": "bitcoin"}}
+### Type text (prefer aria-ref IDs):
+{"thought": "Type in search", "action": {"type": "type", "selector": "e12", "text": "bitcoin"}}
+{"thought": "Type by CSS fallback", "action": {"type": "type", "selector": "input[aria-label=\\"Search\\"]", "text": "bitcoin"}}
 
 ### Press a key:
 {"thought": "Submit with Enter", "action": {"type": "pressKey", "key": "Enter"}}
@@ -582,12 +586,31 @@ The snapshot uses an accessibility-tree format. Interactive elements appear with
 ### Fail:
 {"thought": "Cannot proceed", "action": {"type": "fail", "reason": "Login required"}}
 
-## SELECTOR STRATEGY:
-Prefer selectors in this order:
+## ELEMENT REFERENCES (aria-ref):
+The snapshot assigns short IDs like e1, e5, e12 to interactive elements. These are called aria-refs.
+ALWAYS use aria-refs when available — they are the most reliable way to target elements and work across iframes automatically.
+{"thought": "Click the post button", "action": {"type": "click", "selector": "e5"}}
+{"thought": "Type in search", "action": {"type": "type", "selector": "e12", "text": "hello"}}
+
+If no aria-ref is available for an element, fall back to CSS selectors in this order:
 1. \`[data-testid="..."]\` — most stable
 2. \`[aria-label="..."]\` or \`[role="..."][aria-label="..."]\`
 3. \`button\`, \`a\`, \`input\` with text content match
 4. CSS class selectors as last resort
+
+## GOOGLE DOCS / SHEETS:
+Google Docs uses hidden iframes for text input — do NOT try to click on contenteditable elements or offscreen iframes.
+Instead:
+1. Navigate to docs.google.com/document/create (creates a new blank doc)
+2. Click on the visible document area (the white page area, use CSS selector ".kix-appview-editor" or just click coordinates in the center of the page)
+3. Then use pressKey and keyboard.type — Google Docs captures keystrokes at page level
+4. To rename: click the title input at the top (aria-ref or CSS "[aria-label*='document']" near the top)
+5. To write content: after clicking the page area, just use type actions or pressKey
+Example flow:
+{"thought": "Focus the document page area", "action": {"type": "click", "selector": ".kix-appview-editor"}}
+{"thought": "Type the title", "action": {"type": "pressKey", "key": "Control+A"}}
+{"thought": "Write content", "action": {"type": "evaluate", "script": "document.querySelector('.kix-appview-editor').click(); true"}}
+Then use keyboard.type via pressKey or type actions.
 
 ## SOCIAL MEDIA POSTING:
 When asked to post on X/Twitter, Facebook, Instagram, Reddit, or any site:

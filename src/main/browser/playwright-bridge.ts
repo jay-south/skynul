@@ -1,4 +1,8 @@
-import type { Page } from 'playwright-core'
+import type { Page, Frame } from 'playwright-core'
+
+type PageWithSnapshot = Page & {
+  _snapshotForAI?: (opts?: { timeout?: number; track?: string }) => Promise<{ full?: string }>
+}
 
 export type PageInfo = {
   url: string
@@ -20,36 +24,88 @@ export class PlaywrightBridge {
     return this.page
   }
 
+  /**
+   * Resolve a locator — supports aria-ref IDs (e.g. "e5") and CSS selectors.
+   * aria-ref works across iframes automatically.
+   */
+  private resolveLocator(selector: string, frameId?: string) {
+    // aria-ref pattern from snapshot (e.g. "e5", "f1e1", "f2e12")
+    if (/^(f\d+)?e\d+$/.test(selector)) {
+      return this.page.locator(`aria-ref=${selector}`)
+    }
+    if (frameId) {
+      const frame = this.resolveFrame(frameId)
+      return frame.locator(selector).first()
+    }
+    return this.page.locator(selector).first()
+  }
+
+  private resolveFrame(frameId?: string): Frame {
+    if (!frameId) return this.page.mainFrame()
+    const frames = this.page.frames()
+    const idx = Number(frameId)
+    if (!Number.isNaN(idx) && idx >= 0 && idx < frames.length) return frames[idx]
+    const match = frames.find(
+      (f) => f.name() === frameId || f.url().includes(frameId)
+    )
+    return match ?? this.page.mainFrame()
+  }
+
   async navigate(url: string): Promise<void> {
     await this.page.goto(url, { waitUntil: 'domcontentloaded' })
   }
 
-  async click(selector: string, _frameId?: string): Promise<void> {
-    await this.page.locator(selector).first().click({ timeout: 30_000 })
+  async click(selector: string, frameId?: string): Promise<void> {
+    const loc = this.resolveLocator(selector, frameId)
+    try {
+      await loc.click({ timeout: 8_000 })
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : ''
+      if (
+        msg.includes('outside of the viewport') ||
+        msg.includes('not visible') ||
+        msg.includes('intercepts pointer events')
+      ) {
+        await loc.scrollIntoViewIfNeeded({ timeout: 3_000 }).catch(() => {})
+        await loc.click({ timeout: 5_000, force: true })
+      } else {
+        throw e
+      }
+    }
   }
 
-  async type(selector: string, text: string, _frameId?: string): Promise<void> {
-    const loc = this.page.locator(selector).first()
-    await loc.click({ timeout: 30_000 })
+  async type(selector: string, text: string, frameId?: string): Promise<void> {
+    const loc = this.resolveLocator(selector, frameId)
     try {
-      await this.page.keyboard.press('Control+A')
+      await loc.fill(text, { timeout: 8_000 })
     } catch {
-      // ignore
+      // Fallback for contenteditable / non-input elements
+      try {
+        await loc.click({ timeout: 5_000 })
+      } catch (clickErr) {
+        const msg = clickErr instanceof Error ? clickErr.message : ''
+        if (
+          msg.includes('outside of the viewport') ||
+          msg.includes('not visible') ||
+          msg.includes('intercepts pointer events')
+        ) {
+          await loc.scrollIntoViewIfNeeded({ timeout: 3_000 }).catch(() => {})
+          await loc.click({ timeout: 5_000, force: true })
+        } else {
+          throw clickErr
+        }
+      }
+      await this.page.keyboard.type(text, { delay: 5 })
     }
-    try {
-      await this.page.keyboard.press('Backspace')
-    } catch {
-      // ignore
-    }
-    await this.page.keyboard.type(text, { delay: 5 })
   }
 
   async pressKey(key: string): Promise<void> {
     await this.page.keyboard.press(key)
   }
 
-  async evaluate(script: string, _frameId?: string): Promise<string> {
-    const val = await this.page.evaluate((expr) => {
+  async evaluate(script: string, frameId?: string): Promise<string> {
+    const frame = this.resolveFrame(frameId)
+    const val = await frame.evaluate((expr) => {
       // eslint-disable-next-line no-eval
       return (0, eval)(expr)
     }, script)
@@ -61,30 +117,45 @@ export class PlaywrightBridge {
     return buf.toString('base64')
   }
 
-  async uploadFile(selector: string, filePaths: string[], _frameId?: string): Promise<void> {
-    await this.page.setInputFiles(selector, filePaths)
+  async uploadFile(selector: string, filePaths: string[], frameId?: string): Promise<void> {
+    const loc = this.resolveLocator(selector, frameId)
+    await loc.setInputFiles(filePaths)
   }
 
   /**
-   * AI-optimized page snapshot — returns a compact text representation of the page
-   * with interactive element references the model can use for click/type actions.
-   * Uses Playwright's accessibility snapshot as a lightweight alternative to screenshots.
+   * AI-optimized page snapshot using Playwright's _snapshotForAI.
+   * Returns aria-ref IDs (e.g. e1, e5) that work across iframes.
+   * Fallback to ariaSnapshot if _snapshotForAI is unavailable.
    */
   async snapshot(): Promise<{ url: string; title: string; snapshot: string }> {
     const url = this.page.url()
     const title = await this.page.title().catch(() => '')
 
-    // Try Playwright's built-in ariaSnapshot (compact, LLM-friendly).
+    // Primary: _snapshotForAI — includes iframes, assigns aria-ref IDs
+    const maybePage = this.page as PageWithSnapshot
+    if (maybePage._snapshotForAI) {
+      try {
+        const result = await maybePage._snapshotForAI({ timeout: 10_000, track: 'response' })
+        const snap = String(result?.full ?? '')
+        if (snap.length > 20) {
+          return { url, title, snapshot: snap.slice(0, 16_000) }
+        }
+      } catch {
+        // fallback below
+      }
+    }
+
+    // Fallback: ariaSnapshot (no aria-ref IDs, no iframe content)
     try {
       const snap = await this.page.locator('body').ariaSnapshot({ timeout: 10_000 })
       if (snap && snap.length > 20) {
-        return { url, title, snapshot: snap.slice(0, 12_000) }
+        return { url, title, snapshot: snap.slice(0, 14_000) }
       }
     } catch {
       // fallback below
     }
 
-    // Fallback: build a text snapshot from the DOM.
+    // Last resort: DOM text snapshot
     const text = await this.page
       .evaluate(() => {
         const lines: string[] = []
