@@ -10,7 +10,7 @@ type BrowserLike = {
   click: (selector: string, frameId?: string) => Promise<void>
   type: (selector: string, text: string, frameId?: string) => Promise<void>
   evaluate: (script: string, frameId?: string) => Promise<string>
-  /** Optional: supported by both BrowserBridge and PlaywrightBridge. */
+  /** Optional: supported by some browser backends. */
   pressKey?: (key: string) => Promise<void>
   screenshot: () => Promise<string>
   uploadFile: (selector: string, filePaths: string[], frameId?: string) => Promise<void>
@@ -697,7 +697,6 @@ async function tryAttachGifFromX(opts: {
     return typeof res === 'string' ? res : ''
   }
 
-
   const tryCloseDialog = async (): Promise<void> => {
     try {
       if (bridge.pressKey) await bridge.pressKey('Escape')
@@ -939,7 +938,7 @@ export async function runXPostWorkflow(opts: {
             const msg = e instanceof Error ? e.message : String(e)
             if (/Unknown action:\s*uploadFile/i.test(msg)) {
               throw new Error(
-                'Chrome extension is missing uploadFile action. Reload the Skynul Chrome extension (chrome://extensions -> Developer mode -> Reload) and retry the task.'
+                'Browser backend does not support file uploads. Ensure browser automation is enabled and retry.'
               )
             }
             lastUpErr = e
@@ -1151,10 +1150,9 @@ export async function runXPostWorkflow(opts: {
           break
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e)
-          // If the Chrome extension is not reloaded after an update, it won't recognize new actions.
           if (/Unknown action:\s*uploadFile/i.test(msg)) {
             throw new Error(
-              'Chrome extension is missing uploadFile action. Reload the Skynul Chrome extension (chrome://extensions -> Developer mode -> Reload) and retry the task.'
+              'Browser backend does not support file uploads. Ensure browser automation is enabled and retry.'
             )
           }
           lastUpErr = e
