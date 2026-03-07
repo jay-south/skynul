@@ -13,7 +13,7 @@ function renderLinked(text: string): (string | React.ReactElement)[] {
     const url = m[1]
     parts.push(
       <a key={m.index} href={url} target="_blank" rel="noopener noreferrer" style={{ color: '#58a6ff', wordBreak: 'break-all' }}>
-        {url.length > 60 ? url.slice(0, 57) + '…' : url}
+        {url}
       </a>
     )
     last = re.lastIndex

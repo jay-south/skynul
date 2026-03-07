@@ -118,16 +118,13 @@ export class TaskRunner {
       return this.runCode()
     }
 
-    // Browser tasks → Playwright snapshot-based loop (generic, works on any site)
-    const needsBrowser =
-      this.task.capabilities.includes('browser.cdp') ||
-      this.task.capabilities.includes('app.launch')
-    if (needsBrowser) {
-      return this.runPlaywright()
+    // API-only tasks (Polymarket) → text loop, no browser
+    if (this.task.capabilities.includes('polymarket.trading')) {
+      return this.runCdp()
     }
 
-    // API-only tasks (Polymarket, etc.) → CDP text loop
-    return this.runCdp()
+    // Everything else → Playwright snapshot-based loop (generic, works on any site)
+    return this.runPlaywright()
   }
 
   /**
@@ -176,7 +173,7 @@ export class TaskRunner {
           snapshot: '(page not available)'
         }))
 
-        // Build action history
+        // Build action history + failed selectors blacklist
         let actionLog = ''
         if (this.task.steps.length > 0) {
           const recent = this.task.steps.slice(-8)
@@ -190,6 +187,20 @@ export class TaskRunner {
               })
               .join('\n') +
             '\n\nDo NOT repeat actions that already succeeded.'
+
+          // Collect selectors/strategies that failed — tell model to avoid them
+          const failedSelectors = new Set<string>()
+          for (const s of this.task.steps) {
+            if (s.error) {
+              const raw = s.action as Record<string, unknown>
+              if (raw.selector) failedSelectors.add(String(raw.selector))
+            }
+          }
+          if (failedSelectors.size > 0) {
+            actionLog +=
+              '\n\n⚠ FAILED SELECTORS (do NOT use these again, try a completely different approach):\n' +
+              [...failedSelectors].map((s) => `- ${s}`).join('\n')
+          }
         }
 
         // Build turn message
@@ -274,16 +285,17 @@ export class TaskRunner {
   ): Promise<string | undefined> {
     const raw = action as Record<string, unknown>
     const type = raw.type as string
+    const frameId = raw.frameId as string | undefined
     switch (type) {
       case 'navigate':
         await pw.navigate(raw.url as string)
         await this.sleep(1500)
         break
       case 'click':
-        await pw.click(raw.selector as string)
+        await pw.click(raw.selector as string, frameId)
         break
       case 'type':
-        await pw.type(raw.selector as string, raw.text as string)
+        await pw.type(raw.selector as string, raw.text as string, frameId)
         break
       case 'pressKey':
         await pw.pressKey(raw.key as string)
@@ -292,7 +304,7 @@ export class TaskRunner {
         await pw.pressKey((raw.key as string) || (raw.combo as string))
         break
       case 'evaluate': {
-        const result = await pw.evaluate(raw.script as string)
+        const result = await pw.evaluate(raw.script as string, frameId)
         return result || undefined
       }
       case 'upload_file': {
@@ -301,7 +313,7 @@ export class TaskRunner {
         if (!selector || !Array.isArray(filePaths) || filePaths.length === 0) {
           throw new Error('upload_file requires selector + filePaths[]')
         }
-        await pw.uploadFile(selector, filePaths)
+        await pw.uploadFile(selector, filePaths, frameId)
         break
       }
       case 'screenshot': {

@@ -420,6 +420,7 @@ export async function launchPlaywrightChromeCdp(): Promise<LaunchResult> {
     attemptDirs.push(`${fallbackDir}-${Date.now().toString(36)}`)
   }
 
+  let existingSessionRetried = false
   for (let attempt = 0; attempt < attemptDirs.length; attempt++) {
     const attemptUserDataDir = attemptDirs[attempt]!
 
@@ -492,6 +493,11 @@ export async function launchPlaywrightChromeCdp(): Promise<LaunchResult> {
       await Promise.race([
         waitForJsonVersion('127.0.0.1', port, cdpTimeoutMs),
         exitPromise.then(({ code, signal }) => {
+          // Chrome found an existing session with the same profile and delegated to it.
+          // Kill that session so we can relaunch with our debugging port.
+          if (code === 0 && stdoutTail.includes('Opening in existing browser session')) {
+            throw new Error('EXISTING_SESSION')
+          }
           throw new Error(
             `Chrome exited before CDP was ready (code=${code ?? 'null'}, signal=${signal ?? 'null'}).`
           )
@@ -544,6 +550,26 @@ export async function launchPlaywrightChromeCdp(): Promise<LaunchResult> {
         stdoutTail.trim() || stderrTail.trim()
           ? `\n\n[chrome stdout tail]\n${stdoutTail.trim() || '(empty)'}\n\n[chrome stderr tail]\n${stderrTail.trim() || '(empty)'}`
           : ''
+      // Chrome delegated to an already-running instance — kill it and retry this same dir (once)
+      if (msg === 'EXISTING_SESSION' && !existingSessionRetried) {
+        existingSessionRetried = true
+        console.warn('Chrome already running with this profile; killing existing instance and retrying...')
+        try {
+          const { execSync } = require('child_process')
+          const psList = execSync(
+            `ps aux | grep -- '--user-data-dir=${attemptUserDataDir}' | grep -v grep | awk '{print $2}'`,
+            { timeout: 3000 }
+          ).toString().trim()
+          for (const pidStr of psList.split('\n').filter(Boolean)) {
+            try { process.kill(Number(pidStr), 'SIGTERM') } catch { /* already dead */ }
+          }
+          await new Promise((r) => setTimeout(r, 1500))
+        } catch { /* ignore */ }
+        await unlink(join(attemptUserDataDir, 'SingletonLock')).catch(() => {})
+        attempt--
+        continue
+      }
+
       if (looksLikeProfileLock) {
         // If the user opted into an explicit profile dir, failing fast is clearer.
         if (userDataDirFromEnv) {
