@@ -15,7 +15,7 @@ import type { ProviderId } from '../../shared/policy'
 import {
   buildCdpSystemPrompt,
   buildCodeSystemPrompt,
-  buildPlaywrightSystemPrompt
+  buildBrowserSystemPrompt
 } from './system-prompt'
 import { parseModelResponse } from './action-parser'
 import { codexVisionRespond, type VisionMessage } from '../providers/codex-vision'
@@ -23,8 +23,8 @@ import { PolymarketClient } from '../polymarket-client'
 import { scrapeUrl } from './web-scraper'
 import { createExcelFromTsv } from './excel-writer'
 
-import { acquirePlaywrightPage } from '../browser/playwright-cdp'
-import { PlaywrightBridge } from '../browser/playwright-bridge'
+import type { BrowserEngine } from '../browser/engine/browser-engine'
+import { acquireBrowserEngine } from '../browser/engine/factory'
 
 export type TaskRunnerCallbacks = {
   onUpdate: (task: Task) => void
@@ -46,7 +46,6 @@ export class TaskRunner {
   /** Best-effort accumulated token usage (when provider returns usage). */
   private usageTotals: { inputTokens: number; outputTokens: number } | null = null
   private autoDelegated = false
-
 
   private shouldAutoDelegate(prompt: string): boolean {
     const p = prompt.toLowerCase()
@@ -123,22 +122,22 @@ export class TaskRunner {
       return this.runCdp()
     }
 
-    // Everything else → Playwright snapshot-based loop (generic, works on any site)
-    return this.runPlaywright()
+    // Everything else → browser snapshot-based loop (generic, works on any site)
+    return this.runBrowser()
   }
 
   /**
-   * Playwright snapshot-based agent loop — generic browser automation.
+   * Snapshot-based browser agent loop — generic browser automation.
    * The model sees a text snapshot of the page each turn and decides actions.
    */
-  private async runPlaywright(): Promise<Task> {
-    this.pushStatus('Launching browser (Playwright)...')
+  private async runBrowser(): Promise<Task> {
+    this.pushStatus('Launching browser...')
 
-    let pw: PlaywrightBridge
+    let engine: BrowserEngine
     let release: (() => Promise<void>) | null = null
     try {
-      const acquired = await acquirePlaywrightPage()
-      pw = new PlaywrightBridge(acquired.page)
+      const acquired = await acquireBrowserEngine()
+      engine = acquired.engine
       release = acquired.release
       this.pushStatus('Browser ready')
     } catch (e) {
@@ -157,7 +156,7 @@ export class TaskRunner {
       this.abort('Task timed out')
     }, this.task.timeoutMs)
 
-    const systemPrompt = buildPlaywrightSystemPrompt()
+    const systemPrompt = buildBrowserSystemPrompt()
     const history: VisionMessage[] = []
 
     const memCtx = this.opts.memoryContext
@@ -167,7 +166,7 @@ export class TaskRunner {
     try {
       for (let step = 0; step < this.task.maxSteps && !this.aborted; step++) {
         // Take a snapshot of the current page
-        const snap = await pw.snapshot().catch(() => ({
+        const snap = await engine.snapshot().catch(() => ({
           url: '',
           title: '',
           snapshot: '(page not available)'
@@ -250,9 +249,9 @@ export class TaskRunner {
           return this.finish('failed', action.reason)
         }
 
-        // Execute action via PlaywrightBridge
+        // Execute action via browser engine
         try {
-          const result = await this.executePlaywrightAction(pw, action)
+          const result = await this.executeBrowserAction(engine, action)
           if (result) taskStep.result = result
         } catch (e) {
           taskStep.error = e instanceof Error ? e.message : String(e)
@@ -277,10 +276,10 @@ export class TaskRunner {
   }
 
   /**
-   * Execute a single action from the Playwright agent loop.
+   * Execute a single action from the browser agent loop.
    */
-  private async executePlaywrightAction(
-    pw: PlaywrightBridge,
+  private async executeBrowserAction(
+    engine: BrowserEngine,
     action: TaskAction
   ): Promise<string | undefined> {
     const raw = action as Record<string, unknown>
@@ -288,23 +287,23 @@ export class TaskRunner {
     const frameId = raw.frameId as string | undefined
     switch (type) {
       case 'navigate':
-        await pw.navigate(raw.url as string)
+        await engine.navigate(raw.url as string)
         await this.sleep(1500)
         break
       case 'click':
-        await pw.click(raw.selector as string, frameId)
+        await engine.click(raw.selector as string, frameId)
         break
       case 'type':
-        await pw.type(raw.selector as string, raw.text as string, frameId)
+        await engine.type(raw.selector as string, raw.text as string, frameId)
         break
       case 'pressKey':
-        await pw.pressKey(raw.key as string)
+        await engine.pressKey(raw.key as string)
         break
       case 'key':
-        await pw.pressKey((raw.key as string) || (raw.combo as string))
+        await engine.pressKey((raw.key as string) || (raw.combo as string))
         break
       case 'evaluate': {
-        const result = await pw.evaluate(raw.script as string, frameId)
+        const result = await engine.evaluate(raw.script as string, frameId)
         return result || undefined
       }
       case 'upload_file': {
@@ -313,18 +312,18 @@ export class TaskRunner {
         if (!selector || !Array.isArray(filePaths) || filePaths.length === 0) {
           throw new Error('upload_file requires selector + filePaths[]')
         }
-        await pw.uploadFile(selector, filePaths, frameId)
+        await engine.uploadFile(selector, filePaths, frameId)
         break
       }
       case 'screenshot': {
-        const b64 = await pw.screenshot()
+        const b64 = await engine.screenshot()
         return b64 ? `Screenshot taken (${b64.length} bytes base64)` : '(empty screenshot)'
       }
       case 'wait':
         await this.sleep((raw.ms as number) ?? 1000)
         break
       case 'scroll':
-        await pw.evaluate(
+        await engine.evaluate(
           `window.scrollBy(0, ${(raw.direction as string) === 'up' ? -400 : 400})`
         )
         break
@@ -346,7 +345,7 @@ export class TaskRunner {
     // Set initial status immediately, before any validation
     this.pushStatus(`Connecting to ${this.getProviderDisplayName()}...`)
 
-    // CDP mode is now API-only (Polymarket, etc.) — browser tasks go through runPlaywright().
+    // CDP mode is now API-only (Polymarket, etc.) — browser tasks go through runBrowser().
 
     this.timeoutHandle = setTimeout(() => {
       this.abort('Task timed out')
@@ -804,7 +803,6 @@ export class TaskRunner {
         return `[Error: "${type}" is not available in API-only mode. Use polymarket_* actions.]`
     }
   }
-
 
   /**
    * Route vision call to the correct provider.
