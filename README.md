@@ -4,6 +4,12 @@ Local-first desktop agent with explicit permissions.
 
 Core idea: deny by default. The model only gets the tools and scopes you enable.
 
+## License
+
+Skynul is licensed under the Apache License 2.0. See `LICENSE`.
+
+Skynul name and logos are trademarks. See `TRADEMARK.md`.
+
 ## Recommended IDE Setup
 
 - [VSCode](https://code.visualstudio.com/) + [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) + [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
@@ -31,6 +37,13 @@ $ pnpm install
 
 ```bash
 $ pnpm dev
+```
+
+### Quality
+
+```bash
+$ pnpm lint
+$ pnpm typecheck
 ```
 
 ### Build
