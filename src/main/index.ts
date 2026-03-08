@@ -208,6 +208,10 @@ app.whenReady().then(() => {
     callback(permission === 'media' || permission === 'mediaKeySystem')
   })
 
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) => {
+    return permission === 'media' || permission === 'mediaKeySystem'
+  })
+
   void initPolicy()
 
   const win = createWindow()

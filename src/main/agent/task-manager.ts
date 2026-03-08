@@ -13,7 +13,7 @@ import { app, type BrowserWindow } from 'electron'
 import type { Task, TaskCreateRequest } from '../../shared/task'
 import type { PolicyState } from '../../shared/policy'
 import { TaskRunner } from './task-runner'
-import { saveMemory, searchMemories, formatMemoriesForPrompt, closeMemoryDb } from './task-memory'
+import { saveMemory, searchMemories, formatMemoriesForPrompt, searchFacts, formatFactsForPrompt, closeMemoryDb } from './task-memory'
 import { loadSkills, getActiveSkillPrompts } from '../skill-store'
 
 const DEFAULT_MAX_STEPS = 200
@@ -185,6 +185,10 @@ export class TaskManager extends EventEmitter {
     const memories = memoryEnabled ? searchMemories(task.prompt) : []
     const memoryContext = formatMemoriesForPrompt(memories)
 
+    // Search for relevant user facts
+    const facts = memoryEnabled ? searchFacts(task.prompt) : []
+    const factsContext = formatFactsForPrompt(facts)
+
     // Load active skills
     const skills = await loadSkills()
     const skillContext = getActiveSkillPrompts(skills, task.prompt)
@@ -194,7 +198,7 @@ export class TaskManager extends EventEmitter {
       {
         provider,
         openaiModel,
-        memoryContext: memoryContext + skillContext,
+        memoryContext: memoryContext + factsContext + skillContext,
         taskManager: this,
         taskId: task.id
       },

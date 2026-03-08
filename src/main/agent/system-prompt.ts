@@ -139,6 +139,13 @@ export function buildCodeSystemPrompt(): string {
 - **task_message** — Send a message to a running task.
   {"thought": "Notify monitor", "action": {"type": "task_message", "taskId": "task_abc123", "message": "Build passed"}}
 
+## LONG-TERM MEMORY (always available):
+- **remember_fact** — Save something the user tells you to remember.
+  {"thought": "User wants me to remember this", "action": {"type": "remember_fact", "fact": "staging password is admin123"}}
+- **forget_fact** — Remove a previously saved fact by its ID.
+  {"thought": "User wants me to forget this", "action": {"type": "forget_fact", "factId": 3}}
+- Facts are injected automatically into your context when relevant.
+
 Respond with valid JSON only. Never output only a thought — always end with a complete "action" object.`
 }
 
@@ -346,6 +353,21 @@ You can delegate work to sub-agents and check on other running tasks.
   {"thought": "Tell the monitor task to check Bitcoin now", "action": {"type": "task_message", "taskId": "task_abc123", "message": "Check Bitcoin price now and report back"}}
   If other tasks send YOU messages, they appear as [INCOMING MESSAGES] in your turn text. Read and act on them.
 
+## LONG-TERM MEMORY (always available):
+You have persistent memory across tasks. Use it PROACTIVELY — don't wait for the user to ask.
+- **remember_fact** — Save any useful information you discover during a task:
+  - Credentials, URLs, login emails, passwords the user provides or you find
+  - The fastest/most reliable way to accomplish something (e.g. "WhatsApp search bar is at the top, type contact name and press Enter")
+  - User preferences you observe (language, apps they use, contacts they message often)
+  - App-specific quirks or workarounds that worked
+  - Any shortcut or path that saved time — so next time you skip the trial-and-error
+  {"thought": "Found the login email, saving for next time", "action": {"type": "remember_fact", "fact": "user's Hotmail login is juanperez@hotmail.com"}}
+  {"thought": "This is the fastest way to open a WhatsApp chat", "action": {"type": "remember_fact", "fact": "WhatsApp: click search bar > type contact name > Enter > type message > Enter"}}
+- **forget_fact** — Remove an outdated or wrong fact by its ID.
+  {"thought": "Password changed, removing old one", "action": {"type": "forget_fact", "factId": 3}}
+- Think like a human: if you learned something useful, SAVE IT so you don't waste time rediscovering it.
+- Facts from previous tasks are injected automatically when relevant.
+
 Respond with valid JSON only.`
 }
 
@@ -517,6 +539,13 @@ You can delegate work to sub-agents and check on other running tasks.
   {"thought": "Tell the monitor task to check Bitcoin now", "action": {"type": "task_message", "taskId": "task_abc123", "message": "Check Bitcoin price now and report back"}}
   If other tasks send YOU messages, they appear as [INCOMING MESSAGES] in your turn text. Read and act on them.
 
+## LONG-TERM MEMORY (always available):
+- **remember_fact** — Save something the user tells you to remember.
+  {"thought": "User wants me to remember this", "action": {"type": "remember_fact", "fact": "staging password is admin123"}}
+- **forget_fact** — Remove a previously saved fact by its ID.
+  {"thought": "User wants me to forget this", "action": {"type": "forget_fact", "factId": 3}}
+- Facts are injected automatically into your context when relevant.
+
 ## REASONING:
 Your "thought" field (keep it brief) must answer:
 1. What have I already accomplished?
@@ -605,6 +634,13 @@ When asked to post on X/Twitter, Facebook, Instagram, Reddit, or any site:
 - **task_list_peers** — See all other tasks.
 - **task_read** — Read status of a task by ID.
 - **task_message** — Send a message to a running task.
+
+## LONG-TERM MEMORY (always available):
+- **remember_fact** — Save something the user tells you to remember.
+  {"thought": "User wants me to remember this", "action": {"type": "remember_fact", "fact": "staging password is admin123"}}
+- **forget_fact** — Remove a previously saved fact by its ID.
+  {"thought": "User wants me to forget this", "action": {"type": "forget_fact", "factId": 3}}
+- Facts are injected automatically into your context when relevant.
 
 ## REASONING:
 Your "thought" must answer: What did I accomplish? What's the next step? Why this action?

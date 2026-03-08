@@ -22,6 +22,7 @@ import { codexVisionRespond, type VisionMessage } from '../providers/codex-visio
 import { PolymarketClient } from '../polymarket-client'
 import { scrapeUrl } from './web-scraper'
 import { createExcelFromTsv } from './excel-writer'
+import { saveFact, deleteFact } from './task-memory'
 
 import { acquirePlaywrightPage } from '../browser/playwright-cdp'
 import { PlaywrightBridge } from '../browser/playwright-bridge'
@@ -321,6 +322,9 @@ export class TaskRunner {
       case 'task_read':
       case 'task_message':
         return this.executeInterTaskAction(action)
+      case 'remember_fact':
+      case 'forget_fact':
+        return this.executeFactAction(action)
       default:
         throw new Error(`Unknown action type: ${action.type}`)
     }
@@ -638,6 +642,9 @@ export class TaskRunner {
       case 'task_read':
       case 'task_message':
         return this.executeInterTaskAction(action)
+      case 'remember_fact':
+      case 'forget_fact':
+        return this.executeFactAction(action)
       default:
         return `[Action "${action.type}" not supported in code mode]`
     }
@@ -785,6 +792,9 @@ export class TaskRunner {
       case 'task_read':
       case 'task_message':
         return this.executeInterTaskAction(action)
+      case 'remember_fact':
+      case 'forget_fact':
+        return this.executeFactAction(action)
       case 'wait':
         await this.sleep((action as any).ms ?? 1000)
         return undefined
@@ -897,6 +907,21 @@ export class TaskRunner {
       default:
         return '[Error: unknown inter-task action]'
     }
+  }
+
+  /** Handle remember/forget fact actions. */
+  private executeFactAction(action: TaskAction): string {
+    if (action.type === 'remember_fact') {
+      if (!action.fact || typeof action.fact !== 'string') return '[Error: "fact" string required]'
+      saveFact(action.fact)
+      return `Remembered: "${action.fact}"`
+    }
+    if (action.type === 'forget_fact') {
+      if (typeof action.factId !== 'number') return '[Error: "factId" number required]'
+      deleteFact(action.factId)
+      return `Forgot fact #${action.factId}`
+    }
+    return '[Error: unknown fact action]'
   }
 
   private executeShell(command: string, cwd?: string, timeoutMs?: number): Promise<string> {

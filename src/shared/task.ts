@@ -84,6 +84,9 @@ export type TaskAction =
   | { type: 'task_send'; prompt: string; agentName?: string; agentRole?: string }
   | { type: 'task_read'; taskId: string }
   | { type: 'task_message'; taskId: string; message: string }
+  // Long-term memory
+  | { type: 'remember_fact'; fact: string }
+  | { type: 'forget_fact'; factId: number }
 
 // ── Task Step (one turn of the agent loop) ────────────────────────────────────
 
