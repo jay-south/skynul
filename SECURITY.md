@@ -15,4 +15,4 @@ You can also email:
 
 - nevexlabs@gmail.com
 - lucasan.videla@gmail.com
-- julefragoso@gmail.com
+- itsjaysouth@gmail.com
