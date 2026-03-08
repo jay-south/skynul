@@ -212,6 +212,13 @@ export function ChatFeed(props: {
         return elements
       })()}
 
+      {/* Typing indicator while model is thinking between steps */}
+      {task.status === 'running' && task.steps.length > 0 && (
+        <div className="feedBubble feedBubbleBot feedThinking feedTyping">
+          <span className="typingDots"><span /><span /><span /></span>
+        </div>
+      )}
+
       {/* Terminal */}
       {isTerminal && (
         <div className={`feedStatus ${task.status}`} style={{ whiteSpace: 'pre-wrap' }}>

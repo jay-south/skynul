@@ -5,6 +5,7 @@ export type TaskCapabilityId =
   | 'app.launch'
   | 'polymarket.trading'
   | 'office.professional'
+  | 'app.scripting'
 
 export const ALL_TASK_CAPABILITIES: Array<{
   id: TaskCapabilityId
@@ -22,6 +23,11 @@ export const ALL_TASK_CAPABILITIES: Array<{
     id: 'office.professional',
     title: 'Office Pro',
     desc: 'Professional formatting expertise for Excel, Word, and PowerPoint.'
+  },
+  {
+    id: 'app.scripting',
+    title: 'App Scripting',
+    desc: 'Run scripts inside desktop apps (Illustrator, Photoshop, After Effects, Blender, Unreal).'
   }
 ]
 
@@ -84,6 +90,8 @@ export type TaskAction =
   | { type: 'task_send'; prompt: string; agentName?: string; agentRole?: string }
   | { type: 'task_read'; taskId: string }
   | { type: 'task_message'; taskId: string; message: string }
+  // App scripting actions (require app.scripting capability)
+  | { type: 'app_script'; app: string; script: string }
 
 // ── Task Step (one turn of the agent loop) ────────────────────────────────────
 

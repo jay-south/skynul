@@ -2953,6 +2953,38 @@ code {
   font-style: italic;
 }
 
+.feedTyping {
+  padding: 12px 16px;
+  min-height: 0;
+}
+
+.typingDots {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.typingDots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--nb-muted);
+  animation: typingBounce 1.2s ease-in-out infinite;
+}
+
+.typingDots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typingDots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typingBounce {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-4px); }
+}
+
 /* ── Steps block (all steps in one bot block) ────────────────────── */
 
 .feedStepsBlock {

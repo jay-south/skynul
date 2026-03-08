@@ -22,6 +22,7 @@ import { codexVisionRespond, type VisionMessage } from '../providers/codex-visio
 import { PolymarketClient } from '../polymarket-client'
 import { scrapeUrl } from './web-scraper'
 import { createExcelFromTsv } from './excel-writer'
+import { AppBridge } from './app-bridge'
 
 import { acquirePlaywrightPage } from '../browser/playwright-cdp'
 import { PlaywrightBridge } from '../browser/playwright-bridge'
@@ -46,6 +47,7 @@ export class TaskRunner {
   /** Best-effort accumulated token usage (when provider returns usage). */
   private usageTotals: { inputTokens: number; outputTokens: number } | null = null
   private autoDelegated = false
+  private appBridge = new AppBridge()
 
 
   private shouldAutoDelegate(prompt: string): boolean {
@@ -328,6 +330,10 @@ export class TaskRunner {
           `window.scrollBy(0, ${(raw.direction as string) === 'up' ? -400 : 400})`
         )
         break
+      case 'app_script': {
+        const result = await this.appBridge.run((action as any).app, (action as any).script)
+        return result.ok ? result.output : `[AppBridge error: ${result.error}]`
+      }
       case 'task_list_peers':
       case 'task_send':
       case 'task_read':
@@ -483,7 +489,7 @@ export class TaskRunner {
 
     this.pushStatus('Preparing agent loop...')
 
-    const systemPrompt = buildCodeSystemPrompt()
+    const systemPrompt = buildCodeSystemPrompt(this.task.capabilities)
     const history: VisionMessage[] = []
 
     const memCtx = this.opts.memoryContext ?? ''
@@ -492,7 +498,7 @@ export class TaskRunner {
       content: [
         {
           type: 'input_text',
-          text: `Task: ${this.task.prompt}${memCtx}\n\n[CODE MODE] You have NO screen access. Use file_read, file_write, file_edit, file_list, file_search, and shell to accomplish the task. Do NOT use click, scroll, move, or other screen actions.`
+          text: `Task: ${this.task.prompt}${memCtx}\n\n[CODE MODE] You have NO screen access. Do NOT use click, scroll, move, or other screen actions.${this.task.capabilities.includes('app.scripting') ? ' [APP SCRIPTING ACTIVE] You MUST use app_script for design tasks. Do NOT use file_write for design files. Keep scripts under 6 lines.' : ' Use file_read, file_write, file_edit, file_list, file_search, and shell.'}`
         }
       ]
     })
@@ -502,7 +508,9 @@ export class TaskRunner {
         const stepIndex = this.task.steps.length
         let turnText: string
         if (stepIndex === 0) {
-          turnText = `Task: ${this.task.prompt}\n\n[CODE MODE] No screen. Use file_read/file_write/file_edit/file_list/file_search/shell/done/fail actions.`
+          turnText = this.task.capabilities.includes('app.scripting')
+            ? `Task: ${this.task.prompt}\n\n[APP SCRIPTING MODE] Use ONLY app_script actions. Keep scripts under 6 lines. Do NOT use file_write for design files.\n\nIMPORTANT: Take your time. Build the design in MANY small steps (10-20+ steps). Do NOT rush to save/done after 2-3 shapes. Each step should add ONE element: a shape, a color, a text, an alignment. Build up complexity gradually like a real designer would. Do NOT use "done" until the design is truly complete and polished.`
+            : `Task: ${this.task.prompt}\n\n[CODE MODE] No screen. Use file_read/file_write/file_edit/file_list/file_search/shell/done/fail actions.`
         } else {
           const recentSteps = this.task.steps.slice(-8)
           const actionLog = recentSteps
@@ -536,8 +544,10 @@ export class TaskRunner {
         }
         history.push(turnMessage)
 
+        this.pushStatus('Thinking...')
         const { text: rawResponse, usage } = await this.callVisionModel(systemPrompt, history)
         if (usage) this.addUsage(usage)
+        console.log(`[code-loop] raw (${rawResponse.length}c):`, rawResponse.slice(0, 400))
         const { thought, action } = parseModelResponse(rawResponse)
 
         history.push({
@@ -585,6 +595,30 @@ export class TaskRunner {
 
         this.task.steps.push(step)
         this.pushUpdate()
+
+        // Every 3 app_script steps, capture a canvas preview for visual feedback
+        if (
+          action.type === 'app_script' &&
+          this.task.capabilities.includes('app.scripting') &&
+          this.task.steps.filter((s) => s.action.type === 'app_script').length % 3 === 0
+        ) {
+          try {
+            const appName = (action as any).app as string
+            const previewB64 = await this.appBridge.getPreview(appName as any)
+            if (previewB64) {
+              history.push({
+                role: 'user',
+                content: [
+                  { type: 'input_text', text: '[CANVAS PREVIEW] Look at the current state of your design. Check composition, alignment, spacing, and visual balance before continuing.' },
+                  { type: 'input_image', image_url: `data:image/png;base64,${previewB64}` }
+                ]
+              })
+            }
+          } catch {
+            // Preview failed — continue without it
+          }
+        }
+
         await this.sleep(200)
       } catch (e) {
         if (this.aborted) break
@@ -645,6 +679,10 @@ export class TaskRunner {
         return this.executeFileList(action.pattern, action.cwd)
       case 'file_search':
         return this.executeFileSearch(action.pattern, action.path, action.glob, action.cwd)
+      case 'app_script': {
+        const result = await this.appBridge.run(action.app as any, action.script)
+        return result.ok ? result.output : `[AppBridge error: ${result.error}]`
+      }
       case 'task_list_peers':
       case 'task_send':
       case 'task_read':

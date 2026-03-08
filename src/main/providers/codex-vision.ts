@@ -204,7 +204,7 @@ export async function codexVisionRespond(opts: {
     // System prompt goes in `instructions`, NOT as a message in input
     instructions: opts.systemPrompt,
     input,
-    text: { verbosity: 'low' },
+    text: { verbosity: 'medium' },
     include: ['reasoning.encrypted_content'],
     tool_choice: 'auto',
     parallel_tool_calls: true,

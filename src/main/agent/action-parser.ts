@@ -134,7 +134,7 @@ export function parseModelResponse(raw: string): ModelResponse {
       `[action-parser] Truncated response (${consecutiveTruncations}/${MAX_TRUNCATION_RETRIES}) — injecting wait`
     )
     return {
-      thought: '(truncated response — retrying with fresh screenshot)',
+      thought: '(truncated response — retrying)',
       action: { type: 'wait', ms: 1000 } as unknown as TaskAction
     }
   }
@@ -223,7 +223,9 @@ const VALID_ACTION_TYPES = new Set([
   'task_list_peers',
   'task_send',
   'task_read',
-  'task_message'
+  'task_message',
+  // App scripting
+  'app_script'
 ])
 
 function validateResponse(obj: unknown): ModelResponse {

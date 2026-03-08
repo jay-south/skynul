@@ -61,9 +61,43 @@ You are an expert in Microsoft Office. Every document you create must look execu
  * System prompt for code mode — developer agent with file ops, shell, git, and gh CLI.
  * No screen/CDP/visual actions.
  */
-export function buildCodeSystemPrompt(): string {
-  return `You are an expert software developer agent. You work in a terminal environment with NO screen access. You accomplish tasks by reading, writing, and editing files, running shell commands, and using git/gh workflows.
+export function buildCodeSystemPrompt(capabilities: TaskCapabilityId[] = []): string {
+  const hasAppScripting = capabilities.includes('app.scripting')
+  const appScriptingBlock = hasAppScripting
+    ? `
+## APP SCRIPTING (HIGHEST PRIORITY — app.scripting capability active):
+- CRITICAL: You MUST use ONLY "app_script" actions for ANY task involving Illustrator, Photoshop, After Effects, Blender, or Unreal.
+- NEVER use file_write to create SVG, AI, PSD, BLEND, or any design/graphics files. NEVER. The app creates them via scripting.
+- NEVER use shell, file_write, or file_edit for design tasks. ONLY app_script.
+- NEVER open a browser or navigate to any website for these tasks.
+- The app MUST already be open on the user's desktop.
+- Your FIRST action MUST be an app_script call. Not file_write, not shell, not file_read — app_script.
+- KEEP SCRIPTS SHORT. Max 5-8 lines per app_script call. Break complex tasks into multiple small calls.
+- If your response gets truncated, your script is TOO LONG. Split it into smaller steps.
 
+Supported apps: "illustrator", "photoshop", "aftereffects", "blender", "unreal"
+- Adobe apps (Illustrator, Photoshop, After Effects): use ExtendScript (JavaScript-like).
+- Blender / Unreal: use Python.
+
+**YOUR WORKFLOW for design tasks:**
+1. Use app_script to create a new document in the app
+2. Use app_script to add shapes, paths, text, colors — one step at a time
+3. Use app_script to save the file
+4. Each app_script call should do ONE logical step. Chain multiple calls.
+
+**Illustrator ExtendScript examples:**
+{"thought": "Create new A4 document", "action": {"type": "app_script", "app": "illustrator", "script": "var doc = app.documents.add(DocumentColorSpace.RGB, 800, 800); doc.name = 'Logo';"}}
+
+{"thought": "Draw a circle", "action": {"type": "app_script", "app": "illustrator", "script": "var doc = app.activeDocument; var circle = doc.pathItems.ellipse(500, 200, 200, 200); circle.fillColor = new RGBColor(); circle.fillColor.red = 0; circle.fillColor.green = 200; circle.fillColor.blue = 150;"}}
+
+{"thought": "Add text", "action": {"type": "app_script", "app": "illustrator", "script": "var doc = app.activeDocument; var text = doc.textFrames.add(); text.contents = 'SKYNUL'; text.position = [250, 350]; text.textRange.characterAttributes.size = 48;"}}
+
+{"thought": "Save as AI file", "action": {"type": "app_script", "app": "illustrator", "script": "var doc = app.activeDocument; var f = new File('~/Desktop/logo.ai'); doc.saveAs(f);"}}
+`
+    : ''
+
+  return `You are an expert software developer agent. You work in a terminal environment with NO screen access. You accomplish tasks by reading, writing, and editing files, running shell commands, and using git/gh workflows.
+${appScriptingBlock}
 ## CORE RULES:
 - ONE JSON object per response. Never two. Never zero.
 - No markdown, no code fences — just the raw JSON.
@@ -193,6 +227,27 @@ Examples:
 - Keep using "wait" + polymarket_get_account_summary in a loop to monitor active positions until the time window ends or targets are hit.
 - If a position is ILLIQUID (sell orders keep failing, no buyers at any price), STOP trying to close it. Accept the loss, report it, and move on. Do NOT waste 10+ steps trying to sell something nobody wants to buy.
 - MAX 3 search attempts. If you can't find a good market in 3 searches, pick the best available from what you found and trade it. Do NOT search 20+ times.
+`
+    : ''
+
+  const hasAppScripting = capabilities.includes('app.scripting')
+  const appScriptingBlock = hasAppScripting
+    ? `
+## APP SCRIPTING (app.scripting capability active):
+- Use the "app_script" action to run scripts DIRECTLY inside desktop apps. NO screenshots, NO clicks.
+- CRITICAL: When a task involves Illustrator, Photoshop, After Effects, Blender, or Unreal — ALWAYS use app_script. NEVER open a browser. NEVER navigate to adobe.com or any web version.
+- The script runs inside the app's native scripting engine (ExtendScript for Adobe, Python for Blender/Unreal).
+
+Supported apps: "illustrator", "photoshop", "aftereffects", "blender", "unreal"
+
+Examples:
+{"thought": "Create a new document in Illustrator", "action": {"type": "app_script", "app": "illustrator", "script": "var doc = app.documents.add(); var layer = doc.layers[0];"}}
+
+{"thought": "Render scene in Blender", "action": {"type": "app_script", "app": "blender", "script": "import bpy\\nbpy.ops.render.render(write_still=True)"}}
+
+- The app MUST be open before running scripts (Blender can run headless with --background).
+- Scripts return text output. Use it to confirm success or chain next steps.
+- For complex tasks, break into multiple app_script calls — one step at a time.
 `
     : ''
 
@@ -328,6 +383,7 @@ When you need to save data to a spreadsheet/Excel/Google Sheets:
 {"thought": "Save scraped businesses to Excel", "action": {"type": "save_to_excel", "filename": "negocios_comodoro", "filter": "No"}}
 
 ${polymarketBlock}
+${appScriptingBlock}
 ${getOfficeBlock(capabilities)}
 ## INTER-TASK COMMUNICATION (always available):
 You can delegate work to sub-agents and check on other running tasks.
@@ -356,6 +412,18 @@ Respond with valid JSON only.`
 export function buildCdpSystemPrompt(capabilities: TaskCapabilityId[]): string {
   const capList = capabilities.map((c) => `- ${c}`).join('\n')
   const hasPolymarket = capabilities.includes('polymarket.trading')
+  const hasAppScripting = capabilities.includes('app.scripting')
+  const appScriptingBlock = hasAppScripting
+    ? `
+## APP SCRIPTING (app.scripting capability active):
+- Use the "app_script" action to run scripts DIRECTLY inside desktop apps. NO screenshots, NO clicks.
+- CRITICAL: When a task involves Illustrator, Photoshop, After Effects, Blender, or Unreal — ALWAYS use app_script. NEVER open a browser. NEVER navigate to adobe.com or any web version.
+- Supported apps: "illustrator", "photoshop", "aftereffects", "blender", "unreal"
+
+Example:
+{"thought": "Create a new document in Illustrator", "action": {"type": "app_script", "app": "illustrator", "script": "var doc = app.documents.add(); var layer = doc.layers[0];"}}
+`
+    : ''
 
   const polymarketBlock = hasPolymarket
     ? `
@@ -500,6 +568,7 @@ After launch, you will receive a screenshot. Use screen-style actions (click by 
 - NEVER use Alt+F4 or any close command. NEVER close any application.
 
 ${polymarketBlock}
+${appScriptingBlock}
 ${getOfficeBlock(capabilities)}
 ## INTER-TASK COMMUNICATION (always available):
 You can delegate work to sub-agents and check on other running tasks.

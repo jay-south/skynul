@@ -890,13 +890,21 @@ function App(): React.JSX.Element {
       {
         cap: 'office.professional',
         words: ['excel', 'word', 'powerpoint', 'spreadsheet', 'document', 'formatting']
+      },
+      {
+        cap: 'app.scripting',
+        words: [
+          'illustrator', 'photoshop', 'after effects', 'aftereffects',
+          'blender', 'unreal', 'indesign', 'premiere',
+          'vector', 'logo', 'render', '3d model', 'compositing'
+        ]
       }
     ]
     const detected = new Set<TaskCapabilityId>()
     for (const { cap, words } of CAP_KEYWORDS) {
       if (words.some((w) => lower.includes(w))) detected.add(cap)
     }
-    // Default: always include browser.cdp unless it's purely code mode
+    // If app.scripting is detected, don't add browser.cdp by default
     if (detected.size === 0) detected.add('browser.cdp')
     return [...detected]
   }, [composerPrompt])
@@ -933,6 +941,10 @@ function App(): React.JSX.Element {
     // Create new task — detect mode from prompt
     const caps = [...composerActiveCaps]
     let detectedMode: 'browser' | 'code' = 'browser'
+    // App scripting runs in code mode (no browser needed)
+    if (caps.includes('app.scripting' as TaskCapabilityId) && !caps.includes('browser.cdp')) {
+      detectedMode = 'code'
+    }
     // Only use code mode if no browser/polymarket caps are needed
     if (!caps.includes('browser.cdp') && !caps.includes('polymarket.trading')) {
       const codeWords = [
