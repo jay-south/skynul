@@ -47,62 +47,7 @@ export class TaskRunner {
   private lastScrapeData = ''
   /** Best-effort accumulated token usage (when provider returns usage). */
   private usageTotals: { inputTokens: number; outputTokens: number } | null = null
-  private autoDelegated = false
   private appBridge = new AppBridge()
-
-
-  private shouldAutoDelegate(prompt: string): boolean {
-    const p = prompt.toLowerCase()
-    const wantsPost =
-      /(\bpost\b|\btweet\b|\bpublish\b|poste(a|ar)|public(a|ar)|borrador|draft)/.test(p)
-    const wantsX = /(\bx\b|twitter|x\.com)/.test(p)
-    const wantsImage = /(\bimage\b|\bimagen\b|\bmeme\b|\bpicture\b|\bgenerate\b.*\bimage\b)/.test(p)
-    const wantsCopy = /(\bcopy\b|caption|two\s*lines|2\s*lines|dos\s*lineas|hashtags|cta)/.test(p)
-    return (
-      (wantsPost && wantsX && wantsImage && wantsCopy) || (wantsPost && wantsImage && wantsCopy)
-    )
-  }
-
-  private async autoDelegateForSocialPost(history: VisionMessage[]): Promise<void> {
-    if (this.autoDelegated) return
-    const tm = this.opts.taskManager
-    if (!tm) return
-    if (this.task.parentTaskId) return
-    if (!this.shouldAutoDelegate(this.task.prompt)) return
-
-    this.autoDelegated = true
-
-    this.pushStatus('Setting up multi-agent plan (Copy + Design)...')
-
-    const copyPrompt =
-      'You MUST respond using the Skynul agent JSON protocol (thought + action). ' +
-      'Return ONE JSON object only. action.type MUST be "done". ' +
-      'action.summary must contain plain text with: 3 numbered options (TWO lines each) and then "Recommended:". ' +
-      'Constraints: English, bullish BTC meme vibe, short and punchy, subtle Argentine wink, avoid spam/repeated hashtags.'
-    const designPrompt =
-      'You MUST respond using the Skynul agent JSON protocol (thought + action). ' +
-      'Return ONE JSON object only. action.type MUST be "done". ' +
-      'action.summary must contain plain text with: (1) image-gen prompt, (2) on-image text, (3) composition notes, (4) aspect ratio for X.'
-
-    const [copyRes, designRes] = await Promise.all([
-      tm.spawnAndWait(copyPrompt, [], this.task.id, { agentRole: 'Copy' }),
-      tm.spawnAndWait(designPrompt, [], this.task.id, { agentRole: 'Design' })
-    ])
-
-    history.push({
-      role: 'user',
-      content: [
-        {
-          type: 'input_text',
-          text:
-            `Sub-agent outputs (use these; do NOT redo):\n` +
-            `- Copy (${copyRes.taskId}): ${copyRes.output}\n` +
-            `- Design (${designRes.taskId}): ${designRes.output}\n\n` +
-            `Now execute the full flow in X: open composer, generate/upload image based on Design, paste final chosen copy, and POST.`
-        }
-      ]
-    })
-  }
 
   constructor(
     task: Task,
@@ -382,10 +327,6 @@ export class TaskRunner {
         { type: 'input_text', text: `Task: ${this.task.prompt}${attachmentsBlock}${memCtxCdp}` }
       ]
     })
-
-    // Deterministic auto-delegation for multi-modal social posting tasks.
-    // This creates sub-agents (shown in the UI) before browser execution begins.
-    await this.autoDelegateForSocialPost(history)
 
     while (!this.aborted && this.task.steps.length < this.task.maxSteps) {
       try {

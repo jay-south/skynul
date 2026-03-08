@@ -5,6 +5,37 @@
 
 import type { TaskCapabilityId } from '../../shared/task'
 
+function getInterTaskBlock(): string {
+  return `
+## SUB-AGENT DELEGATION (always available):
+You can spawn sub-agents to work in parallel. But THINK FIRST — don't always delegate.
+
+### WHEN TO DELEGATE:
+- The task has 2+ INDEPENDENT parts that can run in parallel (e.g. "write copy AND design an image")
+- A subtask needs a different skill set (e.g. research vs execution)
+- The task is complex enough that splitting it saves time
+
+### WHEN NOT TO DELEGATE:
+- Simple, single-focus tasks (e.g. "open WhatsApp and send a message") — just do it yourself
+- Tasks where steps are sequential and depend on each other
+- If you're unsure, do it yourself. Delegation has overhead.
+
+### HOW TO DELEGATE:
+- Use task_send. Give each sub-agent a CLEAR, SPECIFIC prompt with all context it needs.
+- Always set agentName (a short name) and agentRole (what it does).
+- You can spawn multiple sub-agents in sequence. Each task_send blocks until that agent finishes.
+- After receiving results, USE them — do not redo the work.
+
+{"thought": "This needs copy and design in parallel. Starting with copy.", "action": {"type": "task_send", "agentName": "Quill", "agentRole": "Copy", "prompt": "Write 3 short caption options for a Bitcoin meme post on X. Keep it punchy, 2 lines max each."}}
+
+### OTHER INTER-TASK ACTIONS:
+- **task_list_peers** — See all other running tasks.
+- **task_read** — Check status/result of a specific task by ID.
+- **task_message** — Send a message to a running task.
+  If other tasks send YOU messages, they appear as [INCOMING MESSAGES]. Read and act on them.
+`
+}
+
 function getOfficeBlock(capabilities: TaskCapabilityId[]): string {
   if (!capabilities.includes('office.professional')) return ''
   return `
@@ -162,16 +193,7 @@ ${appScriptingBlock}
 - Test after changes: run the project's test suite or build to verify.
 - Small, focused edits: one logical change per file_edit.
 - Check existing patterns: match the codebase's style and conventions.
-
-## INTER-TASK COMMUNICATION (always available):
-- **task_send** — Spawn a sub-task and wait for its result.
-  {"thought": "Delegate research", "action": {"type": "task_send", "agentName": "Rafa", "agentRole": "Research", "prompt": "Find all TODO comments in the codebase"}}
-- **task_list_peers** — See all other tasks.
-  {"thought": "Check other tasks", "action": {"type": "task_list_peers"}}
-- **task_read** — Read status of a task by ID.
-  {"thought": "Check sub-task", "action": {"type": "task_read", "taskId": "task_abc123"}}
-- **task_message** — Send a message to a running task.
-  {"thought": "Notify monitor", "action": {"type": "task_message", "taskId": "task_abc123", "message": "Build passed"}}
+${getInterTaskBlock()}
 
 ## LONG-TERM MEMORY (always available):
 - **remember_fact** — Save something the user tells you to remember.
@@ -392,22 +414,7 @@ When you need to save data to a spreadsheet/Excel/Google Sheets:
 ${polymarketBlock}
 ${appScriptingBlock}
 ${getOfficeBlock(capabilities)}
-## INTER-TASK COMMUNICATION (always available):
-You can delegate work to sub-agents and check on other running tasks.
-
-- **task_send** — Spawn a sub-task and wait for its result. Use this to delegate a self-contained piece of work.
-  {"thought": "Delegate price research to a sub-task", "action": {"type": "task_send", "agentName": "Rafa", "agentRole": "Research", "prompt": "Search Google for the current price of Bitcoin and report the USD value"}}
-  The sub-task runs with your same capabilities. You will receive its summary when it finishes (timeout 10 min).
-
-- **task_list_peers** — See all other tasks (excludes yourself). Returns id, prompt, and status.
-  {"thought": "Check what other tasks are running", "action": {"type": "task_list_peers"}}
-
-- **task_read** — Read the status and summary of a specific task by ID.
-  {"thought": "Check if the research task finished", "action": {"type": "task_read", "taskId": "task_abc123"}}
-
-- **task_message** — Send a message to a running task. It will see your message on its next step.
-  {"thought": "Tell the monitor task to check Bitcoin now", "action": {"type": "task_message", "taskId": "task_abc123", "message": "Check Bitcoin price now and report back"}}
-  If other tasks send YOU messages, they appear as [INCOMING MESSAGES] in your turn text. Read and act on them.
+${getInterTaskBlock()}
 
 ## LONG-TERM MEMORY (always available):
 You have persistent memory across tasks. Use it PROACTIVELY — don't wait for the user to ask.
@@ -592,21 +599,7 @@ After launch, you will receive a screenshot. Use screen-style actions (click by 
 ${polymarketBlock}
 ${appScriptingBlock}
 ${getOfficeBlock(capabilities)}
-## INTER-TASK COMMUNICATION (always available):
-You can delegate work to sub-agents and check on other running tasks.
-
-- **task_send** — Spawn a sub-task and wait for its result.
-  {"thought": "Delegate research to a sub-task", "action": {"type": "task_send", "agentName": "Rafa", "agentRole": "Research", "prompt": "Search for the current price of Bitcoin"}}
-
-- **task_list_peers** — See all other tasks (excludes yourself).
-  {"thought": "Check other tasks", "action": {"type": "task_list_peers"}}
-
-- **task_read** — Read status and summary of a task by ID.
-  {"thought": "Check sub-task result", "action": {"type": "task_read", "taskId": "task_abc123"}}
-
-- **task_message** — Send a message to a running task. It will see your message on its next step.
-  {"thought": "Tell the monitor task to check Bitcoin now", "action": {"type": "task_message", "taskId": "task_abc123", "message": "Check Bitcoin price now and report back"}}
-  If other tasks send YOU messages, they appear as [INCOMING MESSAGES] in your turn text. Read and act on them.
+${getInterTaskBlock()}
 
 ## LONG-TERM MEMORY (always available):
 - **remember_fact** — Save something the user tells you to remember.
@@ -720,12 +713,7 @@ When asked to post on X/Twitter, Facebook, Instagram, Reddit, or any site:
 6. Wait and verify the post went through
 7. Return the post URL in your done summary
 
-## INTER-TASK COMMUNICATION:
-- **task_send** — Spawn a sub-task and wait for its result.
-  {"thought": "Delegate", "action": {"type": "task_send", "agentName": "Rafa", "agentRole": "Research", "prompt": "..."}}
-- **task_list_peers** — See all other tasks.
-- **task_read** — Read status of a task by ID.
-- **task_message** — Send a message to a running task.
+${getInterTaskBlock()}
 
 ## LONG-TERM MEMORY (always available):
 - **remember_fact** — Save something the user tells you to remember.

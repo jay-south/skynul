@@ -126,31 +126,40 @@ export function MultiAgentControlRoom(props: {
       </div>
 
       <div className="maRow" role="list">
-        {grouped.map((t) => {
+        {grouped.map((t, idx) => {
           const parsed = parseAgentLabel(t.prompt)
           const role = inferRole(t, parsed)
           const fallbackName = defaultAgentName(t.id === rootTask.id ? 'Manager' : role, t.id)
           const name = inferName(t, parsed, fallbackName)
           const isActive = t.id === props.activeTaskId
           const status = STATUS_LABEL[t.status] ?? t.status
+          const isTransmitting = t.status === 'running' && t.steps.length > 0
           return (
-            <button
-              key={t.id}
-              className={`maCard ${isActive ? 'active' : ''}`}
-              onClick={() => props.onSelectTask(t.id)}
-              role="listitem"
-              title={parsed.strippedPrompt}
-            >
-              <div className="maCardTop">
-                <div className="maName">@{name}</div>
-                <div className="maRole">{role}</div>
-              </div>
-              <div className="maCardBottom">
-                <span className={`maStatus ${t.status}`}>{status}</span>
-                <span className="maTiny">{t.steps.length} steps</span>
-                <span className="maTiny">{fmtAgo(t.updatedAt)}</span>
-              </div>
-            </button>
+            <div key={t.id} className="maCardWrapper" style={{ animationDelay: `${idx * 120}ms` }}>
+              {/* Cable connector between cards */}
+              {idx > 0 && (
+                <div className={`maCable ${isTransmitting ? 'transmitting' : ''}`}>
+                  <div className="maCableLine" />
+                  {isTransmitting && <div className="maCablePulse" />}
+                </div>
+              )}
+              <button
+                className={`maCard ${isActive ? 'active' : ''}`}
+                onClick={() => props.onSelectTask(t.id)}
+                role="listitem"
+                title={parsed.strippedPrompt}
+              >
+                <div className="maCardTop">
+                  <div className="maName">@{name}</div>
+                  <div className="maRole">{role}</div>
+                </div>
+                <div className="maCardBottom">
+                  <span className={`maStatus ${t.status}`}>{status}</span>
+                  <span className="maTiny">{t.steps.length} steps</span>
+                  <span className="maTiny">{fmtAgo(t.updatedAt)}</span>
+                </div>
+              </button>
+            </div>
           )
         })}
       </div>

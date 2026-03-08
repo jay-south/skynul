@@ -2853,6 +2853,66 @@ code {
   color: var(--nb-muted);
 }
 
+/* ── Agent card entrance animation ──────────────────────────────── */
+
+.maCardWrapper {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  animation: maCardEnter 0.4s ease-out both;
+}
+
+@keyframes maCardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ── Cable connector between agent cards ────────────────────────── */
+
+.maCable {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  flex: 0 0 28px;
+  position: relative;
+}
+
+.maCableLine {
+  width: 100%;
+  height: 2px;
+  background: var(--nb-border);
+  border-radius: 1px;
+  transition: background 0.3s ease;
+}
+
+.maCable.transmitting .maCableLine {
+  background: color-mix(in srgb, var(--nb-accent-2), var(--nb-border) 40%);
+}
+
+.maCablePulse {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--nb-accent-2);
+  box-shadow: 0 0 6px var(--nb-accent-2);
+  animation: maPulseTravel 1.2s ease-in-out infinite;
+}
+
+@keyframes maPulseTravel {
+  0% { left: 0; opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { left: calc(100% - 6px); opacity: 0; }
+}
+
 .chatFeedLayout {
   display: flex;
   flex-direction: column;
