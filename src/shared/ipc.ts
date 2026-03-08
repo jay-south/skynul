@@ -71,6 +71,11 @@ export const IPC = {
   browserSnapshotRestore: 'skynul:browser:snapshot:restore',
   browserSnapshotDelete: 'skynul:browser:snapshot:delete',
 
+  // ── User Facts (long-term memory) ───────────────────────────────────
+  factSave: 'skynul:fact:save',
+  factDelete: 'skynul:fact:delete',
+  factList: 'skynul:fact:list',
+
   // ── Secrets (generic key-value) ──────────────────────────────────────
   getSecretKeys: 'skynul:secrets:getKeys',
   getSecret: 'skynul:secrets:get',

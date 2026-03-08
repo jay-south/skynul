@@ -92,6 +92,9 @@ export type TaskAction =
   | { type: 'task_message'; taskId: string; message: string }
   // App scripting actions (require app.scripting capability)
   | { type: 'app_script'; app: string; script: string }
+  // Long-term memory
+  | { type: 'remember_fact'; fact: string }
+  | { type: 'forget_fact'; factId: number }
 
 // ── Task Step (one turn of the agent loop) ────────────────────────────────────
 

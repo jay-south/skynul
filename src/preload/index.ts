@@ -141,6 +141,11 @@ const skynul = {
   skillImport: (filePath: string): Promise<import('../shared/skill').Skill[]> =>
     ipcRenderer.invoke(IPC.skillImport, filePath),
 
+  // ── User Facts ─────────────────────────────────────────────────────
+  factList: (): Promise<{ id: number; fact: string }[]> => ipcRenderer.invoke(IPC.factList),
+  factSave: (fact: string): Promise<{ id: number; fact: string }[]> => ipcRenderer.invoke(IPC.factSave, fact),
+  factDelete: (id: number): Promise<{ id: number; fact: string }[]> => ipcRenderer.invoke(IPC.factDelete, id),
+
   // ── Channels ────────────────────────────────────────────────────────
   channelGetAll: (): Promise<import('../shared/channel').ChannelSettings[]> =>
     ipcRenderer.invoke(IPC.channelGetAll),

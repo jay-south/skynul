@@ -50,6 +50,7 @@ import type { Skill } from '../shared/skill'
 import { loadSkills, saveSkills, createSkillId } from './skill-store'
 import type { Schedule } from '../shared/schedule'
 import { loadSchedules, saveSchedules, createScheduleId } from './schedule-store'
+import { saveFact, deleteFact, listFacts } from './agent/task-memory'
 
 let policy = DEFAULT_POLICY
 
@@ -602,6 +603,11 @@ export function registerIpcHandlers(opts: {
     await saveSkills(skills)
     return skills
   })
+
+  // ── User Facts ─────────────────────────────────────────────────────
+  ipcMain.handle(IPC.factList, () => listFacts())
+  ipcMain.handle(IPC.factSave, (_evt, fact: string) => { saveFact(fact); return listFacts() })
+  ipcMain.handle(IPC.factDelete, (_evt, id: number) => { deleteFact(id); return listFacts() })
 
   // ── Channels ────────────────────────────────────────────────────────
   const cm = opts.channelManager

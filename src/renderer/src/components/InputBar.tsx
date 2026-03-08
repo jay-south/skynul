@@ -57,7 +57,10 @@ export function InputBar(props: {
     const base = text.trim()
     rec.onstart = (): void => setIsRecording(true)
     rec.onend = (): void => setIsRecording(false)
-    rec.onerror = (): void => setIsRecording(false)
+    rec.onerror = (e: Event & { error?: string }): void => {
+      console.warn('[SpeechRecognition] error:', e.error ?? e)
+      setIsRecording(false)
+    }
     rec.onresult = (e: SpeechRecognitionEvent): void => {
       const transcript = Array.from(e.results)
         .map((r) => r[0].transcript)
