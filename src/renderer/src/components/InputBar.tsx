@@ -73,6 +73,33 @@ export function InputBar(props: {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       submit()
+      return
+    }
+    // Ctrl+V / Cmd+V — check for image in clipboard
+    if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+      console.log('[paste] ctrl+v detected, key:', e.key, 'ctrl:', e.ctrlKey)
+      e.preventDefault()
+      void (async () => {
+        const filePath = await window.skynul.fsSaveTempFile()
+        console.log('[paste] raw result:', filePath)
+        if (filePath) {
+          setAttachments((prev) => (prev.includes(filePath) ? prev : [...prev, filePath]))
+          return
+        }
+        // No image — paste text manually
+        const clipText = await window.skynul.clipboardReadText()
+        if (!clipText) return
+        const el = textareaRef.current
+        if (!el) { setText((prev) => prev + clipText); return }
+        const start = el.selectionStart ?? el.value.length
+        const end = el.selectionEnd ?? el.value.length
+        const next = el.value.slice(0, start) + clipText + el.value.slice(end)
+        setText(next)
+        requestAnimationFrame(() => {
+          el.selectionStart = start + clipText.length
+          el.selectionEnd = start + clipText.length
+        })
+      })()
     }
   }
 
@@ -81,7 +108,7 @@ export function InputBar(props: {
     props.onTextChange?.(e.target.value)
     const el = e.target
     el.style.height = 'auto'
-    el.style.height = Math.min(el.scrollHeight, 120) + 'px'
+    el.style.height = Math.min(el.scrollHeight, 220) + 'px'
   }
 
   const capsHint =
@@ -121,20 +148,29 @@ export function InputBar(props: {
   const attachmentsRow =
     attachments.length > 0 ? (
       <div className="inputBarAttachments" aria-label="Attachments">
-        {attachments.slice(0, 8).map((p) => (
-          <div key={p} className="inputBarAttachment" title={p}>
-            <span className="inputBarAttachmentName">{p.split(/[\\/]/).pop() || p}</span>
-            <button
-              className="inputBarAttachmentRemove"
-              onClick={() => setAttachments((prev) => prev.filter((x) => x !== p))}
-              title="Remove"
-            >
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                <path d="M18.3 5.71 12 12l6.3 6.29-1.41 1.42L10.59 13.4 4.29 19.7 2.88 18.29 9.17 12 2.88 5.71 4.29 4.29l6.3 6.3 6.29-6.3z" />
-              </svg>
-            </button>
-          </div>
-        ))}
+        {attachments.slice(0, 8).map((p) => {
+          const isDataUrl = p.startsWith('data:image/')
+          const name = isDataUrl ? 'imagen' : (p.split(/[\\/]/).pop() || p)
+          const isImage = isDataUrl || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(p)
+          return (
+            <div key={p} className={`inputBarAttachment${isImage ? ' inputBarAttachmentImg' : ''}`} title={p}>
+              {isImage ? (
+                <img src={p} className="inputBarAttachmentThumb" alt={name} />
+              ) : (
+                <span className="inputBarAttachmentName">{name}</span>
+              )}
+              <button
+                className="inputBarAttachmentRemove"
+                onClick={() => setAttachments((prev) => prev.filter((x) => x !== p))}
+                title="Remove"
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                  <path d="M18.3 5.71 12 12l6.3 6.29-1.41 1.42L10.59 13.4 4.29 19.7 2.88 18.29 9.17 12 2.88 5.71 4.29 4.29l6.3 6.3 6.29-6.3z" />
+                </svg>
+              </button>
+            </div>
+          )
+        })}
         {attachments.length > 8 ? (
           <div className="inputBarAttachmentMore">+{attachments.length - 8}</div>
         ) : null}

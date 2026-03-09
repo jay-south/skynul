@@ -84,6 +84,9 @@ export type TaskAction =
   | { type: 'task_send'; prompt: string; agentName?: string; agentRole?: string }
   | { type: 'task_read'; taskId: string }
   | { type: 'task_message'; taskId: string; message: string }
+  // Sub-agent identity — first action in a sub-agent task
+  | { type: 'set_identity'; name: string; role?: string }
+  | { type: 'generate_image'; prompt: string; size?: '1024x1024' | '1792x1024' | '1024x1792' }
 
 // ── Task Step (one turn of the agent loop) ────────────────────────────────────
 

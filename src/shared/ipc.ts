@@ -13,6 +13,8 @@ export const IPC = {
   authOpen: 'skynul:auth:open',
   fsReadText: 'skynul:fs:readText',
   fsWriteText: 'skynul:fs:writeText',
+  fsSaveTempFile: 'skynul:fs:saveTempFile',
+  clipboardReadText: 'skynul:clipboard:readText',
   chatgptOAuthStart: 'skynul:chatgpt:oauth:start',
   chatgptHasAuth: 'skynul:chatgpt:hasAuth',
   chatgptSignOut: 'skynul:chatgpt:signOut',
