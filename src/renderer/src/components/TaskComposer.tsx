@@ -115,6 +115,7 @@ export function TaskComposer(props: {
   const [savedFeedback, setSavedFeedback] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
   const recognitionRef = useRef<InstanceType<typeof SpeechRecognition> | null>(null)
+  const promptRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     setPrompt('')
@@ -245,10 +246,16 @@ export function TaskComposer(props: {
           <div className="taskComposerLabel">{t(lang, 'task_composer_prompt_label')}</div>
           <div className="taskComposerPromptWrap">
             <textarea
+              ref={promptRef}
               className="taskNewPrompt taskComposerPrompt"
               placeholder={t(lang, 'tasks_prompt_placeholder')}
               value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
+              onChange={(e) => {
+                setPrompt(e.target.value)
+                const el = e.target
+                el.style.height = 'auto'
+                el.style.height = Math.min(el.scrollHeight, 340) + 'px'
+              }}
               rows={7}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {

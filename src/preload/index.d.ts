@@ -21,6 +21,8 @@ declare global {
       ) => Promise<{ content: string }>
       fsReadText: (path: string) => Promise<string>
       fsWriteText: (path: string, content: string, ifExists?: 'fail' | 'overwrite') => Promise<void>
+      fsSaveTempFile: () => Promise<string | null>
+      clipboardReadText: () => Promise<string>
       onAuthCallback: (cb: (url: string) => void) => () => void
       windowMinimize: () => Promise<void>
       windowMaximize: () => Promise<void>

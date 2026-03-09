@@ -30,7 +30,8 @@ if (!process.env.TZ) {
   }
 }
 
-import { app, shell, BrowserWindow, screen, session, nativeTheme } from 'electron'
+import { app, shell, BrowserWindow, screen, session, nativeTheme, protocol } from 'electron'
+import { readFile } from 'fs/promises'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -46,6 +47,11 @@ let authWindow: BrowserWindow | null = null
 let taskManager: TaskManager | null = null
 let channelManager: ChannelManager | null = null
 let scheduleRunner: ScheduleRunner | null = null
+
+// Protocolo custom para servir archivos locales al renderer (file:// está bloqueado en dev)
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'local-file', privileges: { secure: true, standard: true, supportFetchAPI: true, stream: true } }
+])
 
 // WSL/VMs often fail GPU init; disable to avoid crashes/noise.
 app.disableHardwareAcceleration()
@@ -213,6 +219,24 @@ app.whenReady().then(() => {
   })
 
   void initPolicy()
+
+  // Handler del protocolo local-file://  — sirve archivos del filesystem al renderer
+  const MIME: Record<string, string> = {
+    png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+    gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml', bmp: 'image/bmp'
+  }
+  protocol.handle('local-file', async (request) => {
+    // local-file:///tmp/file.png  → /tmp/file.png   (Linux/Mac)
+    // local-file://C:\path\file   → C:\path\file    (Windows)
+    let filePath = decodeURIComponent(request.url.slice('local-file://'.length))
+    // En URLs bien formadas para Windows el path llega como /C:/path — normalizar
+    if (process.platform === 'win32' && filePath.startsWith('/') && /^\/[A-Za-z]:/.test(filePath)) {
+      filePath = filePath.slice(1)
+    }
+    const data = await readFile(filePath)
+    const ext = filePath.split('.').pop()?.toLowerCase() ?? ''
+    return new Response(data, { headers: { 'Content-Type': MIME[ext] ?? 'application/octet-stream' } })
+  })
 
   const win = createWindow()
 

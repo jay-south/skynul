@@ -95,6 +95,9 @@ export type TaskAction =
   // Long-term memory
   | { type: 'remember_fact'; fact: string }
   | { type: 'forget_fact'; factId: number }
+  // Sub-agent identity — first action in a sub-agent task
+  | { type: 'set_identity'; name: string; role?: string }
+  | { type: 'generate_image'; prompt: string; size?: '1024x1024' | '1792x1024' | '1024x1792' }
 
 // ── Task Step (one turn of the agent loop) ────────────────────────────────────
 

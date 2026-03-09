@@ -61,6 +61,10 @@ const skynul = {
     const req: WriteTextFileRequest = { path, content, ifExists }
     return ipcRenderer.invoke(IPC.fsWriteText, req)
   },
+  fsSaveTempFile: (): Promise<string | null> =>
+    ipcRenderer.invoke(IPC.fsSaveTempFile),
+  clipboardReadText: (): Promise<string> =>
+    ipcRenderer.invoke(IPC.clipboardReadText),
   onAuthCallback: (cb: (url: string) => void): (() => void) => {
     const handler = (_evt: unknown, payload: { url: string }): void => cb(payload.url)
     ipcRenderer.on('skynul:auth:callback', handler)

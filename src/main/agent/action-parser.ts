@@ -225,7 +225,11 @@ const VALID_ACTION_TYPES = new Set([
   'task_read',
   'task_message',
   // App scripting
-  'app_script'
+  'app_script',
+  // Sub-agent identity
+  'set_identity',
+  // Image generation
+  'generate_image'
 ])
 
 function validateResponse(obj: unknown): ModelResponse {

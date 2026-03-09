@@ -24,9 +24,21 @@ import { scrapeUrl } from './web-scraper'
 import { createExcelFromTsv } from './excel-writer'
 import { AppBridge } from './app-bridge'
 import { saveFact, deleteFact } from './task-memory'
+import { generateImage } from '../providers/image-gen'
+import { writeFile } from 'fs/promises'
+import os from 'os'
 
 import { acquirePlaywrightPage } from '../browser/playwright-cdp'
 import { PlaywrightBridge } from '../browser/playwright-bridge'
+
+/** Keep head+tail of long text so the model sees both beginning and end. */
+function headTail(text: string, limit: number): string {
+  if (text.length <= limit) return text
+  const head = Math.floor(limit * 0.6)
+  const tail = limit - head
+  const omitted = text.length - head - tail
+  return `${text.slice(0, head)}\n\n[... ${omitted} chars omitted ...]\n\n${text.slice(text.length - tail)}`
+}
 
 export type TaskRunnerCallbacks = {
   onUpdate: (task: Task) => void
@@ -105,11 +117,17 @@ export class TaskRunner {
       this.abort('Task timed out')
     }, this.task.timeoutMs)
 
-    const systemPrompt = buildPlaywrightSystemPrompt()
+    const systemPrompt = buildPlaywrightSystemPrompt(!!this.task.parentTaskId)
     const history: VisionMessage[] = []
 
     const memCtx = this.opts.memoryContext
       ? `\n\nContext from memory:\n${this.opts.memoryContext}`
+      : ''
+
+    // Resolve attachments: save data URLs to temp files so agent can upload_file them
+    const { filePaths: attachPaths, dataUrls: attachDataUrls } = await this.resolveAttachments()
+    const attachBlock = attachPaths.length > 0
+      ? `\n\nReference files (use upload_file with these paths to upload them to any site):\n${attachPaths.map((p) => `- ${p}`).join('\n')}`
       : ''
 
     try {
@@ -154,13 +172,22 @@ export class TaskRunner {
         // Build turn message
         const turnText =
           step === 0
-            ? `Task: ${this.task.prompt}${memCtx}\n\nCurrent page:\nURL: ${snap.url}\nTitle: ${snap.title}\n\nPage snapshot:\n${snap.snapshot}`
+            ? `Task: ${this.task.prompt}${attachBlock}${memCtx}\n\nCurrent page:\nURL: ${snap.url}\nTitle: ${snap.title}\n\nPage snapshot:\n${snap.snapshot}`
             : `Step ${step + 1}.\nURL: ${snap.url}\nTitle: ${snap.title}\n\nPage snapshot:\n${snap.snapshot}${actionLog}`
 
         const inboxBlock = this.drainInbox()
         const turnMessage: VisionMessage = {
           role: 'user',
-          content: [{ type: 'input_text', text: turnText + inboxBlock }]
+          content: [
+            { type: 'input_text', text: turnText + inboxBlock },
+            ...(step === 0
+              ? attachDataUrls.slice(0, 4).map((url) => ({
+                  type: 'input_image' as const,
+                  detail: 'auto' as const,
+                  image_url: url
+                }))
+              : [])
+          ]
         }
 
         if (history.length > 20) history.splice(1, history.length - 19)
@@ -235,10 +262,30 @@ export class TaskRunner {
     const type = raw.type as string
     const frameId = raw.frameId as string | undefined
     switch (type) {
-      case 'navigate':
-        await pw.navigate(raw.url as string)
+      case 'navigate': {
+        const navUrl = String(raw.url ?? '')
+        const IMAGE_GEN_SITES: Array<{ keywords: string[]; domains: string[] }> = [
+          { keywords: ['pollinations'], domains: ['pollinations.ai'] },
+          { keywords: ['bing image', 'bing create'], domains: ['bing.com/images/create', 'bing.com/create'] },
+          { keywords: ['craiyon'], domains: ['craiyon.com'] },
+          { keywords: ['nightcafe'], domains: ['nightcafe.studio'] },
+          { keywords: ['leonardo'], domains: ['leonardo.ai'] },
+          { keywords: ['ideogram'], domains: ['ideogram.ai'] },
+          { keywords: ['firefly'], domains: ['adobe.com/firefly'] },
+          { keywords: ['dream.ai'], domains: ['dream.ai'] }
+        ]
+        const promptLower = this.task.prompt.toLowerCase()
+        const matchedSite = IMAGE_GEN_SITES.find((s) => s.domains.some((d) => navUrl.includes(d)))
+        if (matchedSite) {
+          const userExplicitlyRequestedThisSite = matchedSite.keywords.some((k) => promptLower.includes(k))
+          if (!userExplicitlyRequestedThisSite) {
+            return `[BLOCKED] Do not navigate to image generation websites. Use the generate_image action instead: {"type":"generate_image","prompt":"..."}`
+          }
+        }
+        await pw.navigate(navUrl)
         await this.sleep(1500)
         break
+      }
       case 'click':
         await pw.click(raw.selector as string, frameId)
         break
@@ -288,6 +335,10 @@ export class TaskRunner {
       case 'remember_fact':
       case 'forget_fact':
         return this.executeFactAction(action)
+      case 'set_identity':
+        return this.executeSetIdentity(action)
+      case 'generate_image':
+        return this.executeGenerateImage(action)
       default:
         throw new Error(`Unknown action type: ${action.type}`)
     }
@@ -309,22 +360,26 @@ export class TaskRunner {
 
     this.pushStatus('Starting agent loop...')
 
-    const systemPrompt = buildCdpSystemPrompt(this.task.capabilities)
+    const systemPrompt = buildCdpSystemPrompt(this.task.capabilities, !!this.task.parentTaskId)
     const history: VisionMessage[] = []
 
     const memCtxCdp = this.opts.memoryContext ?? ''
-    const attachments = (this.task.attachments ?? []).filter((x) => typeof x === 'string')
+    const allAttachments = (this.task.attachments ?? []).filter((x) => typeof x === 'string')
+    const imageDataUrls = allAttachments.filter((a) => a.startsWith('data:image/'))
+    const filePaths = allAttachments.filter((a) => !a.startsWith('data:image/'))
     const attachmentsBlock =
-      attachments.length > 0
-        ? `\n\nAttached local files (absolute paths):\n${attachments
-            .slice(0, 12)
-            .map((p) => `- ${p}`)
-            .join('\n')}`
+      filePaths.length > 0
+        ? `\n\nAttached local files (absolute paths):\n${filePaths.slice(0, 12).map((p) => `- ${p}`).join('\n')}`
         : ''
     history.push({
       role: 'user',
       content: [
-        { type: 'input_text', text: `Task: ${this.task.prompt}${attachmentsBlock}${memCtxCdp}` }
+        { type: 'input_text', text: `Task: ${this.task.prompt}${attachmentsBlock}${memCtxCdp}` },
+        ...imageDataUrls.slice(0, 4).map((url) => ({
+          type: 'input_image' as const,
+          detail: 'auto' as const,
+          image_url: url
+        }))
       ]
     })
 
@@ -434,7 +489,7 @@ export class TaskRunner {
 
     this.pushStatus('Preparing agent loop...')
 
-    const systemPrompt = buildCodeSystemPrompt(this.task.capabilities)
+    const systemPrompt = buildCodeSystemPrompt(this.task.capabilities, !!this.task.parentTaskId)
     const history: VisionMessage[] = []
 
     const memCtx = this.opts.memoryContext ?? ''
@@ -636,6 +691,10 @@ export class TaskRunner {
       case 'remember_fact':
       case 'forget_fact':
         return this.executeFactAction(action)
+      case 'set_identity':
+        return this.executeSetIdentity(action)
+      case 'generate_image':
+        return this.executeGenerateImage(action)
       default:
         return `[Action "${action.type}" not supported in code mode]`
     }
@@ -662,7 +721,7 @@ export class TaskRunner {
       }
       const numbered = lines.map((line, i) => `${String(startLine + i + 1).padStart(6)}\t${line}`)
       const result = numbered.join('\n')
-      return result.length > 8000 ? result.slice(0, 8000) + '\n[... truncated]' : result
+      return headTail(result, 8000)
     } catch (e) {
       return `[Error reading ${resolved}: ${e instanceof Error ? e.message : String(e)}]`
     }
@@ -716,7 +775,7 @@ export class TaskRunner {
       exec(fdCmd, execOpts, (err, stdout) => {
         if (!err && stdout.trim()) {
           const result = stdout.trim()
-          resolve(result.length > 6000 ? result.slice(0, 6000) + '\n[... truncated]' : result)
+          resolve(headTail(result, 6000))
           return
         }
         // Fallback to find
@@ -727,7 +786,7 @@ export class TaskRunner {
             return
           }
           const result = stdout2.trim() || '(no files found)'
-          resolve(result.length > 6000 ? result.slice(0, 6000) + '\n[... truncated]' : result)
+          resolve(headTail(result, 6000))
         })
       })
     })
@@ -750,7 +809,7 @@ export class TaskRunner {
       exec(rgCmd, execOpts, (err, stdout) => {
         if (!err || (err as any)?.code === 1) {
           const result = (stdout || '').trim() || '(no matches found)'
-          resolve(result.length > 6000 ? result.slice(0, 6000) + '\n[... truncated]' : result)
+          resolve(headTail(result, 6000))
           return
         }
         // Fallback to grep
@@ -762,7 +821,7 @@ export class TaskRunner {
             return
           }
           const result = (stdout2 || '').trim() || '(no matches found)'
-          resolve(result.length > 6000 ? result.slice(0, 6000) + '\n[... truncated]' : result)
+          resolve(headTail(result, 6000))
         })
       })
     })
@@ -786,6 +845,10 @@ export class TaskRunner {
       case 'remember_fact':
       case 'forget_fact':
         return this.executeFactAction(action)
+      case 'set_identity':
+        return this.executeSetIdentity(action)
+      case 'generate_image':
+        return this.executeGenerateImage(action)
       case 'wait':
         await this.sleep((action as any).ms ?? 1000)
         return undefined
@@ -858,6 +921,51 @@ export class TaskRunner {
     this.cleanup()
   }
 
+  /** Handle set_identity — sub-agent chooses its own name. */
+  /** Saves data URL attachments to /tmp/ files. Returns { filePaths, dataUrls }. */
+  private async resolveAttachments(): Promise<{ filePaths: string[]; dataUrls: string[] }> {
+    const all = (this.task.attachments ?? []).filter((x) => typeof x === 'string')
+    const filePaths: string[] = []
+    const dataUrls: string[] = []
+    for (const a of all) {
+      if (a.startsWith('data:image/')) {
+        dataUrls.push(a)
+        const ext = a.startsWith('data:image/png') ? 'png' : 'jpg'
+        const p = `${os.tmpdir()}/skynul-ref-${Date.now()}-${dataUrls.length}.${ext}`
+        const base64 = a.split(',')[1]
+        await writeFile(p, Buffer.from(base64, 'base64'))
+        filePaths.push(p)
+      } else {
+        filePaths.push(a)
+      }
+    }
+    return { filePaths, dataUrls }
+  }
+
+  private async executeGenerateImage(action: TaskAction): Promise<string> {
+    const raw = action as Record<string, unknown>
+    const prompt = String(raw.prompt ?? '')
+    if (!prompt) return 'generate_image requires a prompt'
+    const size = (raw.size as '1024x1024' | '1792x1024' | '1024x1792') ?? '1024x1024'
+    const filePath = await generateImage(prompt, size)
+    if (!this.task.attachments) this.task.attachments = []
+    this.task.attachments.push(filePath)
+    this.pushUpdate()
+    return `Image generated and saved to: ${filePath}`
+  }
+
+  private executeSetIdentity(action: TaskAction): string {
+    const raw = action as Record<string, unknown>
+    if (raw.name && typeof raw.name === 'string') {
+      this.task.agentName = raw.name
+    }
+    if (raw.role && typeof raw.role === 'string') {
+      this.task.agentRole = raw.role as string
+    }
+    this.pushUpdate()
+    return `Identity: ${this.task.agentName ?? ''}${this.task.agentRole ? ` (${this.task.agentRole})` : ''}`
+  }
+
   /** Handle inter-task communication actions. */
   private async executeInterTaskAction(action: TaskAction): Promise<string> {
     const tm = this.opts.taskManager
@@ -923,7 +1031,7 @@ export class TaskRunner {
         command,
         { timeout, maxBuffer: 1024 * 1024, cwd: cwd || undefined },
         (err, stdout, stderr) => {
-          const out = (stdout ?? '').toString().slice(0, 4000)
+          const out = headTail((stdout ?? '').toString(), 4000)
           const errOut = (stderr ?? '').toString().slice(0, 1000)
           if (err) {
             resolve(`[Exit ${err.code ?? 1}] ${errOut || err.message}\n${out}`.trim())

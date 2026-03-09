@@ -1,5 +1,14 @@
 import type { Page, Frame } from 'playwright-core'
 
+/** Keep head+tail of long text so the model sees both beginning and end. */
+function headTail(text: string, limit: number): string {
+  if (text.length <= limit) return text
+  const head = Math.floor(limit * 0.6)
+  const tail = limit - head
+  const omitted = text.length - head - tail
+  return `${text.slice(0, head)}\n\n[... ${omitted} chars omitted ...]\n\n${text.slice(text.length - tail)}`
+}
+
 type PageWithSnapshot = Page & {
   _snapshotForAI?: (opts?: { timeout?: number; track?: string }) => Promise<{ full?: string }>
 }
@@ -52,7 +61,7 @@ export class PlaywrightBridge {
   }
 
   async navigate(url: string): Promise<void> {
-    await this.page.goto(url, { waitUntil: 'domcontentloaded' })
+    await this.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60_000 })
   }
 
   async click(selector: string, frameId?: string): Promise<void> {
@@ -138,7 +147,7 @@ export class PlaywrightBridge {
         const result = await maybePage._snapshotForAI({ timeout: 10_000, track: 'response' })
         const snap = String(result?.full ?? '')
         if (snap.length > 20) {
-          return { url, title, snapshot: snap.slice(0, 16_000) }
+          return { url, title, snapshot: headTail(snap, 16_000) }
         }
       } catch {
         // fallback below
@@ -149,7 +158,7 @@ export class PlaywrightBridge {
     try {
       const snap = await this.page.locator('body').ariaSnapshot({ timeout: 10_000 })
       if (snap && snap.length > 20) {
-        return { url, title, snapshot: snap.slice(0, 14_000) }
+        return { url, title, snapshot: headTail(snap, 14_000) }
       }
     } catch {
       // fallback below
@@ -191,7 +200,7 @@ export class PlaywrightBridge {
       })
       .catch(() => '')
 
-    return { url, title, snapshot: text.slice(0, 12_000) }
+    return { url, title, snapshot: headTail(text, 12_000) }
   }
 
   async getPageInfo(): Promise<PageInfo> {

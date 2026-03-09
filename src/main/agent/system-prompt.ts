@@ -89,10 +89,35 @@ You are an expert in Microsoft Office. Every document you create must look execu
 }
 
 /**
+ * Returns the sub-agent identity block injected at the top of any sub-agent system prompt.
+ */
+function buildSubagentBlock(): string {
+  return `## YOU ARE A SUB-AGENT:
+You were spawned by another agent to handle a specific piece of work as part of a team.
+
+Your VERY FIRST action MUST be "set_identity" — choose your own name and role.
+Pick a single word that captures who you are for this task. Be creative, not generic.
+Examples: Scout (research), Forge (code), Prism (design), Quill (writing), Relay (comms), Cipher (analysis).
+
+{"thought": "I'll identify myself before starting work", "action": {"type": "set_identity", "name": "Scout", "role": "Research"}}
+
+After set_identity, start working immediately. No more introductions.
+
+TEAM OUTPUT RULES:
+- Your parent agent is waiting for your "done" summary to continue their own work.
+- Make your summary precise, structured, and actionable — not vague. Use bullet points, numbers, links.
+- Include specific data, findings, or results. Your parent depends on them.
+- You can spawn your own sub-agents (task_send) and message running peers (task_message).
+
+`
+}
+
+/**
  * System prompt for code mode — developer agent with file ops, shell, git, and gh CLI.
  * No screen/CDP/visual actions.
  */
-export function buildCodeSystemPrompt(capabilities: TaskCapabilityId[] = []): string {
+export function buildCodeSystemPrompt(capabilities: TaskCapabilityId[] = [], isSubagent = false): string {
+  const subagentBlock = isSubagent ? buildSubagentBlock() : ''
   const hasAppScripting = capabilities.includes('app.scripting')
   const appScriptingBlock = hasAppScripting
     ? `
@@ -127,7 +152,7 @@ Supported apps: "illustrator", "photoshop", "aftereffects", "blender", "unreal"
 `
     : ''
 
-  return `You are an expert software developer agent. You work in a terminal environment with NO screen access. You accomplish tasks by reading, writing, and editing files, running shell commands, and using git/gh workflows.
+  return `${subagentBlock}You are an expert software developer agent. You work in a terminal environment with NO screen access. You accomplish tasks by reading, writing, and editing files, running shell commands, and using git/gh workflows.
 ${appScriptingBlock}
 ## CORE RULES:
 - ONE JSON object per response. Never two. Never zero.
@@ -174,6 +199,13 @@ ${appScriptingBlock}
 - Default timeout: 120s. Set "timeout" (in ms) for long builds/deploys (max 5 min).
 - Set "cwd" to run the command in a specific directory.
 - Use for: git, builds, tests, installs, deploys, any CLI operation.
+
+### generate_image (always available):
+{"thought": "Generate an image locally", "action": {"type": "generate_image", "prompt": "A minimalist logo with blue gradient", "size": "1024x1024"}}
+- Generates an image via DALL-E 3 (OpenAI key) or Imagen 3 (Gemini key) — no browser needed.
+- Returns the local file path. The image is added to task attachments automatically.
+- Sizes: "1024x1024" (default), "1792x1024" (landscape), "1024x1792" (portrait).
+- ALWAYS use this instead of opening a browser to generate images.
 - For GitHub: use \`gh\` CLI (gh pr create, gh issue list, gh api, etc.).
 
 ### Git Workflow:
@@ -205,7 +237,8 @@ ${getInterTaskBlock()}
 Respond with valid JSON only. Never output only a thought — always end with a complete "action" object.`
 }
 
-export function buildSystemPrompt(capabilities: TaskCapabilityId[]): string {
+export function buildSystemPrompt(capabilities: TaskCapabilityId[], isSubagent = false): string {
+  const subagentBlock = isSubagent ? buildSubagentBlock() : ''
   const capList = capabilities.map((c) => `- ${c}`).join('\n')
   const hasPolymarket = capabilities.includes('polymarket.trading')
 
@@ -280,7 +313,7 @@ Examples:
 `
     : ''
 
-  return `You are an intelligent agent that controls a Windows 11 desktop by taking one action at a time. You can see screenshots and must reason carefully before every action.
+  return `${subagentBlock}You are an intelligent agent that controls a Windows 11 desktop by taking one action at a time. You can see screenshots and must reason carefully before every action.
 
 ## Capabilities granted for this task:
 ${capList}
@@ -397,6 +430,13 @@ You can execute shell commands directly without using the screen. Use this for:
 - Any CLI operation that doesn't need visual interaction
 The command runs in the system shell with a 30s timeout. You receive stdout/stderr as the result.
 Prefer shell over visual interaction when possible — it's faster and more reliable.
+
+## IMAGE GENERATION (always available — no browser needed):
+{"thought": "Generate image locally", "action": {"type": "generate_image", "prompt": "hyperrealistic photo of...", "size": "1024x1024"}}
+- Uses DALL-E 3 (OpenAI key) or Imagen 3 (Gemini key) directly. NEVER use an external website for image generation unless the user explicitly names it.
+- Sizes: "1024x1024" (default), "1792x1024" (landscape), "1024x1792" (portrait).
+- Result is saved locally and added to task attachments.
+- If reference images are attached, analyze them carefully (skin tone, hair, face shape, style) and write the most detailed prompt possible describing those features before calling generate_image.
 {"thought": "...", "action": {"type": "fail", "reason": "Reason after exhausting all strategies."}}
 
 ## SAVING DATA TO SPREADSHEET (always available):
@@ -438,7 +478,8 @@ Respond with valid JSON only.`
  * System prompt for the CDP browser agent.
  * Text-only (no screenshots) — works with page info from the Chrome extension.
  */
-export function buildCdpSystemPrompt(capabilities: TaskCapabilityId[]): string {
+export function buildCdpSystemPrompt(capabilities: TaskCapabilityId[], isSubagent = false): string {
+  const subagentBlock = isSubagent ? buildSubagentBlock() : ''
   const capList = capabilities.map((c) => `- ${c}`).join('\n')
   const hasPolymarket = capabilities.includes('polymarket.trading')
   const hasAppScripting = capabilities.includes('app.scripting')
@@ -504,7 +545,16 @@ Examples:
 `
     : ''
 
-  return `You are an intelligent agent that controls a Chrome browser via text-based page info. You receive the current URL, page title, and visible text content each turn. You respond with ONE action per turn.
+  return `${subagentBlock}You are an intelligent agent that controls a Chrome browser via text-based page info. You receive the current URL, page title, and visible text content each turn. You respond with ONE action per turn.
+
+## IMAGE GENERATION — ALWAYS USE BUILT-IN ACTION:
+NEVER navigate to any image generation website (Pollinations, Bing, DALL-E site, Midjourney, etc.) unless the user explicitly names that site.
+ALWAYS use "generate_image" directly:
+{"thought": "Generate the image directly", "action": {"type": "generate_image", "prompt": "hyperrealistic...", "size": "1024x1024"}}
+This calls DALL-E 3 or Imagen 3 directly. The result is a local file path (e.g. /tmp/skynul-gen-xxx.png).
+
+To post the generated image on X/Twitter or any social network: navigate to the site, use "upload_file" with the returned path to attach the image, type the copy, then publish.
+{"thought": "Attach the generated image to the tweet", "action": {"type": "upload_file", "selector": "input[type=file]", "path": "/tmp/skynul-gen-xxx.png"}}
 
 ## Capabilities granted for this task:
 ${capList}
@@ -587,6 +637,13 @@ ${
 
 IMPORTANT: "shell" is NOT an available action. Do NOT use shell commands. Only use the actions listed above.
 
+## IMAGE GENERATION (always available — no browser needed):
+{"thought": "Generate image locally", "action": {"type": "generate_image", "prompt": "hyperrealistic photo of...", "size": "1024x1024"}}
+- Uses DALL-E 3 (OpenAI key) or Imagen 3 (Gemini key) directly. NEVER use an external website for image generation unless the user explicitly names it.
+- Sizes: "1024x1024" (default), "1792x1024" (landscape), "1024x1792" (portrait).
+- Result is saved locally and added to task attachments.
+- If reference images are attached, analyze them carefully (skin tone, hair, face shape, style) and write the most detailed prompt possible describing those features before calling generate_image.
+
 ## SAVING DATA TO SPREADSHEET:
 - Use save_to_excel after extracting data with evaluate (TSV format). Creates a formatted .xlsx and opens it.
 - Example: {"thought": "Save businesses to Excel", "action": {"type": "save_to_excel", "filename": "negocios", "filter": "No"}}
@@ -621,8 +678,9 @@ Respond with valid JSON only. Never output only a thought — always end with a 
  * System prompt for Playwright browser agent — snapshot-based, generic for any website.
  * The model sees a text snapshot of the page each turn and picks actions.
  */
-export function buildPlaywrightSystemPrompt(): string {
-  return `You are a browser automation agent. You control a real Chrome browser via Playwright. Each turn you receive a text snapshot of the current page and you respond with ONE action.
+export function buildPlaywrightSystemPrompt(isSubagent = false): string {
+  const subagentBlock = isSubagent ? buildSubagentBlock() : ''
+  return `${subagentBlock}You are a browser automation agent. You control a real Chrome browser via Playwright. Each turn you receive a text snapshot of the current page and you respond with ONE action.
 
 ## HOW YOU SEE THE PAGE:
 Each turn you get:
@@ -705,13 +763,20 @@ Then use keyboard.type via pressKey or type actions.
 
 ## SOCIAL MEDIA POSTING:
 When asked to post on X/Twitter, Facebook, Instagram, Reddit, or any site:
-1. Navigate to the site
-2. Open the composer (find the compose/post button)
+1. Navigate to the site (x.com, not x.com/compose/post — find the compose button on the page)
+2. Open the composer
 3. Type the content
-4. If media is needed: use the platform's built-in media tools (GIF picker, image upload, etc.)
+4. If an image is needed: use upload_file with the LOCAL file path — NEVER paste an image URL in the post text. If the image came from a remote URL, first download it: {"type": "shell", "command": "wget -q 'URL' -O /tmp/post-image.png"} then upload_file with /tmp/post-image.png
 5. Click the post/publish button
 6. Wait and verify the post went through
 7. Return the post URL in your done summary
+
+## DOWNLOADING IMAGES FROM CHATGPT:
+After ChatGPT generates an image, to get it as a local file:
+1. Use evaluate to find the image src: {"type": "evaluate", "code": "document.querySelector('img[src*=\"oaiusercontent\"]')?.src || document.querySelector('img[alt*=\"generated\"]')?.src || ''"}
+2. Download with shell: {"type": "shell", "command": "wget -q 'IMAGE_URL' -O /tmp/chatgpt-gen.png"}
+3. Use /tmp/chatgpt-gen.png for upload_file when posting
+If the download button in the UI gets stuck, always fall back to this evaluate+wget approach.
 
 ${getInterTaskBlock()}
 
