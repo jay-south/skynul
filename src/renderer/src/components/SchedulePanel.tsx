@@ -83,8 +83,8 @@ const PRESETS: SchedPreset[] = [
   },
   {
     id: 'custom',
-    label: 'Custom (cron)',
-    desc: 'Advanced: write a cron expression',
+    label: 'Custom',
+    desc: 'Pick specific days and time',
     frequency: 'custom',
     cronExpr: '',
     needsTime: false,
@@ -226,13 +226,20 @@ export function NewScheduleForm(props: {
   const [presetId, setPresetId] = useState('daily')
   const [time, setTime] = useState('09:00')
   const [dow, setDow] = useState(1)
-  const [customCron, setCustomCron] = useState('0 9 * * *')
+  const [customDays, setCustomDays] = useState<number[]>([1, 2, 3, 4, 5])
+  const [customTime, setCustomTime] = useState('09:00')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const preset = PRESETS.find((p) => p.id === presetId) ?? PRESETS[3]
 
+  const buildCustomCron = (): string => {
+    const [h, m] = customTime.split(':').map(Number)
+    const days = customDays.length === 7 || customDays.length === 0 ? '*' : customDays.sort().join(',')
+    return `${m} ${h} * * ${days}`
+  }
+
   const cronExpr = preset.needsCustomCron
-    ? customCron.trim() || '0 9 * * *'
+    ? buildCustomCron()
     : buildCron(preset, time, dow)
 
   const nextRunAtPreview = prompt.trim() ? nextCronLocal(cronExpr) : 0
@@ -299,7 +306,7 @@ export function NewScheduleForm(props: {
           <div className="schedCardLabel">Frequency</div>
           <div className="schedRowBody">
             <div className="schedPresets" role="list" aria-label="Frequency presets">
-              {PRESETS.map((p) => (
+              {PRESETS.filter((p) => p.id !== 'custom').map((p) => (
                 <button
                   key={p.id}
                   className={`schedPresetChip ${presetId === p.id ? 'active' : ''}`}
@@ -342,23 +349,42 @@ export function NewScheduleForm(props: {
         )}
 
         {preset.needsCustomCron && (
-          <div className="schedCardRow">
-            <div className="schedCardLabel">Cron</div>
-            <input
-              type="text"
-              className="schedCronInput"
-              value={customCron}
-              onChange={(e) => setCustomCron(e.target.value)}
-              placeholder="0 9 * * *"
-              spellCheck={false}
-            />
-          </div>
+          <>
+            <div className="schedCardRow">
+              <div className="schedCardLabel">Days</div>
+              <div className="schedDayPicker">
+                {DAYS.map((d, i) => (
+                  <button
+                    key={i}
+                    className={`schedDayBtn ${customDays.includes(i) ? 'active' : ''}`}
+                    onClick={() =>
+                      setCustomDays((prev) =>
+                        prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i]
+                      )
+                    }
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="schedCardRow">
+              <div className="schedCardLabel">Time</div>
+              <div className="schedTimeRow">
+                <input
+                  type="time"
+                  className="schedTimeInput"
+                  value={customTime}
+                  onChange={(e) => setCustomTime(e.target.value)}
+                />
+              </div>
+            </div>
+          </>
         )}
 
         <div className="schedCardFooter">
           <div className="schedPreview">
             <span className="schedPreviewDesc">{preset.desc}</span>
-            {preset.needsCustomCron && <code>{cronExpr}</code>}
             {nextRunAtPreview > 0 && (
               <span className="schedPreviewNext">Next run {fmtNext(nextRunAtPreview)}</span>
             )}
@@ -368,6 +394,18 @@ export function NewScheduleForm(props: {
           </button>
         </div>
       </div>
+
+      {presetId !== 'custom' && (
+        <button
+          className="schedCustomToggle"
+          onClick={() => setPresetId('custom')}
+        >
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+          Custom schedule
+        </button>
+      )}
     </>
   )
 }

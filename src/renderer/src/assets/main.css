@@ -112,12 +112,17 @@ code {
   flex-shrink: 0;
 }
 
+.sidebarBrand {
+  flex-shrink: 0;
+  padding: 4px 8px 20px;
+}
+
 .sidebarContent {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 4px;
   overflow: hidden;
 }
 
@@ -1020,6 +1025,179 @@ code {
 .segBtn:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+/* ── Sidebar toolbar ──────────────────────────────────────────── */
+.sidebarToolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.sidebarToolbarBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: #fff;
+  padding: 12px 14px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.sidebarToolbarBtn:hover {
+  background: color-mix(in srgb, var(--nb-text), transparent 92%);
+  color: #fff;
+}
+
+.sidebarToolbarBtn.active {
+  background: var(--nb-panel-2);
+  border-color: var(--nb-border);
+  color: #fff;
+}
+
+/* ── Sidebar accordion (Tasks) ─────────────────────────────── */
+.sidebarAccordionBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  appearance: none;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #fff;
+  padding: 12px 14px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.sidebarAccordionBtn:hover {
+  background: color-mix(in srgb, var(--nb-text), transparent 92%);
+  color: #fff;
+}
+
+.sidebarAccordionBtn.open {
+  color: #fff;
+}
+
+.sidebarAccordionChevron {
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.sidebarAccordionBtn.open .sidebarAccordionChevron {
+  transform: rotate(180deg);
+}
+
+.sidebarAccordionBody {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sidebarSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sidebarSearchInput {
+  appearance: none;
+  border: 1px solid var(--nb-border);
+  border-radius: 10px;
+  background: var(--nb-panel);
+  color: var(--nb-text);
+  font-size: 12px;
+  padding: 8px 12px;
+  margin: 0 4px;
+  outline: none;
+  flex-shrink: 0;
+}
+
+.sidebarSearchInput:focus {
+  border-color: var(--nb-accent-2);
+}
+
+.sidebarProjectsEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1;
+  opacity: 0.7;
+}
+
+.projectsPlaceholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.projectsPlaceholderIcon {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.3);
+  margin-bottom: 4px;
+}
+
+.projectsPlaceholderTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.projectsPlaceholderSub {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.4);
+  max-width: 240px;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.projectsCreateBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  padding: 10px 20px;
+  margin-top: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.projectsCreateBtn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
 .modalBackdrop {
@@ -3276,7 +3454,8 @@ code {
   outline: none;
   line-height: 1.5;
   min-height: 21px;
-  max-height: 120px;
+  max-height: 220px;
+  overflow-y: auto;
 }
 
 .inputBarTextarea::placeholder {
@@ -3610,6 +3789,29 @@ code {
   color: var(--nb-text);
 }
 
+.schedCustomToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--nb-accent-2);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 0;
+  margin-top: 2px;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.15s;
+}
+
+.schedCustomToggle:hover {
+  opacity: 1;
+}
+
 .schedTimeRow {
   display: flex;
   gap: 8px;
@@ -3627,19 +3829,35 @@ code {
   padding: 8px 12px;
 }
 
-.schedCronInput {
-  width: min(420px, 100%);
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--nb-border);
-  background: var(--nb-panel-2);
-  font-size: 13px;
-  color: var(--nb-text);
-  outline: none;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+.schedDayPicker {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
 }
-.schedCronInput:focus {
-  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 55%);
+
+.schedDayBtn {
+  appearance: none;
+  border: 1px solid var(--nb-border);
+  border-radius: 10px;
+  background: var(--nb-panel-2);
+  color: var(--nb-muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.schedDayBtn:hover {
+  background: color-mix(in srgb, var(--nb-text), transparent 90%);
+  color: var(--nb-text);
+}
+
+.schedDayBtn.active {
+  background: var(--nb-accent-2);
+  border-color: var(--nb-accent-2);
+  color: #fff;
 }
 
 .schedCardFooter {

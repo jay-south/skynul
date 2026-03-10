@@ -265,7 +265,8 @@ function App(): React.JSX.Element {
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
 
   // ── Task template flow (renders in main panel) ─────────────────────
-  const [taskSubTab, setTaskSubTab] = useState<'tasks' | 'scheduled'>('tasks')
+  const [taskSubTab, setTaskSubTab] = useState<'tasks' | 'scheduled' | 'search' | 'projects' | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
   const [showNewSchedule, setShowNewSchedule] = useState(false)
   const [activeScheduleId, setActiveScheduleId] = useState<string | null>(null)
   const [viewingProcessTaskId, setViewingProcessTaskId] = useState<string | null>(null)
@@ -1005,40 +1006,123 @@ function App(): React.JSX.Element {
       </div>
 
       <aside className="sidebar">
+        <div className="sidebarBrand">
+          <img src={skynulLogo} alt="Skynul" className="sbFooterLogo" />
+        </div>
         {/* ── Tasks / Settings content ─────────────────────────────── */}
         <div className="sidebarContent">
           {(sidebarTab === 'tasks' || sidebarTab === 'dashboard') && (
             <>
-              <div className="seg seg--2col" style={{ margin: '0 8px 4px' }}>
+              {/* ── Sidebar toolbar ─────────────────────────────── */}
+              <div className="sidebarToolbar">
                 <button
-                  className={`segBtn ${taskSubTab === 'tasks' ? 'active' : ''}`}
-                  onClick={() => setTaskSubTab('tasks')}
+                  className="sidebarToolbarBtn"
+                  onClick={() => {
+                    setActiveTaskId(null)
+                    setTaskSubTab(null)
+                    if (sidebarTab === 'dashboard') setSidebarTab('tasks')
+                  }}
                 >
-                  Tasks
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /><path d="M4 1l.5 1.5L6 3l-1.5.5L4 5l-.5-1.5L2 3l1.5-.5L4 1z" /><path d="M3 14l.4 1.1L4.5 15.5l-1.1.4L3 17l-.4-1.1L1.5 15.5l1.1-.4L3 14z" />
+                  </svg>
+                  New Task
                 </button>
                 <button
-                  className={`segBtn ${taskSubTab === 'scheduled' ? 'active' : ''}`}
-                  onClick={() => setTaskSubTab('scheduled')}
+                  className={`sidebarToolbarBtn ${taskSubTab === 'scheduled' ? 'active' : ''}`}
+                  onClick={() => setTaskSubTab(taskSubTab === 'scheduled' ? null : 'scheduled')}
                 >
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                  </svg>
                   Scheduled
                 </button>
+                <button
+                  className={`sidebarToolbarBtn ${taskSubTab === 'search' ? 'active' : ''}`}
+                  onClick={() => setTaskSubTab(taskSubTab === 'search' ? null : 'search')}
+                >
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  Search
+                </button>
+                <button
+                  className={`sidebarToolbarBtn ${taskSubTab === 'projects' ? 'active' : ''}`}
+                  onClick={() => setTaskSubTab(taskSubTab === 'projects' ? null : 'projects')}
+                >
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                  </svg>
+                  Projects
+                </button>
               </div>
-              {taskSubTab === 'tasks' && (
-                <TaskPanel
-                  tasks={tasks}
-                  activeTaskId={activeTaskId}
-                  onSelectTask={(id) => {
-                    setActiveTaskId(id)
-                    if (sidebarTab === 'dashboard') setSidebarTab('tasks')
-                  }}
-                  onNewTask={() => {
-                    setActiveTaskId(null)
-                    if (sidebarTab === 'dashboard') setSidebarTab('tasks')
-                  }}
-                  onStopTask={(id) => void handleCancelTask(id)}
-                  onDeleteTask={handleDeleteTask}
-                />
+
+              {/* ── Search section ──────────────────────────────── */}
+              {taskSubTab === 'search' && (
+                <div className="sidebarSection">
+                  <input
+                    className="sidebarSearchInput"
+                    type="text"
+                    placeholder="Search tasks…"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    autoFocus
+                  />
+                  <TaskPanel
+                    tasks={tasks.filter(
+                      (t) =>
+                        !searchQuery.trim() ||
+                        t.prompt?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        t.id.toLowerCase().includes(searchQuery.toLowerCase())
+                    )}
+                    activeTaskId={activeTaskId}
+                    onSelectTask={(id) => {
+                      setActiveTaskId(id)
+                      if (sidebarTab === 'dashboard') setSidebarTab('tasks')
+                    }}
+                    onNewTask={() => {
+                      setActiveTaskId(null)
+                      if (sidebarTab === 'dashboard') setSidebarTab('tasks')
+                    }}
+                    onStopTask={(id) => void handleCancelTask(id)}
+                    onDeleteTask={handleDeleteTask}
+                  />
+                </div>
               )}
+
+              {/* ── Tasks accordion ────────────────────────────── */}
+              <button
+                className={`sidebarAccordionBtn ${taskSubTab === 'tasks' ? 'open' : ''}`}
+                onClick={() => setTaskSubTab(taskSubTab === 'tasks' ? null : 'tasks')}
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                </svg>
+                Tasks
+                <svg className="sidebarAccordionChevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              {taskSubTab === 'tasks' && (
+                <div className="sidebarAccordionBody">
+                  <TaskPanel
+                    tasks={tasks}
+                    activeTaskId={activeTaskId}
+                    onSelectTask={(id) => {
+                      setActiveTaskId(id)
+                      if (sidebarTab === 'dashboard') setSidebarTab('tasks')
+                    }}
+                    onNewTask={() => {
+                      setActiveTaskId(null)
+                      if (sidebarTab === 'dashboard') setSidebarTab('tasks')
+                    }}
+                    onStopTask={(id) => void handleCancelTask(id)}
+                    onDeleteTask={handleDeleteTask}
+                  />
+                </div>
+              )}
+
+              {/* ── Scheduled section ──────────────────────────── */}
               {taskSubTab === 'scheduled' && (
                 <SchedulePanel
                   schedules={schedules}
@@ -1057,6 +1141,7 @@ function App(): React.JSX.Element {
                   }}
                 />
               )}
+
             </>
           )}
 
@@ -1068,9 +1153,6 @@ function App(): React.JSX.Element {
         </div>
 
         <div className="rbFooter">
-          <div className="sbFooterBrand" style={{ marginBottom: 8 }}>
-            <img src={skynulLogo} alt="Skynul" className="sbFooterLogo" />
-          </div>
           <div style={{ position: 'relative' }}>
             <button className="profileBtn" onClick={() => setProfileOpen(!profileOpen)}>
               <div className="profileAvatar">{(accountEmail || 'U').slice(0, 2).toUpperCase()}</div>
@@ -1253,6 +1335,24 @@ function App(): React.JSX.Element {
                   />
                 )
               })()}
+            </div>
+          ) : taskSubTab === 'projects' ? (
+            <div className="chatFeedCentered">
+              <div className="projectsPlaceholder">
+                <div className="projectsPlaceholderIcon">
+                  <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                  </svg>
+                </div>
+                <span className="projectsPlaceholderTitle">No projects yet</span>
+                <span className="projectsPlaceholderSub">Group and manage your tasks</span>
+                <button className="projectsCreateBtn">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  Create Project
+                </button>
+              </div>
             </div>
           ) : (
             <div className="chatFeedCentered">

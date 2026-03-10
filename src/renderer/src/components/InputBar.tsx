@@ -101,6 +101,8 @@ export function InputBar(props: {
         requestAnimationFrame(() => {
           el.selectionStart = start + clipText.length
           el.selectionEnd = start + clipText.length
+          el.style.height = 'auto'
+          el.style.height = Math.min(el.scrollHeight, 220) + 'px'
         })
       })()
     }
