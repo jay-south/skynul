@@ -3821,3 +3821,112 @@ code {
 .feedDateSep span {
   white-space: nowrap;
 }
+
+/* ── Update Toast ──────────────────────────────────────────────────── */
+
+.updateToast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--nb-panel-2);
+  border: 1px solid var(--nb-border);
+  border-radius: 12px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px);
+  animation: updateToastIn 0.3s ease;
+  max-width: 400px;
+}
+
+@keyframes updateToastIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.updateToastIcon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--nb-accent), transparent 85%);
+  color: var(--nb-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.updateToastBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.updateToastTitle {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--nb-text);
+  white-space: nowrap;
+}
+
+.updateToastActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.updateToastBtn {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 100ms ease,
+    opacity 100ms ease;
+}
+
+.updateToastBtn.secondary {
+  background: transparent;
+  color: var(--nb-muted);
+}
+.updateToastBtn.secondary:hover {
+  color: var(--nb-text);
+  background: color-mix(in srgb, var(--nb-text), transparent 90%);
+}
+
+.updateToastBtn.primary {
+  background: var(--nb-accent);
+  color: #fff;
+}
+.updateToastBtn.primary:hover {
+  opacity: 0.85;
+}
+
+.updateProgressBar {
+  width: 80px;
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--nb-text), transparent 88%);
+  overflow: hidden;
+}
+
+.updateProgressFill {
+  height: 100%;
+  background: var(--nb-accent);
+  border-radius: 2px;
+  transition: width 200ms ease;
+}

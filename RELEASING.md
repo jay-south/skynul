@@ -1,28 +1,38 @@
-# Releasing (alpha)
+# Releasing
 
-This project ships Windows builds as:
+## How it works
 
-- NSIS installer: `skynul-<version>-setup.exe`
-- Portable executable: `skynul-<version>-portable.exe`
+Push a version tag to `main` and CI builds everything automatically.
 
-GitHub Releases constraints (free):
+## Steps
 
-- Each release asset must be under 2 GiB
-- No limit on total release size or bandwidth
+1. Bump `version` in `package.json`.
+2. Commit and push to `main`.
+3. Create and push the tag:
+   ```bash
+   git tag v0.1.0-alpha.2
+   git push origin v0.1.0-alpha.2
+   ```
+4. CI builds Windows, Linux, and macOS artifacts and creates a **draft** GitHub Release.
+5. Review the draft at https://github.com/jay-south/skynul/releases and click **Publish**.
+6. Once published, `electron-updater` will notify existing users via the in-app update toast.
 
-## Alpha versioning
+## Versioning
 
-Use SemVer pre-releases:
+Use SemVer pre-releases during alpha:
 
 - `0.1.0-alpha.1`, `0.1.0-alpha.2`, ...
 
-## Release flow (manual)
+## Platforms
 
-1. Bump `package.json` version.
-2. Commit and push.
-3. Create a tag: `v<version>`.
-4. Create a GitHub Release from the tag and upload the Windows artifacts.
+| Platform | Artifacts                    |
+| -------- | ---------------------------- |
+| Windows  | NSIS installer + portable    |
+| macOS    | DMG                          |
+| Linux    | AppImage, snap, deb          |
 
-Notes:
+## Notes
 
-- Do not put secrets in `VITE_*` env vars; anything used in the renderer gets bundled into JS.
+- You can keep pushing directly to `main`. CI only triggers on `v*` tags.
+- Do not put secrets in `VITE_*` env vars; they get bundled into the renderer JS.
+- The update toast appears automatically when users run a version older than the latest published release.

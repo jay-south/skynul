@@ -13,3 +13,6 @@ package-lock.json
 !.env.example
 .claude/
 openspec/
+
+# Local test/build artifacts
+out-tests/

@@ -2,6 +2,7 @@
   "name": "skynul",
   "version": "0.1.0-alpha.1",
   "description": "Skynul - local-first desktop agent with explicit permissions",
+  "license": "Apache-2.0",
   "main": "./out/main/index.js",
   "author": "Skynul",
   "repository": {
@@ -35,6 +36,7 @@
     "@xyflow/react": "^12.10.1",
     "better-sqlite3": "^12.6.2",
     "discord.js": "^14.25.1",
+    "electron-updater": "^6.8.3",
     "ethers": "^6.16.0",
     "exceljs": "^4.4.0",
     "grammy": "^1.40.1",
