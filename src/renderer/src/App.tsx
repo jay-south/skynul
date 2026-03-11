@@ -101,7 +101,7 @@ function BrowserSnapshotsSection(): React.JSX.Element {
         }))
       )
     } catch {
-      // extension might not be connected
+      // browser backend might not be connected
     }
   }, [])
 

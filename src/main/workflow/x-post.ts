@@ -939,7 +939,7 @@ export async function runXPostWorkflow(opts: {
             const msg = e instanceof Error ? e.message : String(e)
             if (/Unknown action:\s*uploadFile/i.test(msg)) {
               throw new Error(
-                'Chrome extension is missing uploadFile action. Reload the Skynul Chrome extension (chrome://extensions -> Developer mode -> Reload) and retry the task.'
+                'Browser backend does not support file uploads. Ensure browser automation is enabled and retry.'
               )
             }
             lastUpErr = e
@@ -1151,10 +1151,9 @@ export async function runXPostWorkflow(opts: {
           break
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e)
-          // If the Chrome extension is not reloaded after an update, it won't recognize new actions.
           if (/Unknown action:\s*uploadFile/i.test(msg)) {
             throw new Error(
-              'Chrome extension is missing uploadFile action. Reload the Skynul Chrome extension (chrome://extensions -> Developer mode -> Reload) and retry the task.'
+              'Browser backend does not support file uploads. Ensure browser automation is enabled and retry.'
             )
           }
           lastUpErr = e

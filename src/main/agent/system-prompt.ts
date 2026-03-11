@@ -351,7 +351,7 @@ Respond with valid JSON only.`
 
 /**
  * System prompt for the CDP browser agent.
- * Text-only (no screenshots) — works with page info from the Chrome extension.
+ * Text-only (no screenshots) — works with page info snapshots.
  */
 export function buildCdpSystemPrompt(capabilities: TaskCapabilityId[]): string {
   const capList = capabilities.map((c) => `- ${c}`).join('\n')
