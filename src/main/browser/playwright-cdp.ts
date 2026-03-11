@@ -542,8 +542,7 @@ export async function launchPlaywrightChromeCdp(): Promise<LaunchResult> {
       const snapHint =
         isSnapChromium && looksLikeCdpTimeout
           ? 'Detected snap-wrapped Chromium. On Ubuntu this often breaks spawning CDP.\n' +
-            'Fix: install Google Chrome (.deb) and set SKYNUL_CHROME_PATH=/usr/bin/google-chrome-stable.\n' +
-            'Fallback: allow CDP-relay with SKYNUL_XPOST_ALLOW_CDP_FALLBACK=1.'
+            'Fix: install Google Chrome (.deb) and set SKYNUL_CHROME_PATH=/usr/bin/google-chrome-stable.'
           : ''
 
       const tails =
@@ -553,18 +552,28 @@ export async function launchPlaywrightChromeCdp(): Promise<LaunchResult> {
       // Chrome delegated to an already-running instance — kill it and retry this same dir (once)
       if (msg === 'EXISTING_SESSION' && !existingSessionRetried) {
         existingSessionRetried = true
-        console.warn('Chrome already running with this profile; killing existing instance and retrying...')
+        console.warn(
+          'Chrome already running with this profile; killing existing instance and retrying...'
+        )
         try {
           const { execSync } = require('child_process')
           const psList = execSync(
             `ps aux | grep -- '--user-data-dir=${attemptUserDataDir}' | grep -v grep | awk '{print $2}'`,
             { timeout: 3000 }
-          ).toString().trim()
+          )
+            .toString()
+            .trim()
           for (const pidStr of psList.split('\n').filter(Boolean)) {
-            try { process.kill(Number(pidStr), 'SIGTERM') } catch { /* already dead */ }
+            try {
+              process.kill(Number(pidStr), 'SIGTERM')
+            } catch {
+              /* already dead */
+            }
           }
           await new Promise((r) => setTimeout(r, 1500))
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
         await unlink(join(attemptUserDataDir, 'SingletonLock')).catch(() => {})
         attempt--
         continue

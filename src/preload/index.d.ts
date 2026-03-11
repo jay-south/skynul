@@ -116,6 +116,16 @@ declare global {
       browserSnapshotRestore: (id: string) => Promise<{ success: boolean }>
       browserSnapshotDelete: (id: string) => Promise<boolean>
 
+      // Auto-Update
+      updateCheck: () => Promise<void>
+      updateDownload: () => Promise<void>
+      updateInstall: () => Promise<void>
+      onUpdateAvailable: (
+        cb: (info: { version: string; releaseDate?: string }) => void
+      ) => () => void
+      onUpdateDownloadProgress: (cb: (info: { percent: number }) => void) => () => void
+      onUpdateDownloaded: (cb: () => void) => () => void
+
       // Secrets
       getSecret: (key: string) => Promise<string | null>
       setSecret: (key: string, value: string) => Promise<void>

@@ -12,7 +12,7 @@ export const ALL_TASK_CAPABILITIES: Array<{
   title: string
   desc: string
 }> = [
-  { id: 'browser.cdp', title: 'Browser', desc: 'Control Chrome via CDP extension.' },
+  { id: 'browser.cdp', title: 'Browser', desc: 'Control Chrome via Playwright (CDP).' },
   { id: 'app.launch', title: 'Launch Apps', desc: 'Open applications on your computer.' },
   {
     id: 'polymarket.trading',

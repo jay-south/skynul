@@ -78,6 +78,11 @@ export const IPC = {
   factDelete: 'skynul:fact:delete',
   factList: 'skynul:fact:list',
 
+  // ── Auto-Update ────────────────────────────────────────────────────
+  updateCheck: 'skynul:update:check',
+  updateDownload: 'skynul:update:download',
+  updateInstall: 'skynul:update:install',
+
   // ── Secrets (generic key-value) ──────────────────────────────────────
   getSecretKeys: 'skynul:secrets:getKeys',
   getSecret: 'skynul:secrets:get',

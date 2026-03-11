@@ -213,6 +213,29 @@ const skynul = {
   setSecret: (key: string, value: string): Promise<void> =>
     ipcRenderer.invoke(IPC.setSecret, { key, value }),
 
+  // ── Auto-Update ──────────────────────────────────────────────────────
+  updateCheck: (): Promise<void> => ipcRenderer.invoke(IPC.updateCheck),
+  updateDownload: (): Promise<void> => ipcRenderer.invoke(IPC.updateDownload),
+  updateInstall: (): Promise<void> => ipcRenderer.invoke(IPC.updateInstall),
+  onUpdateAvailable: (
+    cb: (info: { version: string; releaseDate?: string }) => void
+  ): (() => void) => {
+    const handler = (_evt: unknown, info: { version: string; releaseDate?: string }): void =>
+      cb(info)
+    ipcRenderer.on('skynul:update:available', handler)
+    return () => ipcRenderer.off('skynul:update:available', handler)
+  },
+  onUpdateDownloadProgress: (cb: (info: { percent: number }) => void): (() => void) => {
+    const handler = (_evt: unknown, info: { percent: number }): void => cb(info)
+    ipcRenderer.on('skynul:update:download-progress', handler)
+    return () => ipcRenderer.off('skynul:update:download-progress', handler)
+  },
+  onUpdateDownloaded: (cb: () => void): (() => void) => {
+    const handler = (): void => cb()
+    ipcRenderer.on('skynul:update:downloaded', handler)
+    return () => ipcRenderer.off('skynul:update:downloaded', handler)
+  },
+
   onWindowMaximized: (cb: (maximized: boolean) => void): (() => void) => {
     const handler = (_evt: unknown, maximized: boolean): void => cb(maximized)
     ipcRenderer.on('skynul:window:maximized', handler)

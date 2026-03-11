@@ -36,6 +36,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { initPolicy, registerIpcHandlers, tryHandleChatGPTCallback } from './ipc'
+import { initAutoUpdater } from './updater'
 import { startAuthCallbackServer } from './auth-callback-server'
 import { TaskManager } from './agent/task-manager'
 import { closeSharedPlaywrightChromeCdp } from './browser/playwright-cdp'
@@ -259,6 +260,8 @@ app.whenReady().then(() => {
     taskManager,
     channelManager
   })
+
+  initAutoUpdater(win)
 
   // Local callback server used for OAuth redirects.
   // Uses a fixed port so it can be allowed in provider redirect URL settings.

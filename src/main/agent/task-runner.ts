@@ -15,7 +15,7 @@ import type { ProviderId } from '../../shared/policy'
 import {
   buildCdpSystemPrompt,
   buildCodeSystemPrompt,
-  buildPlaywrightSystemPrompt
+  buildBrowserSystemPrompt
 } from './system-prompt'
 import { parseModelResponse } from './action-parser'
 import { codexVisionRespond, type VisionMessage } from '../providers/codex-vision'
@@ -28,8 +28,8 @@ import { generateImage } from '../providers/image-gen'
 import { writeFile } from 'fs/promises'
 import os from 'os'
 
-import { acquirePlaywrightPage } from '../browser/playwright-cdp'
-import { PlaywrightBridge } from '../browser/playwright-bridge'
+import type { BrowserEngine } from '../browser/engine/browser-engine'
+import { acquireBrowserEngine } from '../browser/engine/factory'
 
 /** Keep head+tail of long text so the model sees both beginning and end. */
 function headTail(text: string, limit: number): string {
@@ -60,6 +60,60 @@ export class TaskRunner {
   /** Best-effort accumulated token usage (when provider returns usage). */
   private usageTotals: { inputTokens: number; outputTokens: number } | null = null
   private appBridge = new AppBridge()
+  private autoDelegated = false
+
+  private shouldAutoDelegate(prompt: string): boolean {
+    const p = prompt.toLowerCase()
+    const wantsPost =
+      /(\bpost\b|\btweet\b|\bpublish\b|poste(a|ar)|public(a|ar)|borrador|draft)/.test(p)
+    const wantsX = /(\bx\b|twitter|x\.com)/.test(p)
+    const wantsImage = /(\bimage\b|\bimagen\b|\bmeme\b|\bpicture\b|\bgenerate\b.*\bimage\b)/.test(p)
+    const wantsCopy = /(\bcopy\b|caption|two\s*lines|2\s*lines|dos\s*lineas|hashtags|cta)/.test(p)
+    return (
+      (wantsPost && wantsX && wantsImage && wantsCopy) || (wantsPost && wantsImage && wantsCopy)
+    )
+  }
+
+  private async autoDelegateForSocialPost(history: VisionMessage[]): Promise<void> {
+    if (this.autoDelegated) return
+    const tm = this.opts.taskManager
+    if (!tm) return
+    if (this.task.parentTaskId) return
+    if (!this.shouldAutoDelegate(this.task.prompt)) return
+
+    this.autoDelegated = true
+
+    this.pushStatus('Setting up multi-agent plan (Copy + Design)...')
+
+    const copyPrompt =
+      'You MUST respond using the Skynul agent JSON protocol (thought + action). ' +
+      'Return ONE JSON object only. action.type MUST be "done". ' +
+      'action.summary must contain plain text with: 3 numbered options (TWO lines each) and then "Recommended:". ' +
+      'Constraints: English, bullish BTC meme vibe, short and punchy, subtle Argentine wink, avoid spam/repeated hashtags.'
+    const designPrompt =
+      'You MUST respond using the Skynul agent JSON protocol (thought + action). ' +
+      'Return ONE JSON object only. action.type MUST be "done". ' +
+      'action.summary must contain plain text with: (1) image-gen prompt, (2) on-image text, (3) composition notes, (4) aspect ratio for X.'
+
+    const [copyRes, designRes] = await Promise.all([
+      tm.spawnAndWait(copyPrompt, [], this.task.id, { agentRole: 'Copy' }),
+      tm.spawnAndWait(designPrompt, [], this.task.id, { agentRole: 'Design' })
+    ])
+
+    history.push({
+      role: 'user',
+      content: [
+        {
+          type: 'input_text',
+          text:
+            `Sub-agent outputs (use these; do NOT redo):\n` +
+            `- Copy (${copyRes.taskId}): ${copyRes.output}\n` +
+            `- Design (${designRes.taskId}): ${designRes.output}\n\n` +
+            `Now execute the full flow in X: open composer, generate/upload image based on Design, paste final chosen copy, and POST.`
+        }
+      ]
+    })
+  }
 
   constructor(
     task: Task,
@@ -83,22 +137,22 @@ export class TaskRunner {
       return this.runCdp()
     }
 
-    // Everything else → Playwright snapshot-based loop (generic, works on any site)
-    return this.runPlaywright()
+    // Everything else → browser snapshot-based loop (generic, works on any site)
+    return this.runBrowser()
   }
 
   /**
-   * Playwright snapshot-based agent loop — generic browser automation.
+   * Snapshot-based browser agent loop — generic browser automation.
    * The model sees a text snapshot of the page each turn and decides actions.
    */
-  private async runPlaywright(): Promise<Task> {
-    this.pushStatus('Launching browser (Playwright)...')
+  private async runBrowser(): Promise<Task> {
+    this.pushStatus('Launching browser...')
 
-    let pw: PlaywrightBridge
+    let engine: BrowserEngine
     let release: (() => Promise<void>) | null = null
     try {
-      const acquired = await acquirePlaywrightPage()
-      pw = new PlaywrightBridge(acquired.page)
+      const acquired = await acquireBrowserEngine()
+      engine = acquired.engine
       release = acquired.release
       this.pushStatus('Browser ready')
     } catch (e) {
@@ -117,7 +171,7 @@ export class TaskRunner {
       this.abort('Task timed out')
     }, this.task.timeoutMs)
 
-    const systemPrompt = buildPlaywrightSystemPrompt(!!this.task.parentTaskId)
+    const systemPrompt = buildBrowserSystemPrompt(!!this.task.parentTaskId)
     const history: VisionMessage[] = []
 
     const memCtx = this.opts.memoryContext
@@ -126,14 +180,17 @@ export class TaskRunner {
 
     // Resolve attachments: save data URLs to temp files so agent can upload_file them
     const { filePaths: attachPaths, dataUrls: attachDataUrls } = await this.resolveAttachments()
-    const attachBlock = attachPaths.length > 0
-      ? `\n\nReference files (use upload_file with these paths to upload them to any site):\n${attachPaths.map((p) => `- ${p}`).join('\n')}`
-      : ''
+    const attachBlock =
+      attachPaths.length > 0
+        ? `\n\nReference files (use upload_file with these paths to upload them to any site):\n${attachPaths.map((p) => `- ${p}`).join('\n')}`
+        : ''
+
+    await this.autoDelegateForSocialPost(history)
 
     try {
       for (let step = 0; step < this.task.maxSteps && !this.aborted; step++) {
         // Take a snapshot of the current page
-        const snap = await pw.snapshot().catch(() => ({
+        const snap = await engine.snapshot().catch(() => ({
           url: '',
           title: '',
           snapshot: '(page not available)'
@@ -225,9 +282,9 @@ export class TaskRunner {
           return this.finish('failed', action.reason)
         }
 
-        // Execute action via PlaywrightBridge
+        // Execute action via browser engine
         try {
-          const result = await this.executePlaywrightAction(pw, action)
+          const result = await this.executeBrowserAction(engine, action)
           if (result) taskStep.result = result
         } catch (e) {
           taskStep.error = e instanceof Error ? e.message : String(e)
@@ -252,10 +309,10 @@ export class TaskRunner {
   }
 
   /**
-   * Execute a single action from the Playwright agent loop.
+   * Execute a single action from the browser agent loop.
    */
-  private async executePlaywrightAction(
-    pw: PlaywrightBridge,
+  private async executeBrowserAction(
+    engine: BrowserEngine,
     action: TaskAction
   ): Promise<string | undefined> {
     const raw = action as Record<string, unknown>
@@ -266,7 +323,10 @@ export class TaskRunner {
         const navUrl = String(raw.url ?? '')
         const IMAGE_GEN_SITES: Array<{ keywords: string[]; domains: string[] }> = [
           { keywords: ['pollinations'], domains: ['pollinations.ai'] },
-          { keywords: ['bing image', 'bing create'], domains: ['bing.com/images/create', 'bing.com/create'] },
+          {
+            keywords: ['bing image', 'bing create'],
+            domains: ['bing.com/images/create', 'bing.com/create']
+          },
           { keywords: ['craiyon'], domains: ['craiyon.com'] },
           { keywords: ['nightcafe'], domains: ['nightcafe.studio'] },
           { keywords: ['leonardo'], domains: ['leonardo.ai'] },
@@ -277,29 +337,31 @@ export class TaskRunner {
         const promptLower = this.task.prompt.toLowerCase()
         const matchedSite = IMAGE_GEN_SITES.find((s) => s.domains.some((d) => navUrl.includes(d)))
         if (matchedSite) {
-          const userExplicitlyRequestedThisSite = matchedSite.keywords.some((k) => promptLower.includes(k))
+          const userExplicitlyRequestedThisSite = matchedSite.keywords.some((k) =>
+            promptLower.includes(k)
+          )
           if (!userExplicitlyRequestedThisSite) {
             return `[BLOCKED] Do not navigate to image generation websites. Use the generate_image action instead: {"type":"generate_image","prompt":"..."}`
           }
         }
-        await pw.navigate(navUrl)
+        await engine.navigate(navUrl)
         await this.sleep(1500)
         break
       }
       case 'click':
-        await pw.click(raw.selector as string, frameId)
+        await engine.click(raw.selector as string, frameId)
         break
       case 'type':
-        await pw.type(raw.selector as string, raw.text as string, frameId)
+        await engine.type(raw.selector as string, raw.text as string, frameId)
         break
       case 'pressKey':
-        await pw.pressKey(raw.key as string)
+        await engine.pressKey(raw.key as string)
         break
       case 'key':
-        await pw.pressKey((raw.key as string) || (raw.combo as string))
+        await engine.pressKey((raw.key as string) || (raw.combo as string))
         break
       case 'evaluate': {
-        const result = await pw.evaluate(raw.script as string, frameId)
+        const result = await engine.evaluate(raw.script as string, frameId)
         return result || undefined
       }
       case 'upload_file': {
@@ -308,18 +370,18 @@ export class TaskRunner {
         if (!selector || !Array.isArray(filePaths) || filePaths.length === 0) {
           throw new Error('upload_file requires selector + filePaths[]')
         }
-        await pw.uploadFile(selector, filePaths, frameId)
+        await engine.uploadFile(selector, filePaths, frameId)
         break
       }
       case 'screenshot': {
-        const b64 = await pw.screenshot()
+        const b64 = await engine.screenshot()
         return b64 ? `Screenshot taken (${b64.length} bytes base64)` : '(empty screenshot)'
       }
       case 'wait':
         await this.sleep((raw.ms as number) ?? 1000)
         break
       case 'scroll':
-        await pw.evaluate(
+        await engine.evaluate(
           `window.scrollBy(0, ${(raw.direction as string) === 'up' ? -400 : 400})`
         )
         break
@@ -352,7 +414,7 @@ export class TaskRunner {
     // Set initial status immediately, before any validation
     this.pushStatus(`Connecting to ${this.getProviderDisplayName()}...`)
 
-    // CDP mode is now API-only (Polymarket, etc.) — browser tasks go through runPlaywright().
+    // CDP mode is now API-only (Polymarket, etc.) — browser tasks go through runBrowser().
 
     this.timeoutHandle = setTimeout(() => {
       this.abort('Task timed out')
@@ -369,7 +431,10 @@ export class TaskRunner {
     const filePaths = allAttachments.filter((a) => !a.startsWith('data:image/'))
     const attachmentsBlock =
       filePaths.length > 0
-        ? `\n\nAttached local files (absolute paths):\n${filePaths.slice(0, 12).map((p) => `- ${p}`).join('\n')}`
+        ? `\n\nAttached local files (absolute paths):\n${filePaths
+            .slice(0, 12)
+            .map((p) => `- ${p}`)
+            .join('\n')}`
         : ''
     history.push({
       role: 'user',
@@ -609,7 +674,10 @@ export class TaskRunner {
               history.push({
                 role: 'user',
                 content: [
-                  { type: 'input_text', text: '[CANVAS PREVIEW] Look at the current state of your design. Check composition, alignment, spacing, and visual balance before continuing.' },
+                  {
+                    type: 'input_text',
+                    text: '[CANVAS PREVIEW] Look at the current state of your design. Check composition, alignment, spacing, and visual balance before continuing.'
+                  },
                   { type: 'input_image', image_url: `data:image/png;base64,${previewB64}` }
                 ]
               })
@@ -856,7 +924,6 @@ export class TaskRunner {
         return `[Error: "${type}" is not available in API-only mode. Use polymarket_* actions.]`
     }
   }
-
 
   /**
    * Route vision call to the correct provider.

@@ -4,17 +4,18 @@ import { app } from 'electron'
 import type { Task } from '../../shared/task'
 import type { ProviderId } from '../../shared/policy'
 import type { TaskManager } from '../agent/task-manager'
+import type { BrowserEngine } from '../browser/engine/browser-engine'
 import { getSecret } from '../secret-store'
 type BrowserLike = {
-  navigate: (url: string) => Promise<void>
-  click: (selector: string, frameId?: string) => Promise<void>
-  type: (selector: string, text: string, frameId?: string) => Promise<void>
-  evaluate: (script: string, frameId?: string) => Promise<string>
-  /** Optional: supported by both BrowserBridge and PlaywrightBridge. */
-  pressKey?: (key: string) => Promise<void>
-  screenshot: () => Promise<string>
-  uploadFile: (selector: string, filePaths: string[], frameId?: string) => Promise<void>
-  getPageInfo: (frameId?: string) => Promise<{ url: string; title: string }>
+  navigate: BrowserEngine['navigate']
+  click: BrowserEngine['click']
+  type: BrowserEngine['type']
+  evaluate: BrowserEngine['evaluate']
+  /** Optional: supported by some browser backends. */
+  pressKey?: BrowserEngine['pressKey']
+  screenshot: BrowserEngine['screenshot']
+  uploadFile: BrowserEngine['uploadFile']
+  getPageInfo: BrowserEngine['getPageInfo']
 }
 
 type CopyOut = { tweet_text: string }
@@ -697,7 +698,6 @@ async function tryAttachGifFromX(opts: {
     return typeof res === 'string' ? res : ''
   }
 
-
   const tryCloseDialog = async (): Promise<void> => {
     try {
       if (bridge.pressKey) await bridge.pressKey('Escape')
@@ -737,7 +737,7 @@ async function tryAttachGifFromX(opts: {
     return false
   }
 
-  // Search within the GIF picker using Playwright-native type (React-compatible).
+  // Search within the GIF picker using engine-native type (React-compatible).
   const searchCandidates = [
     'input[data-testid="gifSearchInput"]',
     'input[data-testid="SearchBox_Search_Input"]',
@@ -776,7 +776,7 @@ async function tryAttachGifFromX(opts: {
     return false
   }
 
-  // Click the first GIF result using Playwright-native click.
+  // Click the first GIF result using engine-native click.
   try {
     await bridge.click(resultSel)
     log(`GIF: clicked result via ${resultSel}`)
@@ -939,7 +939,7 @@ export async function runXPostWorkflow(opts: {
             const msg = e instanceof Error ? e.message : String(e)
             if (/Unknown action:\s*uploadFile/i.test(msg)) {
               throw new Error(
-                'Chrome extension is missing uploadFile action. Reload the Skynul Chrome extension (chrome://extensions -> Developer mode -> Reload) and retry the task.'
+                'Browser backend does not support file uploads. Ensure browser automation is enabled and retry.'
               )
             }
             lastUpErr = e
@@ -1151,10 +1151,9 @@ export async function runXPostWorkflow(opts: {
           break
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e)
-          // If the Chrome extension is not reloaded after an update, it won't recognize new actions.
           if (/Unknown action:\s*uploadFile/i.test(msg)) {
             throw new Error(
-              'Chrome extension is missing uploadFile action. Reload the Skynul Chrome extension (chrome://extensions -> Developer mode -> Reload) and retry the task.'
+              'Browser backend does not support file uploads. Ensure browser automation is enabled and retry.'
             )
           }
           lastUpErr = e
