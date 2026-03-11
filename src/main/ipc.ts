@@ -713,16 +713,34 @@ export function registerIpcHandlers(opts: {
   ipcMain.handle(IPC.browserSnapshotList, async () => loadSnapshots())
 
   ipcMain.handle(IPC.browserSnapshotSave, async () => {
-    throw new Error('Browser snapshots require the Playwright browser to be running. Start a browser task first.')
+    throw new Error(
+      'Browser snapshots require an active browser session. Start a browser task first.'
+    )
   })
 
   ipcMain.handle(IPC.browserSnapshotRestore, async () => {
-    throw new Error('Browser snapshot restore requires the Playwright browser to be running. Start a browser task first.')
+    throw new Error(
+      'Browser snapshot restore requires an active browser session. Start a browser task first.'
+    )
   })
 
   ipcMain.handle(IPC.browserSnapshotDelete, async (_evt, id: string) => {
     await deleteSnapshot(id)
     return true
+  })
+
+  // ── Auto-Update ──────────────────────────────────────────────────────
+  ipcMain.handle(IPC.updateCheck, async () => {
+    const { checkForUpdates } = await import('./updater')
+    checkForUpdates()
+  })
+  ipcMain.handle(IPC.updateDownload, async () => {
+    const { downloadUpdate } = await import('./updater')
+    downloadUpdate()
+  })
+  ipcMain.handle(IPC.updateInstall, async () => {
+    const { installUpdate } = await import('./updater')
+    installUpdate()
   })
 
   // ── Secrets ───────────────────────────────────────────────────────────

@@ -4,17 +4,18 @@ import { app } from 'electron'
 import type { Task } from '../../shared/task'
 import type { ProviderId } from '../../shared/policy'
 import type { TaskManager } from '../agent/task-manager'
+import type { BrowserEngine } from '../browser/engine/browser-engine'
 import { getSecret } from '../secret-store'
 type BrowserLike = {
-  navigate: (url: string) => Promise<void>
-  click: (selector: string, frameId?: string) => Promise<void>
-  type: (selector: string, text: string, frameId?: string) => Promise<void>
-  evaluate: (script: string, frameId?: string) => Promise<string>
+  navigate: BrowserEngine['navigate']
+  click: BrowserEngine['click']
+  type: BrowserEngine['type']
+  evaluate: BrowserEngine['evaluate']
   /** Optional: supported by some browser backends. */
-  pressKey?: (key: string) => Promise<void>
-  screenshot: () => Promise<string>
-  uploadFile: (selector: string, filePaths: string[], frameId?: string) => Promise<void>
-  getPageInfo: (frameId?: string) => Promise<{ url: string; title: string }>
+  pressKey?: BrowserEngine['pressKey']
+  screenshot: BrowserEngine['screenshot']
+  uploadFile: BrowserEngine['uploadFile']
+  getPageInfo: BrowserEngine['getPageInfo']
 }
 
 type CopyOut = { tweet_text: string }
@@ -736,7 +737,7 @@ async function tryAttachGifFromX(opts: {
     return false
   }
 
-  // Search within the GIF picker using Playwright-native type (React-compatible).
+  // Search within the GIF picker using engine-native type (React-compatible).
   const searchCandidates = [
     'input[data-testid="gifSearchInput"]',
     'input[data-testid="SearchBox_Search_Input"]',
@@ -775,7 +776,7 @@ async function tryAttachGifFromX(opts: {
     return false
   }
 
-  // Click the first GIF result using Playwright-native click.
+  // Click the first GIF result using engine-native click.
   try {
     await bridge.click(resultSel)
     log(`GIF: clicked result via ${resultSel}`)
