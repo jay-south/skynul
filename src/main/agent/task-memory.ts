@@ -3,6 +3,9 @@
  *
  * After each task, the vision model extracts learnings.
  * Before each new task, relevant memories are retrieved and injected as context.
+ *
+ * User facts — persistent key-value memories the user explicitly tells the agent
+ * to remember (e.g. "remember that staging password is admin123").
  */
 
 import Database from 'better-sqlite3'
@@ -37,6 +40,21 @@ function getDb(): Database.Database {
     CREATE TRIGGER IF NOT EXISTS task_memories_ad AFTER DELETE ON task_memories BEGIN
       INSERT INTO task_memories_fts(task_memories_fts, rowid, prompt, learnings)
       VALUES ('delete', old.id, old.prompt, old.learnings);
+    END;
+
+    CREATE TABLE IF NOT EXISTS user_facts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      fact TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE VIRTUAL TABLE IF NOT EXISTS user_facts_fts USING fts5(
+      fact, content=user_facts, content_rowid=id
+    );
+    CREATE TRIGGER IF NOT EXISTS user_facts_ai AFTER INSERT ON user_facts BEGIN
+      INSERT INTO user_facts_fts(rowid, fact) VALUES (new.id, new.fact);
+    END;
+    CREATE TRIGGER IF NOT EXISTS user_facts_ad AFTER DELETE ON user_facts BEGIN
+      INSERT INTO user_facts_fts(user_facts_fts, rowid, fact) VALUES ('delete', old.id, old.fact);
     END;
   `)
   return db
@@ -76,14 +94,15 @@ export function saveMemory(entry: {
 
 export function searchMemories(query: string, limit = 3): TaskMemory[] {
   try {
+    // Decay: boost recent memories by combining FTS rank with recency score
     const rows = getDb().prepare(`
       SELECT t.prompt, t.outcome, t.learnings
       FROM task_memories_fts f
       JOIN task_memories t ON t.id = f.rowid
       WHERE task_memories_fts MATCH ?
-      ORDER BY rank
+      ORDER BY (rank * (1.0 + (CAST(? AS REAL) - t.created_at) / 2592000000.0))
       LIMIT ?
-    `).all(sanitizeFtsQuery(query), limit) as TaskMemory[]
+    `).all(sanitizeFtsQuery(query), Date.now(), limit) as TaskMemory[]
     return rows
   } catch {
     return []
@@ -97,6 +116,64 @@ export function formatMemoriesForPrompt(memories: TaskMemory[]): string {
     return `[Memory ${i + 1}] (${status}) Task: "${m.prompt}"\n${m.learnings}`
   })
   return `\n## Past experience (use working selectors and avoid failed strategies):\n${lines.join('\n\n')}\n`
+}
+
+// ── User facts ────────────────────────────────────────────────────────
+
+export function saveFact(fact: string): void {
+  try {
+    const trimmed = fact.trim()
+    if (!trimmed) return
+    // Dedup: skip if a very similar fact already exists
+    const existing = getDb().prepare('SELECT id, fact FROM user_facts').all() as { id: number; fact: string }[]
+    const lower = trimmed.toLowerCase()
+    for (const e of existing) {
+      const eLower = e.fact.toLowerCase()
+      // Exact or near-duplicate — update instead of inserting
+      if (eLower === lower || eLower.includes(lower) || lower.includes(eLower)) {
+        getDb().prepare('UPDATE user_facts SET fact = ?, created_at = ? WHERE id = ?').run(trimmed, Date.now(), e.id)
+        return
+      }
+    }
+    getDb().prepare('INSERT INTO user_facts (fact, created_at) VALUES (?, ?)').run(trimmed, Date.now())
+  } catch { /* non-critical */ }
+}
+
+export function deleteFact(id: number): void {
+  try {
+    getDb().prepare('DELETE FROM user_facts WHERE id = ?').run(id)
+  } catch { /* non-critical */ }
+}
+
+export function listFacts(): { id: number; fact: string }[] {
+  try {
+    return getDb().prepare('SELECT id, fact FROM user_facts ORDER BY created_at DESC').all() as { id: number; fact: string }[]
+  } catch {
+    return []
+  }
+}
+
+export function searchFacts(query: string, limit = 5): string[] {
+  try {
+    const all = getDb().prepare('SELECT fact FROM user_facts ORDER BY created_at DESC').all() as { fact: string }[]
+    // Few facts → inject all (minimal token cost, avoids FTS miss)
+    if (all.length <= 20) return all.map((r) => r.fact)
+    // Many facts → FTS search for relevance
+    const rows = getDb().prepare(`
+      SELECT f.fact FROM user_facts_fts fts
+      JOIN user_facts f ON f.id = fts.rowid
+      WHERE user_facts_fts MATCH ?
+      LIMIT ?
+    `).all(sanitizeFtsQuery(query), limit) as { fact: string }[]
+    return rows.map((r) => r.fact)
+  } catch {
+    return []
+  }
+}
+
+export function formatFactsForPrompt(facts: string[]): string {
+  if (facts.length === 0) return ''
+  return `\n## Your memory (facts you know about the user and environment):\n${facts.map((f) => `- ${f}`).join('\n')}\n`
 }
 
 export function closeMemoryDb(): void {

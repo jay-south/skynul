@@ -13,6 +13,8 @@ export const IPC = {
   authOpen: 'skynul:auth:open',
   fsReadText: 'skynul:fs:readText',
   fsWriteText: 'skynul:fs:writeText',
+  fsSaveTempFile: 'skynul:fs:saveTempFile',
+  clipboardReadText: 'skynul:clipboard:readText',
   chatgptOAuthStart: 'skynul:chatgpt:oauth:start',
   chatgptHasAuth: 'skynul:chatgpt:hasAuth',
   chatgptSignOut: 'skynul:chatgpt:signOut',
@@ -70,6 +72,11 @@ export const IPC = {
   browserSnapshotSave: 'skynul:browser:snapshot:save',
   browserSnapshotRestore: 'skynul:browser:snapshot:restore',
   browserSnapshotDelete: 'skynul:browser:snapshot:delete',
+
+  // ── User Facts (long-term memory) ───────────────────────────────────
+  factSave: 'skynul:fact:save',
+  factDelete: 'skynul:fact:delete',
+  factList: 'skynul:fact:list',
 
   // ── Auto-Update ────────────────────────────────────────────────────
   updateCheck: 'skynul:update:check',

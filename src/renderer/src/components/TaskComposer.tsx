@@ -115,6 +115,7 @@ export function TaskComposer(props: {
   const [savedFeedback, setSavedFeedback] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
   const recognitionRef = useRef<InstanceType<typeof SpeechRecognition> | null>(null)
+  const promptRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     setPrompt('')
@@ -183,7 +184,10 @@ export function TaskComposer(props: {
 
     rec.onstart = (): void => setIsRecording(true)
     rec.onend = (): void => setIsRecording(false)
-    rec.onerror = (): void => setIsRecording(false)
+    rec.onerror = (e: Event & { error?: string }): void => {
+      console.warn('[SpeechRecognition] error:', e.error ?? e)
+      setIsRecording(false)
+    }
     rec.onresult = (e: SpeechRecognitionEvent): void => {
       const transcript = Array.from(e.results)
         .map((r) => r[0].transcript)
@@ -242,10 +246,16 @@ export function TaskComposer(props: {
           <div className="taskComposerLabel">{t(lang, 'task_composer_prompt_label')}</div>
           <div className="taskComposerPromptWrap">
             <textarea
+              ref={promptRef}
               className="taskNewPrompt taskComposerPrompt"
               placeholder={t(lang, 'tasks_prompt_placeholder')}
               value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
+              onChange={(e) => {
+                setPrompt(e.target.value)
+                const el = e.target
+                el.style.height = 'auto'
+                el.style.height = Math.min(el.scrollHeight, 340) + 'px'
+              }}
               rows={7}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {

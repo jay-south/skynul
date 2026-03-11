@@ -1,5 +1,8 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
-import { spawn } from 'child_process'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
+import { exec, spawn } from 'child_process'
+import { promisify } from 'util'
+
+const execAsync = promisify(exec)
 import { readFile, writeFile } from 'fs/promises'
 import os from 'os'
 import { IPC } from '../shared/ipc'
@@ -50,6 +53,7 @@ import type { Skill } from '../shared/skill'
 import { loadSkills, saveSkills, createSkillId } from './skill-store'
 import type { Schedule } from '../shared/schedule'
 import { loadSchedules, saveSchedules, createScheduleId } from './schedule-store'
+import { saveFact, deleteFact, listFacts } from './agent/task-memory'
 
 let policy = DEFAULT_POLICY
 
@@ -470,6 +474,75 @@ export function registerIpcHandlers(opts: {
     await writeFile(abs, req.content, { encoding: 'utf8', flag })
   })
 
+  ipcMain.handle(IPC.clipboardReadText, () => clipboard.readText())
+
+  // Returns the temp file path if clipboard has an image, null otherwise.
+  ipcMain.handle(IPC.fsSaveTempFile, async () => {
+    // Try Electron native first (works on Windows/Mac)
+    const img = clipboard.readImage()
+    if (!img.isEmpty()) {
+      return `data:image/png;base64,${img.toPNG().toString('base64')}`
+    }
+
+    // WSL2: imagen vive en el clipboard de Windows.
+    // Usamos -EncodedCommand (base64 UTF-16LE) para evitar conversión de paths y escaping.
+    try {
+      const fname = `skynul-paste-${Date.now()}.png`
+      const psLines = [
+        'Add-Type -AssemblyName System.Windows.Forms',
+        'Add-Type -AssemblyName System.Drawing',
+        `$p = $env:TEMP + "\\${fname}"`,
+        '$clip = [System.Windows.Forms.Clipboard]::GetDataObject()',
+        'if ($clip -eq $null) { Write-Output "DBG:NULL_CLIP"; exit }',
+        'Write-Output ("DBG:FORMATS=" + ($clip.GetFormats() -join ","))',
+        '$saved = $false',
+        // PNG stream — lo más común: captura de pantalla, copiar imagen desde browser
+        'if (-not $saved -and $clip.GetDataPresent("PNG")) {',
+        '  try {',
+        '    $s = $clip.GetData("PNG")',
+        '    ([System.Drawing.Bitmap]::new($s)).Save($p, [System.Drawing.Imaging.ImageFormat]::Png)',
+        '    $saved = $true',
+        '  } catch { Write-Output ("DBG:PNG_ERR=" + $_) }',
+        '}',
+        // Bitmap estándar
+        'if (-not $saved -and $clip.GetDataPresent([System.Windows.Forms.DataFormats]::Bitmap)) {',
+        '  try {',
+        '    ($clip.GetData([System.Windows.Forms.DataFormats]::Bitmap)).Save($p, [System.Drawing.Imaging.ImageFormat]::Png)',
+        '    $saved = $true',
+        '  } catch { Write-Output ("DBG:BMP_ERR=" + $_) }',
+        '}',
+        // GetImage() fallback
+        'if (-not $saved) {',
+        '  $gi = [System.Windows.Forms.Clipboard]::GetImage()',
+        '  if ($gi -ne $null) {',
+        '    try { $gi.Save($p, [System.Drawing.Imaging.ImageFormat]::Png); $saved = $true }',
+        '    catch { Write-Output ("DBG:GETIMG_ERR=" + $_) }',
+        '  }',
+        '}',
+        'if ($saved) { Write-Output $p } else { Write-Output "DBG:NO_IMAGE" }'
+      ]
+      const encoded = Buffer.from(psLines.join('\r\n'), 'utf16le').toString('base64')
+      const { stdout: rawOut, stderr: rawErr } = await execAsync(
+        `powershell.exe -STA -NoProfile -NonInteractive -EncodedCommand "${encoded}"`
+      )
+      console.log('[clipboard] PS out:', JSON.stringify(rawOut))
+      if (rawErr) console.log('[clipboard] PS err:', JSON.stringify(rawErr))
+
+      const winPath = rawOut.split('\n').map((l) => l.trim()).find((l) => /^[A-Za-z]:\\/.test(l)) ?? ''
+      if (!winPath) return null
+
+      const { stdout: linuxPath } = await execAsync(`wslpath -u "${winPath}"`)
+      const winMounted = linuxPath.trim()
+      if (!winMounted) return null
+
+      const imgData = await readFile(winMounted)
+      return `data:image/png;base64,${imgData.toString('base64')}`
+    } catch (e) {
+      console.error('[clipboard] error:', e)
+      return null
+    }
+  })
+
   // ── Task Agent ──────────────────────────────────────────────────────────
 
   const tm = opts.taskManager
@@ -602,6 +675,11 @@ export function registerIpcHandlers(opts: {
     await saveSkills(skills)
     return skills
   })
+
+  // ── User Facts ─────────────────────────────────────────────────────
+  ipcMain.handle(IPC.factList, () => listFacts())
+  ipcMain.handle(IPC.factSave, (_evt, fact: string) => { saveFact(fact); return listFacts() })
+  ipcMain.handle(IPC.factDelete, (_evt, id: number) => { deleteFact(id); return listFacts() })
 
   // ── Channels ────────────────────────────────────────────────────────
   const cm = opts.channelManager

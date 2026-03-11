@@ -28,6 +28,18 @@ export function createSkillId(): string {
   return `skill_${randomBytes(4).toString('hex')}`
 }
 
+// Synonyms so skills match regardless of prompt language
+const SKILL_SYNONYMS: Record<string, string[]> = {
+  design: ['diseño', 'diseñ', 'diseña', 'diseñes', 'diseñar'],
+  logo: ['logotipo', 'isotipo', 'marca', 'brand', 'branding'],
+  graphic: ['gráfico', 'grafico', 'gráfica', 'grafica', 'visual'],
+  vector: ['vectorial', 'vectores', 'svg'],
+  illustrator: ['illustrator'],
+  photoshop: ['photoshop'],
+  blender: ['blender', '3d', 'render'],
+  icon: ['icono', 'iconos', 'icons']
+}
+
 export function getActiveSkillPrompts(skills: Skill[], taskPrompt: string): string {
   const active = skills.filter((s) => s.enabled)
   if (active.length === 0) return ''
@@ -35,7 +47,14 @@ export function getActiveSkillPrompts(skills: Skill[], taskPrompt: string): stri
   const prompt = taskPrompt.toLowerCase()
   const relevant = active.filter((s) => {
     const words = `${s.tag} ${s.name} ${s.description}`.toLowerCase().split(/\s+/)
-    return words.some((w) => w.length > 2 && prompt.includes(w))
+    return words.some((w) => {
+      if (w.length <= 2) return false
+      if (prompt.includes(w)) return true
+      // Check synonyms
+      const syns = SKILL_SYNONYMS[w]
+      if (syns) return syns.some((syn) => prompt.includes(syn))
+      return false
+    })
   })
 
   if (relevant.length === 0) return ''

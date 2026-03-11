@@ -22,9 +22,23 @@ import { codexVisionRespond, type VisionMessage } from '../providers/codex-visio
 import { PolymarketClient } from '../polymarket-client'
 import { scrapeUrl } from './web-scraper'
 import { createExcelFromTsv } from './excel-writer'
+import { AppBridge } from './app-bridge'
+import { saveFact, deleteFact } from './task-memory'
+import { generateImage } from '../providers/image-gen'
+import { writeFile } from 'fs/promises'
+import os from 'os'
 
 import type { BrowserEngine } from '../browser/engine/browser-engine'
 import { acquireBrowserEngine } from '../browser/engine/factory'
+
+/** Keep head+tail of long text so the model sees both beginning and end. */
+function headTail(text: string, limit: number): string {
+  if (text.length <= limit) return text
+  const head = Math.floor(limit * 0.6)
+  const tail = limit - head
+  const omitted = text.length - head - tail
+  return `${text.slice(0, head)}\n\n[... ${omitted} chars omitted ...]\n\n${text.slice(text.length - tail)}`
+}
 
 export type TaskRunnerCallbacks = {
   onUpdate: (task: Task) => void
@@ -45,6 +59,7 @@ export class TaskRunner {
   private lastScrapeData = ''
   /** Best-effort accumulated token usage (when provider returns usage). */
   private usageTotals: { inputTokens: number; outputTokens: number } | null = null
+  private appBridge = new AppBridge()
   private autoDelegated = false
 
   private shouldAutoDelegate(prompt: string): boolean {
@@ -156,12 +171,21 @@ export class TaskRunner {
       this.abort('Task timed out')
     }, this.task.timeoutMs)
 
-    const systemPrompt = buildBrowserSystemPrompt()
+    const systemPrompt = buildBrowserSystemPrompt(!!this.task.parentTaskId)
     const history: VisionMessage[] = []
 
     const memCtx = this.opts.memoryContext
       ? `\n\nContext from memory:\n${this.opts.memoryContext}`
       : ''
+
+    // Resolve attachments: save data URLs to temp files so agent can upload_file them
+    const { filePaths: attachPaths, dataUrls: attachDataUrls } = await this.resolveAttachments()
+    const attachBlock =
+      attachPaths.length > 0
+        ? `\n\nReference files (use upload_file with these paths to upload them to any site):\n${attachPaths.map((p) => `- ${p}`).join('\n')}`
+        : ''
+
+    await this.autoDelegateForSocialPost(history)
 
     try {
       for (let step = 0; step < this.task.maxSteps && !this.aborted; step++) {
@@ -205,13 +229,22 @@ export class TaskRunner {
         // Build turn message
         const turnText =
           step === 0
-            ? `Task: ${this.task.prompt}${memCtx}\n\nCurrent page:\nURL: ${snap.url}\nTitle: ${snap.title}\n\nPage snapshot:\n${snap.snapshot}`
+            ? `Task: ${this.task.prompt}${attachBlock}${memCtx}\n\nCurrent page:\nURL: ${snap.url}\nTitle: ${snap.title}\n\nPage snapshot:\n${snap.snapshot}`
             : `Step ${step + 1}.\nURL: ${snap.url}\nTitle: ${snap.title}\n\nPage snapshot:\n${snap.snapshot}${actionLog}`
 
         const inboxBlock = this.drainInbox()
         const turnMessage: VisionMessage = {
           role: 'user',
-          content: [{ type: 'input_text', text: turnText + inboxBlock }]
+          content: [
+            { type: 'input_text', text: turnText + inboxBlock },
+            ...(step === 0
+              ? attachDataUrls.slice(0, 4).map((url) => ({
+                  type: 'input_image' as const,
+                  detail: 'auto' as const,
+                  image_url: url
+                }))
+              : [])
+          ]
         }
 
         if (history.length > 20) history.splice(1, history.length - 19)
@@ -286,10 +319,35 @@ export class TaskRunner {
     const type = raw.type as string
     const frameId = raw.frameId as string | undefined
     switch (type) {
-      case 'navigate':
-        await engine.navigate(raw.url as string)
+      case 'navigate': {
+        const navUrl = String(raw.url ?? '')
+        const IMAGE_GEN_SITES: Array<{ keywords: string[]; domains: string[] }> = [
+          { keywords: ['pollinations'], domains: ['pollinations.ai'] },
+          {
+            keywords: ['bing image', 'bing create'],
+            domains: ['bing.com/images/create', 'bing.com/create']
+          },
+          { keywords: ['craiyon'], domains: ['craiyon.com'] },
+          { keywords: ['nightcafe'], domains: ['nightcafe.studio'] },
+          { keywords: ['leonardo'], domains: ['leonardo.ai'] },
+          { keywords: ['ideogram'], domains: ['ideogram.ai'] },
+          { keywords: ['firefly'], domains: ['adobe.com/firefly'] },
+          { keywords: ['dream.ai'], domains: ['dream.ai'] }
+        ]
+        const promptLower = this.task.prompt.toLowerCase()
+        const matchedSite = IMAGE_GEN_SITES.find((s) => s.domains.some((d) => navUrl.includes(d)))
+        if (matchedSite) {
+          const userExplicitlyRequestedThisSite = matchedSite.keywords.some((k) =>
+            promptLower.includes(k)
+          )
+          if (!userExplicitlyRequestedThisSite) {
+            return `[BLOCKED] Do not navigate to image generation websites. Use the generate_image action instead: {"type":"generate_image","prompt":"..."}`
+          }
+        }
+        await engine.navigate(navUrl)
         await this.sleep(1500)
         break
+      }
       case 'click':
         await engine.click(raw.selector as string, frameId)
         break
@@ -327,11 +385,22 @@ export class TaskRunner {
           `window.scrollBy(0, ${(raw.direction as string) === 'up' ? -400 : 400})`
         )
         break
+      case 'app_script': {
+        const result = await this.appBridge.run((action as any).app, (action as any).script)
+        return result.ok ? result.output : `[AppBridge error: ${result.error}]`
+      }
       case 'task_list_peers':
       case 'task_send':
       case 'task_read':
       case 'task_message':
         return this.executeInterTaskAction(action)
+      case 'remember_fact':
+      case 'forget_fact':
+        return this.executeFactAction(action)
+      case 'set_identity':
+        return this.executeSetIdentity(action)
+      case 'generate_image':
+        return this.executeGenerateImage(action)
       default:
         throw new Error(`Unknown action type: ${action.type}`)
     }
@@ -353,14 +422,16 @@ export class TaskRunner {
 
     this.pushStatus('Starting agent loop...')
 
-    const systemPrompt = buildCdpSystemPrompt(this.task.capabilities)
+    const systemPrompt = buildCdpSystemPrompt(this.task.capabilities, !!this.task.parentTaskId)
     const history: VisionMessage[] = []
 
     const memCtxCdp = this.opts.memoryContext ?? ''
-    const attachments = (this.task.attachments ?? []).filter((x) => typeof x === 'string')
+    const allAttachments = (this.task.attachments ?? []).filter((x) => typeof x === 'string')
+    const imageDataUrls = allAttachments.filter((a) => a.startsWith('data:image/'))
+    const filePaths = allAttachments.filter((a) => !a.startsWith('data:image/'))
     const attachmentsBlock =
-      attachments.length > 0
-        ? `\n\nAttached local files (absolute paths):\n${attachments
+      filePaths.length > 0
+        ? `\n\nAttached local files (absolute paths):\n${filePaths
             .slice(0, 12)
             .map((p) => `- ${p}`)
             .join('\n')}`
@@ -368,13 +439,14 @@ export class TaskRunner {
     history.push({
       role: 'user',
       content: [
-        { type: 'input_text', text: `Task: ${this.task.prompt}${attachmentsBlock}${memCtxCdp}` }
+        { type: 'input_text', text: `Task: ${this.task.prompt}${attachmentsBlock}${memCtxCdp}` },
+        ...imageDataUrls.slice(0, 4).map((url) => ({
+          type: 'input_image' as const,
+          detail: 'auto' as const,
+          image_url: url
+        }))
       ]
     })
-
-    // Deterministic auto-delegation for multi-modal social posting tasks.
-    // This creates sub-agents (shown in the UI) before browser execution begins.
-    await this.autoDelegateForSocialPost(history)
 
     while (!this.aborted && this.task.steps.length < this.task.maxSteps) {
       try {
@@ -482,7 +554,7 @@ export class TaskRunner {
 
     this.pushStatus('Preparing agent loop...')
 
-    const systemPrompt = buildCodeSystemPrompt()
+    const systemPrompt = buildCodeSystemPrompt(this.task.capabilities, !!this.task.parentTaskId)
     const history: VisionMessage[] = []
 
     const memCtx = this.opts.memoryContext ?? ''
@@ -491,7 +563,7 @@ export class TaskRunner {
       content: [
         {
           type: 'input_text',
-          text: `Task: ${this.task.prompt}${memCtx}\n\n[CODE MODE] You have NO screen access. Use file_read, file_write, file_edit, file_list, file_search, and shell to accomplish the task. Do NOT use click, scroll, move, or other screen actions.`
+          text: `Task: ${this.task.prompt}${memCtx}\n\n[CODE MODE] You have NO screen access. Do NOT use click, scroll, move, or other screen actions.${this.task.capabilities.includes('app.scripting') ? ' [APP SCRIPTING ACTIVE] You MUST use app_script for design tasks. Do NOT use file_write for design files. Keep scripts under 6 lines.' : ' Use file_read, file_write, file_edit, file_list, file_search, and shell.'}`
         }
       ]
     })
@@ -501,7 +573,9 @@ export class TaskRunner {
         const stepIndex = this.task.steps.length
         let turnText: string
         if (stepIndex === 0) {
-          turnText = `Task: ${this.task.prompt}\n\n[CODE MODE] No screen. Use file_read/file_write/file_edit/file_list/file_search/shell/done/fail actions.`
+          turnText = this.task.capabilities.includes('app.scripting')
+            ? `Task: ${this.task.prompt}\n\n[APP SCRIPTING MODE] Use ONLY app_script actions. Keep scripts under 6 lines. Do NOT use file_write for design files.\n\nIMPORTANT: Take your time. Build the design in MANY small steps (10-20+ steps). Do NOT rush to save/done after 2-3 shapes. Each step should add ONE element: a shape, a color, a text, an alignment. Build up complexity gradually like a real designer would. Do NOT use "done" until the design is truly complete and polished.`
+            : `Task: ${this.task.prompt}\n\n[CODE MODE] No screen. Use file_read/file_write/file_edit/file_list/file_search/shell/done/fail actions.`
         } else {
           const recentSteps = this.task.steps.slice(-8)
           const actionLog = recentSteps
@@ -535,8 +609,10 @@ export class TaskRunner {
         }
         history.push(turnMessage)
 
+        this.pushStatus('Thinking...')
         const { text: rawResponse, usage } = await this.callVisionModel(systemPrompt, history)
         if (usage) this.addUsage(usage)
+        console.log(`[code-loop] raw (${rawResponse.length}c):`, rawResponse.slice(0, 400))
         const { thought, action } = parseModelResponse(rawResponse)
 
         history.push({
@@ -584,6 +660,33 @@ export class TaskRunner {
 
         this.task.steps.push(step)
         this.pushUpdate()
+
+        // Every 3 app_script steps, capture a canvas preview for visual feedback
+        if (
+          action.type === 'app_script' &&
+          this.task.capabilities.includes('app.scripting') &&
+          this.task.steps.filter((s) => s.action.type === 'app_script').length % 3 === 0
+        ) {
+          try {
+            const appName = (action as any).app as string
+            const previewB64 = await this.appBridge.getPreview(appName as any)
+            if (previewB64) {
+              history.push({
+                role: 'user',
+                content: [
+                  {
+                    type: 'input_text',
+                    text: '[CANVAS PREVIEW] Look at the current state of your design. Check composition, alignment, spacing, and visual balance before continuing.'
+                  },
+                  { type: 'input_image', image_url: `data:image/png;base64,${previewB64}` }
+                ]
+              })
+            }
+          } catch {
+            // Preview failed — continue without it
+          }
+        }
+
         await this.sleep(200)
       } catch (e) {
         if (this.aborted) break
@@ -644,11 +747,22 @@ export class TaskRunner {
         return this.executeFileList(action.pattern, action.cwd)
       case 'file_search':
         return this.executeFileSearch(action.pattern, action.path, action.glob, action.cwd)
+      case 'app_script': {
+        const result = await this.appBridge.run(action.app as any, action.script)
+        return result.ok ? result.output : `[AppBridge error: ${result.error}]`
+      }
       case 'task_list_peers':
       case 'task_send':
       case 'task_read':
       case 'task_message':
         return this.executeInterTaskAction(action)
+      case 'remember_fact':
+      case 'forget_fact':
+        return this.executeFactAction(action)
+      case 'set_identity':
+        return this.executeSetIdentity(action)
+      case 'generate_image':
+        return this.executeGenerateImage(action)
       default:
         return `[Action "${action.type}" not supported in code mode]`
     }
@@ -675,7 +789,7 @@ export class TaskRunner {
       }
       const numbered = lines.map((line, i) => `${String(startLine + i + 1).padStart(6)}\t${line}`)
       const result = numbered.join('\n')
-      return result.length > 8000 ? result.slice(0, 8000) + '\n[... truncated]' : result
+      return headTail(result, 8000)
     } catch (e) {
       return `[Error reading ${resolved}: ${e instanceof Error ? e.message : String(e)}]`
     }
@@ -729,7 +843,7 @@ export class TaskRunner {
       exec(fdCmd, execOpts, (err, stdout) => {
         if (!err && stdout.trim()) {
           const result = stdout.trim()
-          resolve(result.length > 6000 ? result.slice(0, 6000) + '\n[... truncated]' : result)
+          resolve(headTail(result, 6000))
           return
         }
         // Fallback to find
@@ -740,7 +854,7 @@ export class TaskRunner {
             return
           }
           const result = stdout2.trim() || '(no files found)'
-          resolve(result.length > 6000 ? result.slice(0, 6000) + '\n[... truncated]' : result)
+          resolve(headTail(result, 6000))
         })
       })
     })
@@ -763,7 +877,7 @@ export class TaskRunner {
       exec(rgCmd, execOpts, (err, stdout) => {
         if (!err || (err as any)?.code === 1) {
           const result = (stdout || '').trim() || '(no matches found)'
-          resolve(result.length > 6000 ? result.slice(0, 6000) + '\n[... truncated]' : result)
+          resolve(headTail(result, 6000))
           return
         }
         // Fallback to grep
@@ -775,7 +889,7 @@ export class TaskRunner {
             return
           }
           const result = (stdout2 || '').trim() || '(no matches found)'
-          resolve(result.length > 6000 ? result.slice(0, 6000) + '\n[... truncated]' : result)
+          resolve(headTail(result, 6000))
         })
       })
     })
@@ -796,6 +910,13 @@ export class TaskRunner {
       case 'task_read':
       case 'task_message':
         return this.executeInterTaskAction(action)
+      case 'remember_fact':
+      case 'forget_fact':
+        return this.executeFactAction(action)
+      case 'set_identity':
+        return this.executeSetIdentity(action)
+      case 'generate_image':
+        return this.executeGenerateImage(action)
       case 'wait':
         await this.sleep((action as any).ms ?? 1000)
         return undefined
@@ -867,6 +988,51 @@ export class TaskRunner {
     this.cleanup()
   }
 
+  /** Handle set_identity — sub-agent chooses its own name. */
+  /** Saves data URL attachments to /tmp/ files. Returns { filePaths, dataUrls }. */
+  private async resolveAttachments(): Promise<{ filePaths: string[]; dataUrls: string[] }> {
+    const all = (this.task.attachments ?? []).filter((x) => typeof x === 'string')
+    const filePaths: string[] = []
+    const dataUrls: string[] = []
+    for (const a of all) {
+      if (a.startsWith('data:image/')) {
+        dataUrls.push(a)
+        const ext = a.startsWith('data:image/png') ? 'png' : 'jpg'
+        const p = `${os.tmpdir()}/skynul-ref-${Date.now()}-${dataUrls.length}.${ext}`
+        const base64 = a.split(',')[1]
+        await writeFile(p, Buffer.from(base64, 'base64'))
+        filePaths.push(p)
+      } else {
+        filePaths.push(a)
+      }
+    }
+    return { filePaths, dataUrls }
+  }
+
+  private async executeGenerateImage(action: TaskAction): Promise<string> {
+    const raw = action as Record<string, unknown>
+    const prompt = String(raw.prompt ?? '')
+    if (!prompt) return 'generate_image requires a prompt'
+    const size = (raw.size as '1024x1024' | '1792x1024' | '1024x1792') ?? '1024x1024'
+    const filePath = await generateImage(prompt, size)
+    if (!this.task.attachments) this.task.attachments = []
+    this.task.attachments.push(filePath)
+    this.pushUpdate()
+    return `Image generated and saved to: ${filePath}`
+  }
+
+  private executeSetIdentity(action: TaskAction): string {
+    const raw = action as Record<string, unknown>
+    if (raw.name && typeof raw.name === 'string') {
+      this.task.agentName = raw.name
+    }
+    if (raw.role && typeof raw.role === 'string') {
+      this.task.agentRole = raw.role as string
+    }
+    this.pushUpdate()
+    return `Identity: ${this.task.agentName ?? ''}${this.task.agentRole ? ` (${this.task.agentRole})` : ''}`
+  }
+
   /** Handle inter-task communication actions. */
   private async executeInterTaskAction(action: TaskAction): Promise<string> {
     const tm = this.opts.taskManager
@@ -909,6 +1075,21 @@ export class TaskRunner {
     }
   }
 
+  /** Handle remember/forget fact actions. */
+  private executeFactAction(action: TaskAction): string {
+    if (action.type === 'remember_fact') {
+      if (!action.fact || typeof action.fact !== 'string') return '[Error: "fact" string required]'
+      saveFact(action.fact)
+      return `Remembered: "${action.fact}"`
+    }
+    if (action.type === 'forget_fact') {
+      if (typeof action.factId !== 'number') return '[Error: "factId" number required]'
+      deleteFact(action.factId)
+      return `Forgot fact #${action.factId}`
+    }
+    return '[Error: unknown fact action]'
+  }
+
   private executeShell(command: string, cwd?: string, timeoutMs?: number): Promise<string> {
     return new Promise((resolve) => {
       const { exec } = require('child_process') as typeof import('child_process')
@@ -917,7 +1098,7 @@ export class TaskRunner {
         command,
         { timeout, maxBuffer: 1024 * 1024, cwd: cwd || undefined },
         (err, stdout, stderr) => {
-          const out = (stdout ?? '').toString().slice(0, 4000)
+          const out = headTail((stdout ?? '').toString(), 4000)
           const errOut = (stderr ?? '').toString().slice(0, 1000)
           if (err) {
             resolve(`[Exit ${err.code ?? 1}] ${errOut || err.message}\n${out}`.trim())

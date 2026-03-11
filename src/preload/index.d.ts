@@ -21,6 +21,8 @@ declare global {
       ) => Promise<{ content: string }>
       fsReadText: (path: string) => Promise<string>
       fsWriteText: (path: string, content: string, ifExists?: 'fail' | 'overwrite') => Promise<void>
+      fsSaveTempFile: () => Promise<string | null>
+      clipboardReadText: () => Promise<string>
       onAuthCallback: (cb: (url: string) => void) => () => void
       windowMinimize: () => Promise<void>
       windowMaximize: () => Promise<void>
@@ -67,6 +69,11 @@ declare global {
       skillDelete: (id: string) => Promise<import('../shared/skill').Skill[]>
       skillToggle: (id: string) => Promise<import('../shared/skill').Skill[]>
       skillImport: (filePath: string) => Promise<import('../shared/skill').Skill[]>
+
+      // User Facts
+      factList: () => Promise<{ id: number; fact: string }[]>
+      factSave: (fact: string) => Promise<{ id: number; fact: string }[]>
+      factDelete: (id: number) => Promise<{ id: number; fact: string }[]>
 
       // Channels
       channelGetAll: () => Promise<import('../shared/channel').ChannelSettings[]>
