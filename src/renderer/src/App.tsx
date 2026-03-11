@@ -19,6 +19,7 @@ import { t } from './i18n'
 import { SkillGraph } from './components/SkillGraph'
 import { ChannelSettings } from './components/ChannelSettings'
 import { AuthModal, type AuthProvider } from './components/AuthModal'
+import { UpdateToast } from './components/UpdateToast'
 import type { Skill } from '../../shared/skill'
 import type { Schedule } from '../../shared/schedule'
 
@@ -1962,6 +1963,8 @@ function App(): React.JSX.Element {
           })
         }}
       />
+
+      <UpdateToast />
     </div>
   )
 }

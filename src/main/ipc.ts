@@ -725,6 +725,20 @@ export function registerIpcHandlers(opts: {
     return true
   })
 
+  // ── Auto-Update ──────────────────────────────────────────────────────
+  ipcMain.handle(IPC.updateCheck, async () => {
+    const { checkForUpdates } = await import('./updater')
+    checkForUpdates()
+  })
+  ipcMain.handle(IPC.updateDownload, async () => {
+    const { downloadUpdate } = await import('./updater')
+    downloadUpdate()
+  })
+  ipcMain.handle(IPC.updateInstall, async () => {
+    const { installUpdate } = await import('./updater')
+    installUpdate()
+  })
+
   // ── Secrets ───────────────────────────────────────────────────────────
   ipcMain.handle(IPC.getSecret, async (_evt, key: string) => {
     return getSecret(key)
