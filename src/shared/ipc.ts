@@ -71,6 +71,11 @@ export const IPC = {
   browserSnapshotRestore: 'skynul:browser:snapshot:restore',
   browserSnapshotDelete: 'skynul:browser:snapshot:delete',
 
+  // ── Auto-Update ────────────────────────────────────────────────────
+  updateCheck: 'skynul:update:check',
+  updateDownload: 'skynul:update:download',
+  updateInstall: 'skynul:update:install',
+
   // ── Secrets (generic key-value) ──────────────────────────────────────
   getSecretKeys: 'skynul:secrets:getKeys',
   getSecret: 'skynul:secrets:get',
