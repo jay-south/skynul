@@ -28,6 +28,14 @@ import { loadPolicy, savePolicy } from './policy-store'
 import { resolveInsideWorkspace } from './workspace-path'
 import { getSecret, hasSecret, setSecret } from './secret-store'
 import {
+  projectList,
+  projectCreate,
+  projectUpdate,
+  projectDelete,
+  projectAddTask,
+  projectRemoveTask
+} from './project-store'
+import {
   buildAuthorizeUrl,
   clearTokens,
   codexRespond,
@@ -828,5 +836,28 @@ export function registerIpcHandlers(opts: {
 
   ipcMain.handle(IPC.setSecret, async (_evt, req: { key: string; value: string }) => {
     await setSecret(req.key, req.value)
+  })
+
+  // ── Projects ──────────────────────────────────────────────────────────
+  ipcMain.handle(IPC.projectList, () => projectList())
+
+  ipcMain.handle(IPC.projectCreate, (_evt, req: { name: string; color?: string }) => {
+    return projectCreate(req.name, req.color)
+  })
+
+  ipcMain.handle(IPC.projectUpdate, (_evt, req: { id: string; name: string; color: string }) => {
+    projectUpdate(req.id, req.name, req.color)
+  })
+
+  ipcMain.handle(IPC.projectDelete, (_evt, id: string) => {
+    projectDelete(id)
+  })
+
+  ipcMain.handle(IPC.projectAddTask, (_evt, req: { projectId: string; taskId: string }) => {
+    projectAddTask(req.projectId, req.taskId)
+  })
+
+  ipcMain.handle(IPC.projectRemoveTask, (_evt, req: { projectId: string; taskId: string }) => {
+    projectRemoveTask(req.projectId, req.taskId)
   })
 }

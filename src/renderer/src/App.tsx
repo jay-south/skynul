@@ -273,6 +273,12 @@ function App(): React.JSX.Element {
   const [viewingProcessTaskId, setViewingProcessTaskId] = useState<string | null>(null)
   const [schedules, setSchedules] = useState<Schedule[]>([])
 
+  // ── Projects state ──────────────────────────────────────────────────
+  const [projects, setProjects] = useState<import('../../shared/project').ProjectWithTasks[]>([])
+  const [showCreateProject, setShowCreateProject] = useState(false)
+  const [createProjectName, setCreateProjectName] = useState('')
+  const [pendingProjectTaskId, setPendingProjectTaskId] = useState<string | null>(null)
+
   // ── Composer state (inline in main panel) ──────────────────────────
   const [composerPrompt, setComposerPrompt] = useState('')
   const [composerCapsOverride, setComposerCapsOverride] = useState<Set<TaskCapabilityId> | null>(
@@ -345,6 +351,21 @@ function App(): React.JSX.Element {
     return () => {
       alive = false
     }
+  }, [])
+
+  // ── Load projects ──────────────────────────────────────────────────
+  useEffect(() => {
+    window.skynul.projectList().then(setProjects).catch(() => {})
+  }, [])
+
+  const handleCreateProject = useCallback(async (name: string, taskId?: string | null) => {
+    const p = await window.skynul.projectCreate(name)
+    if (taskId) await window.skynul.projectAddTask(p.id, taskId)
+    const updated = await window.skynul.projectList()
+    setProjects(updated)
+    setShowCreateProject(false)
+    setCreateProjectName('')
+    setPendingProjectTaskId(null)
   }, [])
 
   // ── Maximize state listener ──────────────────────────────────────────
@@ -1025,7 +1046,7 @@ function App(): React.JSX.Element {
                   }}
                 >
                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /><path d="M4 1l.5 1.5L6 3l-1.5.5L4 5l-.5-1.5L2 3l1.5-.5L4 1z" /><path d="M3 14l.4 1.1L4.5 15.5l-1.1.4L3 17l-.4-1.1L1.5 15.5l1.1-.4L3 14z" />
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /><path d="M4 1l.5 1.5L6 3l-1.5.5L4 5l-.5-1.5L2 3l1.5-.5L4 1z" />
                   </svg>
                   New Task
                 </button>
@@ -1049,7 +1070,29 @@ function App(): React.JSX.Element {
                 </button>
                 <button
                   className={`sidebarToolbarBtn ${taskSubTab === 'projects' ? 'active' : ''}`}
-                  onClick={() => setTaskSubTab(taskSubTab === 'projects' ? null : 'projects')}
+                  onClick={() => {
+                    const next = taskSubTab === 'projects' ? null : 'projects'
+                    setTaskSubTab(next)
+                    if (next === 'projects') setActiveTaskId(null)
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    e.dataTransfer.dropEffect = 'move'
+                    if (taskSubTab !== 'projects') {
+                      setTaskSubTab('projects')
+                      setActiveTaskId(null)
+                    }
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    const taskId = e.dataTransfer.getData('text/task-id')
+                    if (taskId) {
+                      setPendingProjectTaskId(taskId)
+                      setShowCreateProject(true)
+                    }
+                  }}
                 >
                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
@@ -1339,21 +1382,79 @@ function App(): React.JSX.Element {
             </div>
           ) : taskSubTab === 'projects' ? (
             <div className="chatFeedCentered">
-              <div className="projectsPlaceholder">
-                <div className="projectsPlaceholderIcon">
-                  <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                  </svg>
+              {projects.length === 0 ? (
+                <div className="projectsPlaceholder">
+                  <div className="projectsPlaceholderIcon">
+                    <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                    </svg>
+                  </div>
+                  <span className="projectsPlaceholderTitle">No projects yet</span>
+                  <span className="projectsPlaceholderSub">Group and manage your tasks. Drag a task onto the Projects button to get started.</span>
+                  <button className="projectsCreateBtn" onClick={() => { setPendingProjectTaskId(null); setShowCreateProject(true) }}>
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    Create Project
+                  </button>
                 </div>
-                <span className="projectsPlaceholderTitle">No projects yet</span>
-                <span className="projectsPlaceholderSub">Group and manage your tasks</span>
-                <button className="projectsCreateBtn">
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                  Create Project
-                </button>
-              </div>
+              ) : (
+                <div className="projectsListPanel">
+                  <div className="projectsListHeader">
+                    <span className="projectsListTitle">Projects</span>
+                    <button className="projectsCreateBtn small" onClick={() => { setPendingProjectTaskId(null); setShowCreateProject(true) }}>
+                      + New
+                    </button>
+                  </div>
+                  {projects.map((proj) => (
+                    <div key={proj.id} className="projectCard"
+                      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move' }}
+                      onDrop={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        const taskId = e.dataTransfer.getData('text/task-id')
+                        if (taskId) {
+                          void window.skynul.projectAddTask(proj.id, taskId).then(() =>
+                            window.skynul.projectList().then(setProjects)
+                          )
+                        }
+                      }}
+                    >
+                      <div className="projectCardColor" style={{ background: proj.color }} />
+                      <div className="projectCardBody">
+                        <div className="projectCardName">{proj.name}</div>
+                        <div className="projectCardMeta">{proj.taskIds.length} task{proj.taskIds.length !== 1 ? 's' : ''}</div>
+                      </div>
+                      <button className="projectCardDelete" onClick={async () => {
+                        await window.skynul.projectDelete(proj.id)
+                        setProjects(await window.skynul.projectList())
+                      }}>×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {showCreateProject && (
+                <div className="projectModalOverlay" onClick={() => { setShowCreateProject(false); setPendingProjectTaskId(null); setCreateProjectName('') }}>
+                  <div className="projectModalCard" onClick={(e) => e.stopPropagation()}>
+                    <div className="projectModalTitle">New Project</div>
+                    {pendingProjectTaskId && (
+                      <div className="projectModalSub">Task will be added to this project</div>
+                    )}
+                    <input
+                      className="projectModalInput"
+                      placeholder="Project name…"
+                      value={createProjectName}
+                      onChange={(e) => setCreateProjectName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && createProjectName.trim()) void handleCreateProject(createProjectName.trim(), pendingProjectTaskId) }}
+                      autoFocus
+                    />
+                    <div className="projectModalActions">
+                      <button className="projectModalCancel" onClick={() => { setShowCreateProject(false); setPendingProjectTaskId(null); setCreateProjectName('') }}>Cancel</button>
+                      <button className="projectModalSave" disabled={!createProjectName.trim()} onClick={() => void handleCreateProject(createProjectName.trim(), pendingProjectTaskId)}>Create</button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="chatFeedCentered">

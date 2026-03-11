@@ -83,6 +83,14 @@ export const IPC = {
   updateDownload: 'skynul:update:download',
   updateInstall: 'skynul:update:install',
 
+  // ── Projects ────────────────────────────────────────────────────────
+  projectList: 'skynul:project:list',
+  projectCreate: 'skynul:project:create',
+  projectUpdate: 'skynul:project:update',
+  projectDelete: 'skynul:project:delete',
+  projectAddTask: 'skynul:project:addTask',
+  projectRemoveTask: 'skynul:project:removeTask',
+
   // ── Secrets (generic key-value) ──────────────────────────────────────
   getSecretKeys: 'skynul:secrets:getKeys',
   getSecret: 'skynul:secrets:get',

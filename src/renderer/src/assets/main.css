@@ -440,6 +440,10 @@ code {
   filter: brightness(0);
 }
 
+[data-theme='dark'] .sbFooterLogo {
+  filter: brightness(0) invert(1);
+}
+
 .sbFooterSettingsBtn {
   display: flex;
   align-items: center;
@@ -1198,6 +1202,176 @@ code {
 .projectsCreateBtn:hover {
   background: rgba(255, 255, 255, 0.12);
   border-color: rgba(255, 255, 255, 0.25);
+}
+
+.projectsCreateBtn.small {
+  padding: 6px 14px;
+  font-size: 12px;
+  margin-top: 0;
+}
+
+/* ── Project modal ───────────────────────────────────────────────── */
+.projectModalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-left: 280px;
+}
+
+.projectModalCard {
+  background: var(--nb-bg);
+  border: 1px solid var(--nb-border);
+  border-radius: 14px;
+  padding: 24px;
+  width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--nb-shadow);
+}
+
+.projectModalTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--nb-text);
+}
+
+.projectModalSub {
+  font-size: 12px;
+  color: var(--nb-muted);
+}
+
+.projectModalInput {
+  appearance: none;
+  background: var(--nb-code-bg);
+  border: 1px solid var(--nb-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--nb-text);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+}
+
+.projectModalInput:focus {
+  border-color: var(--nb-accent-2);
+}
+
+.projectModalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.projectModalCancel {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--nb-border);
+  border-radius: 8px;
+  color: var(--nb-muted);
+  padding: 8px 16px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.projectModalSave {
+  appearance: none;
+  background: var(--nb-accent-2);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.projectModalSave:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ── Project list panel ──────────────────────────────────────────── */
+.projectsListPanel {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.projectsListHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.projectsListTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.projectCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 12px 14px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.projectCard:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.projectCardColor {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.projectCardBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.projectCardName {
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+}
+
+.projectCardMeta {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.projectCardDelete {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 2px 6px;
+  line-height: 1;
+}
+
+.projectCardDelete:hover {
+  color: var(--nb-danger, #ef4444);
 }
 
 .modalBackdrop {

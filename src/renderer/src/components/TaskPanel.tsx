@@ -133,6 +133,11 @@ export function TaskPanel(props: {
             className={`rbItem ${t.id === activeRootId ? 'active' : ''}`}
             role="tab"
             aria-selected={t.id === activeRootId}
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.setData('text/task-id', t.id)
+              e.dataTransfer.effectAllowed = 'move'
+            }}
           >
             <div className="rbItemContent" onClick={() => props.onSelectTask(t.id)}>
               <div className="rbItemTitle">{t.prompt.slice(0, 40)}</div>
