@@ -47,6 +47,9 @@ importers:
       playwright-core:
         specifier: ^1.58.2
         version: 1.58.2
+      util-deprecate:
+        specifier: 1.0.2
+        version: 1.0.2
       whatsapp-web.js:
         specifier: ^1.34.6
         version: 1.34.6(encoding@0.1.13)(typescript@5.9.3)
