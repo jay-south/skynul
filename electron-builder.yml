@@ -11,6 +11,11 @@ files:
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
 asarUnpack:
   - resources/**
+  - node_modules/exceljs/**
+  - node_modules/lazystream/**
+  - node_modules/archiver/**
+  - node_modules/unzipper/**
+  - node_modules/readable-stream/**
 win:
   executableName: Skynul
   target:
