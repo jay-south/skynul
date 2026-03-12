@@ -126,6 +126,14 @@ declare global {
       onUpdateDownloadProgress: (cb: (info: { percent: number }) => void) => () => void
       onUpdateDownloaded: (cb: () => void) => () => void
 
+      // Projects
+      projectList: () => Promise<import('../shared/project').ProjectWithTasks[]>
+      projectCreate: (name: string, color?: string) => Promise<import('../shared/project').ProjectWithTasks>
+      projectUpdate: (id: string, name: string, color: string) => Promise<void>
+      projectDelete: (id: string) => Promise<void>
+      projectAddTask: (projectId: string, taskId: string) => Promise<void>
+      projectRemoveTask: (projectId: string, taskId: string) => Promise<void>
+
       // Secrets
       getSecret: (key: string) => Promise<string | null>
       setSecret: (key: string, value: string) => Promise<void>

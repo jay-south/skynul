@@ -208,6 +208,20 @@ const skynul = {
   browserSnapshotDelete: (id: string): Promise<boolean> =>
     ipcRenderer.invoke(IPC.browserSnapshotDelete, id),
 
+  // ── Projects ─────────────────────────────────────────────────────────
+  projectList: (): Promise<import('../shared/project').ProjectWithTasks[]> =>
+    ipcRenderer.invoke(IPC.projectList),
+  projectCreate: (name: string, color?: string): Promise<import('../shared/project').ProjectWithTasks> =>
+    ipcRenderer.invoke(IPC.projectCreate, { name, color }),
+  projectUpdate: (id: string, name: string, color: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.projectUpdate, { id, name, color }),
+  projectDelete: (id: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.projectDelete, id),
+  projectAddTask: (projectId: string, taskId: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.projectAddTask, { projectId, taskId }),
+  projectRemoveTask: (projectId: string, taskId: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.projectRemoveTask, { projectId, taskId }),
+
   // ── Secrets ──────────────────────────────────────────────────────────
   getSecret: (key: string): Promise<string | null> => ipcRenderer.invoke(IPC.getSecret, key),
   setSecret: (key: string, value: string): Promise<void> =>
