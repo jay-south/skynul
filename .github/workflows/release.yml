@@ -70,12 +70,12 @@ jobs:
         with:
           draft: true
           files: |
-            artifacts/**/dist/*.exe
-            artifacts/**/dist/*.dmg
-            artifacts/**/dist/*.AppImage
-            artifacts/**/dist/*.snap
-            artifacts/**/dist/*.deb
-            artifacts/**/dist/*.yml
-            artifacts/**/dist/*.yaml
-            artifacts/**/dist/*.blockmap
-            artifacts/**/dist/*.zip
+            artifacts/**/*.exe
+            artifacts/**/*.dmg
+            artifacts/**/*.AppImage
+            artifacts/**/*.snap
+            artifacts/**/*.deb
+            artifacts/**/*.yml
+            artifacts/**/*.yaml
+            artifacts/**/*.blockmap
+            artifacts/**/*.zip
