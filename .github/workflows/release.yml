@@ -37,6 +37,10 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Hide pnpm lockfile so electron-builder uses npm module collector
+        run: mv pnpm-lock.yaml _pnpm-lock.yaml
+        shell: bash
+
       - run: ${{ matrix.build_cmd }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
