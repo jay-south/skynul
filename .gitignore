@@ -1,4 +1,6 @@
 node_modules
+.pnpm-store/
+app/
 dist
 out
 out-tests

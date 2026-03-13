@@ -22,10 +22,11 @@
     "dev": "electron-vite dev",
     "build": "npm run typecheck && electron-vite build",
     "postinstall": "electron-builder install-app-deps",
-    "build:unpack": "npm run build && electron-builder --dir",
-    "build:win": "npm run build && electron-builder --win --publish always",
-    "build:mac": "npm run build && electron-builder --mac --publish always",
-    "build:linux": "electron-vite build && electron-builder --linux --publish always"
+    "prepare:app": "node scripts/prepare-app.mjs",
+    "build:unpack": "npm run build && pnpm prepare:app && node scripts/run-electron-builder.mjs --dir",
+    "build:win": "npm run build && pnpm prepare:app && node scripts/run-electron-builder.mjs --win --publish always",
+    "build:mac": "npm run build && pnpm prepare:app && node scripts/run-electron-builder.mjs --mac --publish always",
+    "build:linux": "electron-vite build && pnpm prepare:app && node scripts/run-electron-builder.mjs --linux --publish always"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
