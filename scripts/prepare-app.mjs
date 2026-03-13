@@ -33,7 +33,14 @@ if (existsSync(appDir)) {
 // pnpm v10 tightened deploy semantics for workspaces.
 // We use --legacy to produce a deployable production directory without requiring
 // inject-workspace-packages=true.
-run('pnpm', ['--filter', 'skynul', '--prod', '--legacy', 'deploy', 'app'])
+run('pnpm', ['--filter', 'skynul', '--prod', '--legacy', 'deploy', 'app'], {
+  env: {
+    ...process.env,
+    // Avoid running electron-builder install-app-deps inside the deployed app dir.
+    // That step is meant for local development installs, not for deploy packaging.
+    SKYNUL_SKIP_EB_APP_DEPS: '1'
+  }
+})
 
 // Copy build output and runtime resources into the deployed app.
 if (!existsSync(outDir)) {

@@ -21,7 +21,7 @@
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
     "build": "npm run typecheck && electron-vite build",
-    "postinstall": "electron-builder install-app-deps",
+    "postinstall": "node scripts/postinstall.mjs",
     "prepare:app": "node scripts/prepare-app.mjs",
     "build:unpack": "npm run build && pnpm prepare:app && node scripts/run-electron-builder.mjs --dir",
     "build:win": "npm run build && pnpm prepare:app && node scripts/run-electron-builder.mjs --win --publish always",
