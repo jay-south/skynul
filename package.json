@@ -28,7 +28,9 @@
     "build:linux": "npm run build && electron-builder --linux --publish never",
     "release:win": "npm run build && electron-builder --win --publish always",
     "release:mac": "npm run build && electron-builder --mac --publish always",
-    "release:linux": "npm run build && electron-builder --linux --publish always"
+    "release:linux": "npm run build && electron-builder --linux --publish always",
+    "release:cut": "node scripts/cut-release.mjs",
+    "release:cut:push": "node scripts/cut-release.mjs --push"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
