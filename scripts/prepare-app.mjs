@@ -28,6 +28,8 @@ if (existsSync(appDir)) {
   rmSync(appDir, { recursive: true, force: true })
 }
 
+console.log('[prepare-app] deploying production app dir to', appDir)
+
 // Create a production-only app directory with a complete node_modules tree.
 // This avoids packaging-time missing-module issues with pnpm + electron-builder.
 // pnpm v10 tightened deploy semantics for workspaces.
@@ -42,6 +44,8 @@ run('pnpm', ['--filter', 'skynul', '--prod', '--legacy', 'deploy', 'app'], {
   }
 })
 
+console.log('[prepare-app] copying build output into deployed app dir')
+
 // Copy build output and runtime resources into the deployed app.
 if (!existsSync(outDir)) {
   throw new Error('Missing out/. Run `pnpm build` first.')
@@ -52,3 +56,5 @@ if (existsSync(resourcesDir)) {
   mkdirSync(resolve(appDir, 'resources'), { recursive: true })
   cpSync(resourcesDir, resolve(appDir, 'resources'), { recursive: true })
 }
+
+console.log('[prepare-app] done')
