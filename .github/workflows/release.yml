@@ -12,6 +12,7 @@ jobs:
   build:
     name: Build (${{ matrix.os }})
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: windows-latest
@@ -36,6 +37,13 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      - name: Increase file descriptor limit
+        if: runner.os != 'Windows'
+        run: |
+          ulimit -n 65536 || true
+          ulimit -n
+        shell: bash
 
       - name: Hide pnpm lockfile so electron-builder uses npm module collector
         run: mv pnpm-lock.yaml _pnpm-lock.yaml
