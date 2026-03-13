@@ -74,6 +74,9 @@
       "electron",
       "esbuild",
       "better-sqlite3"
+    ],
+    "ignoredBuiltDependencies": [
+      "puppeteer"
     ]
   }
 }
