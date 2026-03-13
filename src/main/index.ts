@@ -7,11 +7,17 @@ console.log(`
   ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═══╝ ╚═════╝ ╚══════╝\x1b[0m
 `)
 
-// Detect host timezone from Windows (WSL defaults to UTC)
-if (!process.env.TZ) {
+// Detect host timezone from Windows when running under WSL (WSL defaults to UTC)
+const isWslEnv =
+  process.platform === 'linux' && Boolean(process.env.WSL_INTEROP || process.env.WSL_DISTRO_NAME)
+
+if (isWslEnv && !process.env.TZ) {
   try {
     const tz = require('child_process')
-      .execSync('powershell.exe -NoProfile -Command "[TimeZoneInfo]::Local.Id"', { timeout: 3000 })
+      .execSync('powershell.exe -NoProfile -Command "[TimeZoneInfo]::Local.Id"', {
+        timeout: 3000,
+        stdio: ['ignore', 'pipe', 'ignore']
+      })
       .toString()
       .trim()
     // Map common Windows timezone IDs to IANA
@@ -26,7 +32,7 @@ if (!process.env.TZ) {
     }
     process.env.TZ = winToIana[tz] || tz
   } catch {
-    /* not on WSL or powershell not available — keep system default */
+    /* keep system default */
   }
 }
 
@@ -51,7 +57,10 @@ let scheduleRunner: ScheduleRunner | null = null
 
 // Protocolo custom para servir archivos locales al renderer (file:// está bloqueado en dev)
 protocol.registerSchemesAsPrivileged([
-  { scheme: 'local-file', privileges: { secure: true, standard: true, supportFetchAPI: true, stream: true } }
+  {
+    scheme: 'local-file',
+    privileges: { secure: true, standard: true, supportFetchAPI: true, stream: true }
+  }
 ])
 
 // WSL/VMs often fail GPU init; disable to avoid crashes/noise.
@@ -223,8 +232,13 @@ app.whenReady().then(() => {
 
   // Handler del protocolo local-file://  — sirve archivos del filesystem al renderer
   const MIME: Record<string, string> = {
-    png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
-    gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml', bmp: 'image/bmp'
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    svg: 'image/svg+xml',
+    bmp: 'image/bmp'
   }
   protocol.handle('local-file', async (request) => {
     // local-file:///tmp/file.png  → /tmp/file.png   (Linux/Mac)
@@ -236,7 +250,9 @@ app.whenReady().then(() => {
     }
     const data = await readFile(filePath)
     const ext = filePath.split('.').pop()?.toLowerCase() ?? ''
-    return new Response(data, { headers: { 'Content-Type': MIME[ext] ?? 'application/octet-stream' } })
+    return new Response(data, {
+      headers: { 'Content-Type': MIME[ext] ?? 'application/octet-stream' }
+    })
   })
 
   const win = createWindow()

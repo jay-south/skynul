@@ -1,7 +1,13 @@
 appId: com.skynul.app
 productName: Skynul
 directories:
+  # IMPORTANT: Force electron-builder to use the root app (package.json).
+  # If an ./app folder exists locally (e.g. from previous experiments),
+  # electron-builder may switch to the two-package structure and pick ./app
+  # which can cause wrong versions and publishing behavior.
+  app: .
   buildResources: build
+  output: dist
 files:
   - '!**/.vscode/*'
   - '!src/*'
@@ -9,7 +15,10 @@ files:
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
-asar: false
+asar: true
+asarUnpack:
+  # Native addons must be unpacked (loaded from the filesystem).
+  - '**/*.node'
 win:
   executableName: Skynul
   target:
@@ -38,6 +47,6 @@ linux:
   category: Utility
 appImage:
   artifactName: ${name}-${version}.${ext}
-npmRebuild: false
+npmRebuild: true
 publish:
   provider: github
