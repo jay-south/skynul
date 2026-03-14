@@ -6,6 +6,7 @@ declare global {
   interface Window {
     skynul: {
       ping: () => Promise<string>
+      appGetVersion: () => Promise<string>
       runtimeGetStats: () => Promise<RuntimeStats>
       openExternal: (url: string) => Promise<void>
       authOpen: (url: string) => Promise<void>
@@ -128,7 +129,10 @@ declare global {
 
       // Projects
       projectList: () => Promise<import('../shared/project').ProjectWithTasks[]>
-      projectCreate: (name: string, color?: string) => Promise<import('../shared/project').ProjectWithTasks>
+      projectCreate: (
+        name: string,
+        color?: string
+      ) => Promise<import('../shared/project').ProjectWithTasks>
       projectUpdate: (id: string, name: string, color: string) => Promise<void>
       projectDelete: (id: string) => Promise<void>
       projectAddTask: (projectId: string, taskId: string) => Promise<void>

@@ -1054,7 +1054,10 @@ code {
   font-family: inherit;
   font-size: 14px;
   font-weight: 500;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
 }
 
 .sidebarToolbarBtn:hover {
@@ -1084,7 +1087,9 @@ code {
   font-size: 14px;
   font-weight: 500;
   flex-shrink: 0;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .sidebarAccordionBtn:hover {
@@ -1196,7 +1201,9 @@ code {
   font-family: inherit;
   font-size: 13px;
   font-weight: 500;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
 }
 
 .projectsCreateBtn:hover {
@@ -1328,7 +1335,9 @@ code {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   padding: 12px 14px;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
 }
 
 .projectCard:hover {
@@ -2571,10 +2580,23 @@ code {
 }
 
 .settingsPanelTitle {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
   font-size: 20px;
   font-weight: 700;
   color: var(--nb-text);
   margin: 0;
+}
+
+.settingsPanelVersion {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--nb-muted);
+  background: var(--nb-surface-2);
+  border: 1px solid var(--nb-border);
+  padding: 2px 8px;
+  border-radius: 999px;
 }
 
 .settingsSection {
@@ -3259,10 +3281,20 @@ code {
 }
 
 @keyframes maPulseTravel {
-  0% { left: 0; opacity: 0; }
-  15% { opacity: 1; }
-  85% { opacity: 1; }
-  100% { left: calc(100% - 6px); opacity: 0; }
+  0% {
+    left: 0;
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% - 6px);
+    opacity: 0;
+  }
 }
 
 .chatFeedLayout {
@@ -3393,8 +3425,16 @@ code {
 }
 
 @keyframes typingBounce {
-  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
-  30% { opacity: 1; transform: translateY(-4px); }
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-4px);
+  }
 }
 
 /* ── Steps block (all steps in one bot block) ────────────────────── */
@@ -4020,7 +4060,10 @@ code {
   font-weight: 500;
   padding: 6px 10px;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
 }
 
 .schedDayBtn:hover {

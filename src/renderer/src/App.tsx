@@ -20,6 +20,9 @@ import { SkillGraph } from './components/SkillGraph'
 import { ChannelSettings } from './components/ChannelSettings'
 import { AuthModal, type AuthProvider } from './components/AuthModal'
 import { UpdateToast } from './components/UpdateToast'
+import { UpdateSettings } from './components/UpdateSettings'
+import { useAppVersion } from './hooks/useAppVersion'
+import { useHashSidebarRoute } from './hooks/useHashSidebarRoute'
 import type { Skill } from '../../shared/skill'
 import type { Schedule } from '../../shared/schedule'
 
@@ -242,6 +245,8 @@ function App(): React.JSX.Element {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
   const [isMaximized, setIsMaximized] = useState<boolean>(false)
 
+  const appVersion = useAppVersion()
+
   // ── Settings tab ────────────────────────────────────────────────────
   const [settingsTab, setSettingsTab] = useState<
     'general' | 'providers' | 'computer' | 'channels' | 'skills' | 'developer'
@@ -261,12 +266,16 @@ function App(): React.JSX.Element {
   // ── Sidebar tab ──────────────────────────────────────────────────────
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('tasks')
 
+  useHashSidebarRoute({ sidebarTab, setSidebarTab, settingsTab, setSettingsTab })
+
   // ── Task state ───────────────────────────────────────────────────────
   const [tasks, setTasks] = useState<Task[]>([])
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
 
   // ── Task template flow (renders in main panel) ─────────────────────
-  const [taskSubTab, setTaskSubTab] = useState<'tasks' | 'scheduled' | 'search' | 'projects' | null>(null)
+  const [taskSubTab, setTaskSubTab] = useState<
+    'tasks' | 'scheduled' | 'search' | 'projects' | null
+  >(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [showNewSchedule, setShowNewSchedule] = useState(false)
   const [activeScheduleId, setActiveScheduleId] = useState<string | null>(null)
@@ -355,7 +364,10 @@ function App(): React.JSX.Element {
 
   // ── Load projects ──────────────────────────────────────────────────
   useEffect(() => {
-    window.skynul.projectList().then(setProjects).catch(() => {})
+    window.skynul
+      .projectList()
+      .then(setProjects)
+      .catch(() => {})
   }, [])
 
   const handleCreateProject = useCallback(async (name: string, taskId?: string | null) => {
@@ -917,9 +929,19 @@ function App(): React.JSX.Element {
       {
         cap: 'app.scripting',
         words: [
-          'illustrator', 'photoshop', 'after effects', 'aftereffects',
-          'blender', 'unreal', 'indesign', 'premiere',
-          'vector', 'logo', 'render', '3d model', 'compositing'
+          'illustrator',
+          'photoshop',
+          'after effects',
+          'aftereffects',
+          'blender',
+          'unreal',
+          'indesign',
+          'premiere',
+          'vector',
+          'logo',
+          'render',
+          '3d model',
+          'compositing'
         ]
       }
     ]
@@ -1045,8 +1067,18 @@ function App(): React.JSX.Element {
                     if (sidebarTab === 'dashboard') setSidebarTab('tasks')
                   }}
                 >
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /><path d="M4 1l.5 1.5L6 3l-1.5.5L4 5l-.5-1.5L2 3l1.5-.5L4 1z" />
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="18"
+                    height="18"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                    <path d="M4 1l.5 1.5L6 3l-1.5.5L4 5l-.5-1.5L2 3l1.5-.5L4 1z" />
                   </svg>
                   New Task
                 </button>
@@ -1054,8 +1086,18 @@ function App(): React.JSX.Element {
                   className={`sidebarToolbarBtn ${taskSubTab === 'scheduled' ? 'active' : ''}`}
                   onClick={() => setTaskSubTab(taskSubTab === 'scheduled' ? null : 'scheduled')}
                 >
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="18"
+                    height="18"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
                   </svg>
                   Scheduled
                 </button>
@@ -1063,8 +1105,18 @@ function App(): React.JSX.Element {
                   className={`sidebarToolbarBtn ${taskSubTab === 'search' ? 'active' : ''}`}
                   onClick={() => setTaskSubTab(taskSubTab === 'search' ? null : 'search')}
                 >
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="18"
+                    height="18"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
                   </svg>
                   Search
                 </button>
@@ -1094,7 +1146,16 @@ function App(): React.JSX.Element {
                     }
                   }}
                 >
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="18"
+                    height="18"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
                   </svg>
                   Projects
@@ -1139,11 +1200,31 @@ function App(): React.JSX.Element {
                 className={`sidebarAccordionBtn ${taskSubTab === 'tasks' ? 'open' : ''}`}
                 onClick={() => setTaskSubTab(taskSubTab === 'tasks' ? null : 'tasks')}
               >
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                <svg
+                  viewBox="0 0 24 24"
+                  width="18"
+                  height="18"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M9 11l3 3L22 4" />
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
                 </svg>
                 Tasks
-                <svg className="sidebarAccordionChevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  className="sidebarAccordionChevron"
+                  viewBox="0 0 24 24"
+                  width="14"
+                  height="14"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <polyline points="6 9 12 15 18 9" />
                 </svg>
               </button>
@@ -1185,7 +1266,6 @@ function App(): React.JSX.Element {
                   }}
                 />
               )}
-
             </>
           )}
 
@@ -1385,15 +1465,43 @@ function App(): React.JSX.Element {
               {projects.length === 0 ? (
                 <div className="projectsPlaceholder">
                   <div className="projectsPlaceholderIcon">
-                    <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="40"
+                      height="40"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
                       <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
                     </svg>
                   </div>
                   <span className="projectsPlaceholderTitle">No projects yet</span>
-                  <span className="projectsPlaceholderSub">Group and manage your tasks. Drag a task onto the Projects button to get started.</span>
-                  <button className="projectsCreateBtn" onClick={() => { setPendingProjectTaskId(null); setShowCreateProject(true) }}>
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                  <span className="projectsPlaceholderSub">
+                    Group and manage your tasks. Drag a task onto the Projects button to get
+                    started.
+                  </span>
+                  <button
+                    className="projectsCreateBtn"
+                    onClick={() => {
+                      setPendingProjectTaskId(null)
+                      setShowCreateProject(true)
+                    }}
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="16"
+                      height="16"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
                     </svg>
                     Create Project
                   </button>
@@ -1402,39 +1510,65 @@ function App(): React.JSX.Element {
                 <div className="projectsListPanel">
                   <div className="projectsListHeader">
                     <span className="projectsListTitle">Projects</span>
-                    <button className="projectsCreateBtn small" onClick={() => { setPendingProjectTaskId(null); setShowCreateProject(true) }}>
+                    <button
+                      className="projectsCreateBtn small"
+                      onClick={() => {
+                        setPendingProjectTaskId(null)
+                        setShowCreateProject(true)
+                      }}
+                    >
                       + New
                     </button>
                   </div>
                   {projects.map((proj) => (
-                    <div key={proj.id} className="projectCard"
-                      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move' }}
+                    <div
+                      key={proj.id}
+                      className="projectCard"
+                      onDragOver={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        e.dataTransfer.dropEffect = 'move'
+                      }}
                       onDrop={(e) => {
                         e.preventDefault()
                         e.stopPropagation()
                         const taskId = e.dataTransfer.getData('text/task-id')
                         if (taskId) {
-                          void window.skynul.projectAddTask(proj.id, taskId).then(() =>
-                            window.skynul.projectList().then(setProjects)
-                          )
+                          void window.skynul
+                            .projectAddTask(proj.id, taskId)
+                            .then(() => window.skynul.projectList().then(setProjects))
                         }
                       }}
                     >
                       <div className="projectCardColor" style={{ background: proj.color }} />
                       <div className="projectCardBody">
                         <div className="projectCardName">{proj.name}</div>
-                        <div className="projectCardMeta">{proj.taskIds.length} task{proj.taskIds.length !== 1 ? 's' : ''}</div>
+                        <div className="projectCardMeta">
+                          {proj.taskIds.length} task{proj.taskIds.length !== 1 ? 's' : ''}
+                        </div>
                       </div>
-                      <button className="projectCardDelete" onClick={async () => {
-                        await window.skynul.projectDelete(proj.id)
-                        setProjects(await window.skynul.projectList())
-                      }}>×</button>
+                      <button
+                        className="projectCardDelete"
+                        onClick={async () => {
+                          await window.skynul.projectDelete(proj.id)
+                          setProjects(await window.skynul.projectList())
+                        }}
+                      >
+                        ×
+                      </button>
                     </div>
                   ))}
                 </div>
               )}
               {showCreateProject && (
-                <div className="projectModalOverlay" onClick={() => { setShowCreateProject(false); setPendingProjectTaskId(null); setCreateProjectName('') }}>
+                <div
+                  className="projectModalOverlay"
+                  onClick={() => {
+                    setShowCreateProject(false)
+                    setPendingProjectTaskId(null)
+                    setCreateProjectName('')
+                  }}
+                >
                   <div className="projectModalCard" onClick={(e) => e.stopPropagation()}>
                     <div className="projectModalTitle">New Project</div>
                     {pendingProjectTaskId && (
@@ -1445,12 +1579,32 @@ function App(): React.JSX.Element {
                       placeholder="Project name…"
                       value={createProjectName}
                       onChange={(e) => setCreateProjectName(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' && createProjectName.trim()) void handleCreateProject(createProjectName.trim(), pendingProjectTaskId) }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && createProjectName.trim())
+                          void handleCreateProject(createProjectName.trim(), pendingProjectTaskId)
+                      }}
                       autoFocus
                     />
                     <div className="projectModalActions">
-                      <button className="projectModalCancel" onClick={() => { setShowCreateProject(false); setPendingProjectTaskId(null); setCreateProjectName('') }}>Cancel</button>
-                      <button className="projectModalSave" disabled={!createProjectName.trim()} onClick={() => void handleCreateProject(createProjectName.trim(), pendingProjectTaskId)}>Create</button>
+                      <button
+                        className="projectModalCancel"
+                        onClick={() => {
+                          setShowCreateProject(false)
+                          setPendingProjectTaskId(null)
+                          setCreateProjectName('')
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        className="projectModalSave"
+                        disabled={!createProjectName.trim()}
+                        onClick={() =>
+                          void handleCreateProject(createProjectName.trim(), pendingProjectTaskId)
+                        }
+                      >
+                        Create
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1525,7 +1679,10 @@ function App(): React.JSX.Element {
                   <span>Back</span>
                 </button>
               </div>
-              <h2 className="settingsPanelTitle">{t(lang, 'settings_title')}</h2>
+              <h2 className="settingsPanelTitle">
+                {t(lang, 'settings_title')}
+                {appVersion ? <span className="settingsPanelVersion">v{appVersion}</span> : null}
+              </h2>
 
               {/* ── Settings tabs ─────────────────────────────── */}
               <div className="seg">
@@ -1899,6 +2056,8 @@ function App(): React.JSX.Element {
                       )}
                     </div>
                   </div>
+
+                  <UpdateSettings />
                 </>
               )}
 

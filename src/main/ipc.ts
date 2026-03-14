@@ -135,6 +135,10 @@ export function registerIpcHandlers(opts: {
   taskManager: TaskManager
   channelManager: ChannelManager
 }): void {
+  ipcMain.handle(IPC.appGetVersion, async () => {
+    return app.getVersion()
+  })
+
   // Give TaskManager access to current policy (provider, model, etc.)
   opts.taskManager.setPolicyGetter(() => policy)
 
@@ -536,7 +540,11 @@ export function registerIpcHandlers(opts: {
       console.log('[clipboard] PS out:', JSON.stringify(rawOut))
       if (rawErr) console.log('[clipboard] PS err:', JSON.stringify(rawErr))
 
-      const winPath = rawOut.split('\n').map((l) => l.trim()).find((l) => /^[A-Za-z]:\\/.test(l)) ?? ''
+      const winPath =
+        rawOut
+          .split('\n')
+          .map((l) => l.trim())
+          .find((l) => /^[A-Za-z]:\\/.test(l)) ?? ''
       if (!winPath) return null
 
       const { stdout: linuxPath } = await execAsync(`wslpath -u "${winPath}"`)
@@ -686,8 +694,14 @@ export function registerIpcHandlers(opts: {
 
   // ── User Facts ─────────────────────────────────────────────────────
   ipcMain.handle(IPC.factList, () => listFacts())
-  ipcMain.handle(IPC.factSave, (_evt, fact: string) => { saveFact(fact); return listFacts() })
-  ipcMain.handle(IPC.factDelete, (_evt, id: number) => { deleteFact(id); return listFacts() })
+  ipcMain.handle(IPC.factSave, (_evt, fact: string) => {
+    saveFact(fact)
+    return listFacts()
+  })
+  ipcMain.handle(IPC.factDelete, (_evt, id: number) => {
+    deleteFact(id)
+    return listFacts()
+  })
 
   // ── Channels ────────────────────────────────────────────────────────
   const cm = opts.channelManager

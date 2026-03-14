@@ -26,6 +26,7 @@ import type { RuntimeStats } from '../shared/runtime'
 
 const skynul = {
   ping: (): Promise<string> => ipcRenderer.invoke(IPC.ping),
+  appGetVersion: (): Promise<string> => ipcRenderer.invoke(IPC.appGetVersion),
   runtimeGetStats: (): Promise<RuntimeStats> => ipcRenderer.invoke(IPC.runtimeGetStats),
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke(IPC.openExternal, url),
   authOpen: (url: string): Promise<void> => ipcRenderer.invoke(IPC.authOpen, url),
@@ -61,10 +62,8 @@ const skynul = {
     const req: WriteTextFileRequest = { path, content, ifExists }
     return ipcRenderer.invoke(IPC.fsWriteText, req)
   },
-  fsSaveTempFile: (): Promise<string | null> =>
-    ipcRenderer.invoke(IPC.fsSaveTempFile),
-  clipboardReadText: (): Promise<string> =>
-    ipcRenderer.invoke(IPC.clipboardReadText),
+  fsSaveTempFile: (): Promise<string | null> => ipcRenderer.invoke(IPC.fsSaveTempFile),
+  clipboardReadText: (): Promise<string> => ipcRenderer.invoke(IPC.clipboardReadText),
   onAuthCallback: (cb: (url: string) => void): (() => void) => {
     const handler = (_evt: unknown, payload: { url: string }): void => cb(payload.url)
     ipcRenderer.on('skynul:auth:callback', handler)
@@ -147,8 +146,10 @@ const skynul = {
 
   // ── User Facts ─────────────────────────────────────────────────────
   factList: (): Promise<{ id: number; fact: string }[]> => ipcRenderer.invoke(IPC.factList),
-  factSave: (fact: string): Promise<{ id: number; fact: string }[]> => ipcRenderer.invoke(IPC.factSave, fact),
-  factDelete: (id: number): Promise<{ id: number; fact: string }[]> => ipcRenderer.invoke(IPC.factDelete, id),
+  factSave: (fact: string): Promise<{ id: number; fact: string }[]> =>
+    ipcRenderer.invoke(IPC.factSave, fact),
+  factDelete: (id: number): Promise<{ id: number; fact: string }[]> =>
+    ipcRenderer.invoke(IPC.factDelete, id),
 
   // ── Channels ────────────────────────────────────────────────────────
   channelGetAll: (): Promise<import('../shared/channel').ChannelSettings[]> =>
@@ -211,12 +212,14 @@ const skynul = {
   // ── Projects ─────────────────────────────────────────────────────────
   projectList: (): Promise<import('../shared/project').ProjectWithTasks[]> =>
     ipcRenderer.invoke(IPC.projectList),
-  projectCreate: (name: string, color?: string): Promise<import('../shared/project').ProjectWithTasks> =>
+  projectCreate: (
+    name: string,
+    color?: string
+  ): Promise<import('../shared/project').ProjectWithTasks> =>
     ipcRenderer.invoke(IPC.projectCreate, { name, color }),
   projectUpdate: (id: string, name: string, color: string): Promise<void> =>
     ipcRenderer.invoke(IPC.projectUpdate, { id, name, color }),
-  projectDelete: (id: string): Promise<void> =>
-    ipcRenderer.invoke(IPC.projectDelete, id),
+  projectDelete: (id: string): Promise<void> => ipcRenderer.invoke(IPC.projectDelete, id),
   projectAddTask: (projectId: string, taskId: string): Promise<void> =>
     ipcRenderer.invoke(IPC.projectAddTask, { projectId, taskId }),
   projectRemoveTask: (projectId: string, taskId: string): Promise<void> =>
