@@ -6,7 +6,6 @@ declare global {
   interface Window {
     skynul: {
       ping: () => Promise<string>
-      appGetVersion: () => Promise<string>
       runtimeGetStats: () => Promise<RuntimeStats>
       openExternal: (url: string) => Promise<void>
       authOpen: (url: string) => Promise<void>

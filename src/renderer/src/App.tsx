@@ -21,8 +21,7 @@ import { ChannelSettings } from './components/ChannelSettings'
 import { AuthModal, type AuthProvider } from './components/AuthModal'
 import { UpdateToast } from './components/UpdateToast'
 import { UpdateSettings } from './components/UpdateSettings'
-import { useAppVersion } from './hooks/useAppVersion'
-import { useHashSidebarRoute } from './hooks/useHashSidebarRoute'
+import { parseHashRoute, useHashSidebarRoute } from './hooks/useHashSidebarRoute'
 import type { Skill } from '../../shared/skill'
 import type { Schedule } from '../../shared/schedule'
 
@@ -245,12 +244,11 @@ function App(): React.JSX.Element {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
   const [isMaximized, setIsMaximized] = useState<boolean>(false)
 
-  const appVersion = useAppVersion()
-
   // ── Settings tab ────────────────────────────────────────────────────
+  const initialRoute = parseHashRoute(window.location.hash || '')
   const [settingsTab, setSettingsTab] = useState<
     'general' | 'providers' | 'computer' | 'channels' | 'skills' | 'developer'
-  >('general')
+  >(() => initialRoute.settingsTab)
 
   // ── Skills ─────────────────────────────────────────────────────────
   const [skills, setSkills] = useState<Skill[]>([])
@@ -264,7 +262,7 @@ function App(): React.JSX.Element {
   const [polymarketConfigured, setPolymarketConfigured] = useState(false)
 
   // ── Sidebar tab ──────────────────────────────────────────────────────
-  const [sidebarTab, setSidebarTab] = useState<SidebarTab>('tasks')
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>(() => initialRoute.sidebarTab)
 
   useHashSidebarRoute({ sidebarTab, setSidebarTab, settingsTab, setSettingsTab })
 
@@ -1679,10 +1677,7 @@ function App(): React.JSX.Element {
                   <span>Back</span>
                 </button>
               </div>
-              <h2 className="settingsPanelTitle">
-                {t(lang, 'settings_title')}
-                {appVersion ? <span className="settingsPanelVersion">v{appVersion}</span> : null}
-              </h2>
+              <h2 className="settingsPanelTitle">{t(lang, 'settings_title')}</h2>
 
               {/* ── Settings tabs ─────────────────────────────── */}
               <div className="seg">

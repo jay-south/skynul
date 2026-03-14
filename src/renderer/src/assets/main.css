@@ -2580,23 +2580,10 @@ code {
 }
 
 .settingsPanelTitle {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
   font-size: 20px;
   font-weight: 700;
   color: var(--nb-text);
   margin: 0;
-}
-
-.settingsPanelVersion {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--nb-muted);
-  background: var(--nb-surface-2);
-  border: 1px solid var(--nb-border);
-  padding: 2px 8px;
-  border-radius: 999px;
 }
 
 .settingsSection {

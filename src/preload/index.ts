@@ -26,7 +26,6 @@ import type { RuntimeStats } from '../shared/runtime'
 
 const skynul = {
   ping: (): Promise<string> => ipcRenderer.invoke(IPC.ping),
-  appGetVersion: (): Promise<string> => ipcRenderer.invoke(IPC.appGetVersion),
   runtimeGetStats: (): Promise<RuntimeStats> => ipcRenderer.invoke(IPC.runtimeGetStats),
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke(IPC.openExternal, url),
   authOpen: (url: string): Promise<void> => ipcRenderer.invoke(IPC.authOpen, url),

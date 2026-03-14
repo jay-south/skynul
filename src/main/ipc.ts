@@ -135,10 +135,6 @@ export function registerIpcHandlers(opts: {
   taskManager: TaskManager
   channelManager: ChannelManager
 }): void {
-  ipcMain.handle(IPC.appGetVersion, async () => {
-    return app.getVersion()
-  })
-
   // Give TaskManager access to current policy (provider, model, etc.)
   opts.taskManager.setPolicyGetter(() => policy)
 
