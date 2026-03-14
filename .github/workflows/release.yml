@@ -16,11 +16,11 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            build_cmd: pnpm release:win
+            build_cmd: pnpm build:win
           - os: ubuntu-latest
-            build_cmd: pnpm release:linux
+            build_cmd: pnpm build:linux
           - os: macos-latest
-            build_cmd: pnpm release:mac
+            build_cmd: pnpm build:mac
 
     runs-on: ${{ matrix.os }}
 
@@ -44,10 +44,6 @@ jobs:
           ulimit -n
         shell: bash
 
-      - name: Hide pnpm lockfile so electron-builder uses npm module collector
-        run: mv pnpm-lock.yaml _pnpm-lock.yaml
-        shell: bash
-
       - run: ${{ matrix.build_cmd }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -68,7 +64,7 @@ jobs:
             dist/*.zip
 
   release:
-    name: Create Draft Release
+    name: Publish Release
     runs-on: ubuntu-latest
     needs: build
 
@@ -81,13 +77,14 @@ jobs:
         with:
           name: ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
-          draft: true
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-alpha.') || contains(github.ref_name, '-beta.') }}
           files: |
             artifacts/**/*.exe
             artifacts/**/*.dmg
             artifacts/**/*.AppImage
             artifacts/**/*.deb
-            artifacts/**/latest*.yml
-            artifacts/**/latest*.yaml
+            artifacts/**/*.yml
+            artifacts/**/*.yaml
             artifacts/**/*.blockmap
             artifacts/**/*-mac.zip

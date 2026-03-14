@@ -125,6 +125,8 @@ declare global {
       ) => () => void
       onUpdateDownloadProgress: (cb: (info: { percent: number }) => void) => () => void
       onUpdateDownloaded: (cb: () => void) => () => void
+      onUpdateNotAvailable: (cb: () => void) => () => void
+      onUpdateError: (cb: (info: { message: string }) => void) => () => void
 
       // Projects
       projectList: () => Promise<import('../shared/project').ProjectWithTasks[]>

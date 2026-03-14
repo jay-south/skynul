@@ -1,5 +1,5 @@
 import { autoUpdater } from 'electron-updater'
-import { BrowserWindow } from 'electron'
+import { app, BrowserWindow } from 'electron'
 import { is } from '@electron-toolkit/utils'
 
 let mainWindow: BrowserWindow | null = null
@@ -7,58 +7,93 @@ let mainWindow: BrowserWindow | null = null
 /** How often to re-check after the user dismisses the toast (ms). */
 const RECHECK_INTERVAL = 4 * 60 * 60 * 1000 // 4 hours
 
+function getUpdateChannel(version: string): 'alpha' | 'beta' | 'latest' {
+  const match = version.match(/-(alpha|beta)(?:\.\d+)?$/i)
+  if (!match) return 'latest'
+  return match[1].toLowerCase() === 'beta' ? 'beta' : 'alpha'
+}
+
+function emit(channel: string, payload?: unknown): void {
+  mainWindow?.webContents.send(channel, payload)
+}
+
+function reportUpdaterError(error: unknown): Error {
+  const normalized = error instanceof Error ? error : new Error(String(error))
+  const message = normalized.message || 'Unknown auto-update error'
+  console.error('[AutoUpdater] Error:', normalized)
+  emit('skynul:update:error', { message })
+  return normalized
+}
+
 export function initAutoUpdater(win: BrowserWindow): void {
   mainWindow = win
 
   // Don't check for updates in dev mode
   if (is.dev) return
 
+  const channel = getUpdateChannel(app.getVersion())
+  autoUpdater.channel = channel
+  autoUpdater.allowPrerelease = channel !== 'latest'
   autoUpdater.autoDownload = false
   autoUpdater.autoInstallOnAppQuit = true
 
+  console.info(`[AutoUpdater] Initialized on channel '${channel}' for v${app.getVersion()}`)
+
   autoUpdater.on('update-available', (info) => {
-    mainWindow?.webContents.send('skynul:update:available', {
+    console.info(`[AutoUpdater] Update available: ${info.version}`)
+    emit('skynul:update:available', {
       version: info.version,
       releaseDate: info.releaseDate
     })
   })
 
+  autoUpdater.on('update-not-available', () => {
+    console.info('[AutoUpdater] No update available')
+    emit('skynul:update:not-available')
+  })
+
   autoUpdater.on('download-progress', (progress) => {
-    mainWindow?.webContents.send('skynul:update:download-progress', {
+    emit('skynul:update:download-progress', {
       percent: progress.percent
     })
   })
 
   autoUpdater.on('update-downloaded', () => {
-    mainWindow?.webContents.send('skynul:update:downloaded')
+    console.info('[AutoUpdater] Update downloaded')
+    emit('skynul:update:downloaded')
   })
 
   autoUpdater.on('error', (err) => {
-    console.warn('[AutoUpdater] Error:', err.message)
+    reportUpdaterError(err)
   })
 
   // Initial check after a short delay so the window is ready
   setTimeout(() => {
-    void autoUpdater.checkForUpdates().catch(() => {})
+    void checkForUpdates().catch(reportUpdaterError)
   }, 5_000)
 
   // Periodic check
-  setInterval(
-    () => {
-      void autoUpdater.checkForUpdates().catch(() => {})
-    },
-    RECHECK_INTERVAL
-  )
+  setInterval(() => {
+    void checkForUpdates().catch(reportUpdaterError)
+  }, RECHECK_INTERVAL)
 }
 
-export function downloadUpdate(): void {
-  void autoUpdater.downloadUpdate().catch(() => {})
+export async function downloadUpdate(): Promise<void> {
+  try {
+    await autoUpdater.downloadUpdate()
+  } catch (error) {
+    throw reportUpdaterError(error)
+  }
 }
 
 export function installUpdate(): void {
   autoUpdater.quitAndInstall(false, true)
 }
 
-export function checkForUpdates(): void {
-  void autoUpdater.checkForUpdates().catch(() => {})
+export async function checkForUpdates(): Promise<void> {
+  try {
+    await autoUpdater.checkForUpdates()
+  } catch (error) {
+    throw reportUpdaterError(error)
+  }
 }

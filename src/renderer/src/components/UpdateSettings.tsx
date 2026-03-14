@@ -28,11 +28,21 @@ export function UpdateSettings(): React.JSX.Element {
     const offDownloaded = window.skynul.onUpdateDownloaded(() => {
       setState('ready')
     })
+    const offNotAvailable = window.skynul.onUpdateNotAvailable(() => {
+      setState('upToDate')
+      setError('')
+    })
+    const offError = window.skynul.onUpdateError((info) => {
+      setState('error')
+      setError(info.message)
+    })
 
     return () => {
       offAvailable()
       offProgress()
       offDownloaded()
+      offNotAvailable()
+      offError()
     }
   }, [])
 
@@ -70,9 +80,11 @@ export function UpdateSettings(): React.JSX.Element {
           ? `Update available — v${version}`
           : state === 'checking'
             ? 'Checking for updates...'
-            : state === 'error'
-              ? 'Update check failed'
-              : 'Updates'
+            : state === 'upToDate'
+              ? 'You are up to date'
+              : state === 'error'
+                ? 'Update check failed'
+                : 'Updates'
 
   return (
     <div className="settingsSection">

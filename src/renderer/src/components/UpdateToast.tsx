@@ -20,10 +20,18 @@ export function UpdateToast(): React.ReactNode {
     const offDownloaded = window.skynul.onUpdateDownloaded(() => {
       setState('ready')
     })
+    const offNotAvailable = window.skynul.onUpdateNotAvailable(() => {
+      setState('idle')
+    })
+    const offError = window.skynul.onUpdateError(() => {
+      setState('idle')
+    })
     return () => {
       offAvailable()
       offProgress()
       offDownloaded()
+      offNotAvailable()
+      offError()
     }
   }, [])
 
@@ -53,12 +61,7 @@ export function UpdateToast(): React.ReactNode {
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-          <path
-            d="M2 13h12"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-          />
+          <path d="M2 13h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       </div>
 

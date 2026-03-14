@@ -251,6 +251,16 @@ const skynul = {
     ipcRenderer.on('skynul:update:downloaded', handler)
     return () => ipcRenderer.off('skynul:update:downloaded', handler)
   },
+  onUpdateNotAvailable: (cb: () => void): (() => void) => {
+    const handler = (): void => cb()
+    ipcRenderer.on('skynul:update:not-available', handler)
+    return () => ipcRenderer.off('skynul:update:not-available', handler)
+  },
+  onUpdateError: (cb: (info: { message: string }) => void): (() => void) => {
+    const handler = (_evt: unknown, info: { message: string }): void => cb(info)
+    ipcRenderer.on('skynul:update:error', handler)
+    return () => ipcRenderer.off('skynul:update:error', handler)
+  },
 
   onWindowMaximized: (cb: (maximized: boolean) => void): (() => void) => {
     const handler = (_evt: unknown, maximized: boolean): void => cb(maximized)

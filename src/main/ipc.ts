@@ -828,11 +828,11 @@ export function registerIpcHandlers(opts: {
   // ── Auto-Update ──────────────────────────────────────────────────────
   ipcMain.handle(IPC.updateCheck, async () => {
     const { checkForUpdates } = await import('./updater')
-    checkForUpdates()
+    await checkForUpdates()
   })
   ipcMain.handle(IPC.updateDownload, async () => {
     const { downloadUpdate } = await import('./updater')
-    downloadUpdate()
+    await downloadUpdate()
   })
   ipcMain.handle(IPC.updateInstall, async () => {
     const { installUpdate } = await import('./updater')

@@ -4,6 +4,7 @@ app/
 dist
 out
 out-tests
+.packaged-app/
 package-lock.json
 .DS_Store
 .eslintcache
