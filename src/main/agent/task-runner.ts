@@ -206,7 +206,11 @@ export class TaskRunner {
               .map((s) => {
                 const res = s.result ? ` → ${s.result.slice(0, 200)}` : ''
                 const err = s.error ? ` [ERROR: ${s.error.slice(0, 100)}]` : ''
-                return `Step ${s.index + 1}: ${s.action.type}${res}${err}`
+                // Surface truncation feedback so the model knows to be concise
+                const truncNote = s.thought?.includes('truncated')
+                  ? ' [YOUR RESPONSE WAS TRUNCATED — keep thought under 30 words]'
+                  : ''
+                return `Step ${s.index + 1}: ${s.action.type}${res}${err}${truncNote}`
               })
               .join('\n') +
             '\n\nDo NOT repeat actions that already succeeded.'
@@ -383,6 +387,12 @@ export class TaskRunner {
       case 'scroll':
         await engine.evaluate(
           `window.scrollBy(0, ${(raw.direction as string) === 'up' ? -400 : 400})`
+        )
+        break
+      case 'scrollIntoView':
+        await engine.evaluate(
+          `document.querySelector('${(raw.selector as string).replace(/'/g, "\\'")}')?.scrollIntoView({block:'center',behavior:'instant'})`,
+          frameId
         )
         break
       case 'app_script': {

@@ -69,7 +69,7 @@ export async function kimiVisionRespond(opts: {
       },
       body: JSON.stringify({
         model: 'k2p5',
-        max_tokens: 512,
+        max_tokens: 4096,
         system: opts.systemPrompt,
         messages: anthropicMessages
       })

@@ -565,7 +565,8 @@ ${capList}
 ## CORE RULES:
 - ONE JSON object per response. Never two. Never zero.
 - No markdown, no code fences — just the raw JSON.
-- Keep "thought" to 1–2 short sentences. Always include the full "action" object — your response must be exactly one valid JSON with both "thought" and "action".
+- **CRITICAL: "thought" MUST be under 30 words.** Just state what you see and what you'll do. If your thought is too long, YOUR RESPONSE WILL BE TRUNCATED and the action will be lost. Example: "I see the search box (e5). Will type the query." — NOT a paragraph.
+- Always include the full "action" object — your response must be exactly one valid JSON with both "thought" and "action".
 - NEVER repeat an action that already succeeded. Move forward.
 - If an approach fails twice, switch strategies entirely.
 - NEVER open messaging apps (WhatsApp, Telegram, Discord, Slack) in the browser. Use the "launch" action to open their native desktop app instead.
@@ -576,7 +577,11 @@ ${capList}
 Each message includes an "Interactive elements" list with exact CSS selectors and short labels. For click and type actions you MUST use one of those selectors exactly — do not invent selectors. Pick the element whose label matches what you want (e.g. "Buy No", "Search", "+$10"). If the list is empty, use evaluate to discover the DOM first.
 
 ## IFRAMES:
-The system auto-detects iframes and gives you their elements directly. NEVER navigate to an iframe's URL — it breaks the app. Just use click/type/evaluate normally; the correct frame context is handled for you.
+The system auto-detects iframes and gives you their elements directly. NEVER navigate to an iframe's URL — it breaks the app.
+- Elements inside iframes have refs like f1e1, f2e5 (the "f" prefix indicates the frame). Use them with click/type normally.
+- If clicking an iframe element fails with "outside of the viewport", the system will automatically retry with JS-based focus + click. Do NOT keep retrying the same click — move on to the next action.
+- For contenteditable elements inside iframes (like Google Docs), prefer using pressKey to type after focusing, or use evaluate to set content directly.
+- When an iframe interaction fails after 2 attempts, use evaluate with the correct frameId to interact via JavaScript instead.
 
 ## FLIGHT SEARCH — SCRAPE ONLY, NEVER USE FORMS:
 When the task is searching for flights, NEVER interact with flight search forms. Use navigate + evaluate to scrape results directly.
@@ -751,18 +756,19 @@ If no element-ref is available for an element, fall back to CSS selectors in thi
 4. CSS class selectors as last resort
 
 ## GOOGLE DOCS / SHEETS:
-Google Docs uses hidden iframes for text input — do NOT try to click on contenteditable elements or offscreen iframes.
-Instead:
-1. Navigate to docs.google.com/document/create (creates a new blank doc)
-2. Click on the visible document area (the white page area, use CSS selector ".kix-appview-editor" or just click coordinates in the center of the page)
-3. Then use pressKey and keyboard.type — Google Docs captures keystrokes at page level
-4. To rename: click the title input at the top (aria-ref or CSS "[aria-label*='document']" near the top)
-5. To write content: after clicking the page area, just use type actions or pressKey
-Example flow:
-{"thought": "Focus the document page area", "action": {"type": "click", "selector": ".kix-appview-editor"}}
-{"thought": "Type the title", "action": {"type": "pressKey", "key": "Control+A"}}
-{"thought": "Write content", "action": {"type": "evaluate", "script": "document.querySelector('.kix-appview-editor').click(); true"}}
-Then use keyboard.type via pressKey or type actions.
+Google Docs uses hidden iframes for text input. NEVER click directly on contenteditable elements (role="textbox" inside iframes) — they are offscreen and will fail.
+CORRECT workflow:
+1. Navigate to docs.google.com/document/create
+2. To rename: click the title input at the top (look for aria-ref of the title field, NOT the contenteditable)
+3. To write content: use evaluate to focus the editor, then pressKey to type:
+   {"thought": "Focus the editor via JS", "action": {"type": "evaluate", "script": "document.querySelector('.kix-appview-editor')?.focus(); document.querySelector('.kix-appview-editor')?.click(); true"}}
+   {"thought": "Type first line", "action": {"type": "pressKey", "key": "H"}}
+   Then continue using pressKey for each character/line, or use type with the editor's aria-ref.
+4. For LONG text, use evaluate to insert via clipboard:
+   {"thought": "Insert text via clipboard API", "action": {"type": "evaluate", "script": "navigator.clipboard.writeText('your long text here').then(() => document.execCommand('paste')); true"}}
+   Or simply use multiple pressKey actions.
+NEVER: click on refs like f1e1 / f2e1 that point to contenteditable divs inside Google Docs iframes.
+NEVER: keep retrying a failed click on the same iframe element — switch to evaluate + pressKey approach immediately.
 
 ## SOCIAL MEDIA POSTING:
 When asked to post on X/Twitter, Facebook, Instagram, Reddit, or any site:

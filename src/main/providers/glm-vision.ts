@@ -65,7 +65,7 @@ export async function glmVisionRespond(opts: {
     },
     body: JSON.stringify({
       model: 'glm-4v-plus',
-      max_tokens: 1024,
+      max_tokens: 4096,
       messages: glmMessages
     })
   })

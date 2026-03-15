@@ -76,7 +76,7 @@ export async function minimaxVisionRespond(opts: {
     headers,
     body: JSON.stringify({
       model: MINIMAX_VISION_MODEL,
-      max_tokens: 1024,
+      max_tokens: 4096,
       messages: mmMessages
     })
   })

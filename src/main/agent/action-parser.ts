@@ -133,9 +133,11 @@ export function parseModelResponse(raw: string): ModelResponse {
     console.warn(
       `[action-parser] Truncated response (${consecutiveTruncations}/${MAX_TRUNCATION_RETRIES}) — injecting wait`
     )
+    // Extract partial thought to feed back to the model as context
+    const partialThought = trimmed.match(/"thought"\s*:\s*"([\s\S]{0,200})/)?.[1] ?? ''
     return {
-      thought: '(truncated response — retrying)',
-      action: { type: 'wait', ms: 1000 } as unknown as TaskAction
+      thought: `(response truncated — thought was: "${partialThought}...") YOUR RESPONSE WAS CUT OFF. Keep thought under 50 words and respond with a COMPLETE JSON object.`,
+      action: { type: 'wait', ms: 500 } as unknown as TaskAction
     }
   }
 
@@ -207,6 +209,8 @@ const VALID_ACTION_TYPES = new Set([
   'upload_file',
   // Screenshot
   'screenshot',
+  // Scroll element into view
+  'scrollIntoView',
   // Code mode file operations
   'file_read',
   'file_write',

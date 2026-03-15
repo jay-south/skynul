@@ -201,6 +201,7 @@ export async function codexVisionRespond(opts: {
     model: 'gpt-5.3-codex',
     store: false,
     stream: true,
+    max_output_tokens: 4096,
     // System prompt goes in `instructions`, NOT as a message in input
     instructions: opts.systemPrompt,
     input,

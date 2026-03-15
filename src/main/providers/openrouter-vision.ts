@@ -66,7 +66,7 @@ export async function openrouterVisionRespond(opts: {
     body: JSON.stringify({
       // Use a vision-capable default.
       model: 'openai/gpt-4o-mini',
-      max_tokens: 1024,
+      max_tokens: 4096,
       messages: orMessages
     })
   })

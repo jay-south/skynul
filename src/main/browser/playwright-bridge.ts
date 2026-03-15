@@ -75,8 +75,24 @@ export class PlaywrightBridge {
         msg.includes('not visible') ||
         msg.includes('intercepts pointer events')
       ) {
-        await loc.scrollIntoViewIfNeeded({ timeout: 3_000 }).catch(() => {})
-        await loc.click({ timeout: 5_000, force: true })
+        // Strategy 1: scroll into view + force click
+        try {
+          await loc.scrollIntoViewIfNeeded({ timeout: 3_000 }).catch(() => {})
+          await loc.click({ timeout: 5_000, force: true })
+        } catch {
+          // Strategy 2: JS-based focus + click via element handle (works for iframe elements)
+          const handle = await loc.elementHandle({ timeout: 3_000 }).catch(() => null)
+          if (handle) {
+            await handle.evaluate((el) => {
+              ;(el as HTMLElement).scrollIntoView({ block: 'center', behavior: 'instant' })
+              ;(el as HTMLElement).focus()
+              ;(el as HTMLElement).click()
+            })
+            handle.dispose()
+          } else {
+            throw e
+          }
+        }
       } else {
         throw e
       }
@@ -89,8 +105,11 @@ export class PlaywrightBridge {
       await loc.fill(text, { timeout: 8_000 })
     } catch {
       // Fallback for contenteditable / non-input elements
+      // First try to focus the element so keyboard.type() lands in the right place
+      let focused = false
       try {
         await loc.click({ timeout: 5_000 })
+        focused = true
       } catch (clickErr) {
         const msg = clickErr instanceof Error ? clickErr.message : ''
         if (
@@ -98,11 +117,34 @@ export class PlaywrightBridge {
           msg.includes('not visible') ||
           msg.includes('intercepts pointer events')
         ) {
-          await loc.scrollIntoViewIfNeeded({ timeout: 3_000 }).catch(() => {})
-          await loc.click({ timeout: 5_000, force: true })
-        } else {
-          throw clickErr
+          // Try scroll + force click
+          try {
+            await loc.scrollIntoViewIfNeeded({ timeout: 3_000 }).catch(() => {})
+            await loc.click({ timeout: 5_000, force: true })
+            focused = true
+          } catch {
+            // JS-based focus via element handle (reliable for iframe contenteditable)
+            const handle = await loc.elementHandle({ timeout: 3_000 }).catch(() => null)
+            if (handle) {
+              await handle.evaluate((el) => {
+                ;(el as HTMLElement).scrollIntoView({ block: 'center', behavior: 'instant' })
+                ;(el as HTMLElement).focus()
+                // Place cursor at end for contenteditable
+                if ((el as HTMLElement).getAttribute('contenteditable') === 'true') {
+                  const range = document.createRange()
+                  range.selectNodeContents(el)
+                  range.collapse(false)
+                  const sel = window.getSelection()
+                  sel?.removeAllRanges()
+                  sel?.addRange(range)
+                }
+              })
+              handle.dispose()
+              focused = true
+            }
+          }
         }
+        if (!focused) throw clickErr
       }
       await this.page.keyboard.type(text, { delay: 5 })
     }
@@ -114,10 +156,14 @@ export class PlaywrightBridge {
 
   async evaluate(script: string, frameId?: string): Promise<string> {
     const frame = this.resolveFrame(frameId)
-    const val = await frame.evaluate((expr) => {
+    // Wrap scripts containing `return` in an IIFE so they work with eval
+    const expr = /^\s*return\s/m.test(script)
+      ? `(function(){${script}})()`
+      : script
+    const val = await frame.evaluate((code) => {
       // eslint-disable-next-line no-eval
-      return (0, eval)(expr)
-    }, script)
+      return (0, eval)(code)
+    }, expr)
     return typeof val === 'string' ? val : JSON.stringify(val)
   }
 

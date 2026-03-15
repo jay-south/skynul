@@ -74,7 +74,7 @@ export async function geminiVisionRespond(opts: {
     body: JSON.stringify({
       contents,
       generationConfig: {
-        maxOutputTokens: 1024
+        maxOutputTokens: 4096
       }
     })
   })
