@@ -1,6 +1,7 @@
 import { autoUpdater } from 'electron-updater'
 import { app, BrowserWindow } from 'electron'
 import { is } from '@electron-toolkit/utils'
+import log from 'electron-log'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -20,7 +21,7 @@ function emit(channel: string, payload?: unknown): void {
 function reportUpdaterError(error: unknown): Error {
   const normalized = error instanceof Error ? error : new Error(String(error))
   const message = normalized.message || 'Unknown auto-update error'
-  console.error('[AutoUpdater] Error:', normalized)
+  log.error('[AutoUpdater] Error:', normalized)
   emit('skynul:update:error', { message })
   return normalized
 }
@@ -37,10 +38,10 @@ export function initAutoUpdater(win: BrowserWindow): void {
   autoUpdater.autoDownload = false
   autoUpdater.autoInstallOnAppQuit = true
 
-  console.info(`[AutoUpdater] Initialized on channel '${channel}' for v${app.getVersion()}`)
+  log.info(`[AutoUpdater] Initialized on channel '${channel}' for v${app.getVersion()}`)
 
   autoUpdater.on('update-available', (info) => {
-    console.info(`[AutoUpdater] Update available: ${info.version}`)
+    log.info(`[AutoUpdater] Update available: ${info.version}`)
     emit('skynul:update:available', {
       version: info.version,
       releaseDate: info.releaseDate
@@ -48,7 +49,7 @@ export function initAutoUpdater(win: BrowserWindow): void {
   })
 
   autoUpdater.on('update-not-available', () => {
-    console.info('[AutoUpdater] No update available')
+    log.info('[AutoUpdater] No update available')
     emit('skynul:update:not-available')
   })
 
@@ -59,7 +60,7 @@ export function initAutoUpdater(win: BrowserWindow): void {
   })
 
   autoUpdater.on('update-downloaded', () => {
-    console.info('[AutoUpdater] Update downloaded')
+    log.info('[AutoUpdater] Update downloaded')
     emit('skynul:update:downloaded')
   })
 
