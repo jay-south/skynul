@@ -229,6 +229,11 @@ const skynul = {
   setSecret: (key: string, value: string): Promise<void> =>
     ipcRenderer.invoke(IPC.setSecret, { key, value }),
 
+  // ── Ollama ──────────────────────────────────────────────────────────
+  ollamaPing: (): Promise<boolean> => ipcRenderer.invoke(IPC.ollamaPing),
+  ollamaModels: (): Promise<string[]> => ipcRenderer.invoke(IPC.ollamaModels),
+  ollamaInstalled: (): Promise<boolean> => ipcRenderer.invoke(IPC.ollamaInstalled),
+
   // ── Auto-Update ──────────────────────────────────────────────────────
   updateCheck: (): Promise<void> => ipcRenderer.invoke(IPC.updateCheck),
   updateDownload: (): Promise<void> => ipcRenderer.invoke(IPC.updateDownload),

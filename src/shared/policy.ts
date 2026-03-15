@@ -13,6 +13,7 @@ export type ProviderId =
   | 'minimax'
   | 'openrouter'
   | 'gemini'
+  | 'ollama'
 
 export type PolicyState = {
   workspaceRoot: string | null

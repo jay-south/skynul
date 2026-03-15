@@ -975,6 +975,10 @@ export class TaskRunner {
         const { geminiVisionRespond } = await import('../providers/gemini-vision')
         return geminiVisionRespond({ systemPrompt, messages })
       }
+      case 'ollama': {
+        const { ollamaVisionRespond } = await import('../providers/ollama-vision')
+        return ollamaVisionRespond({ systemPrompt, messages })
+      }
       default:
         throw new Error(`Unsupported provider: ${this.opts.provider}`)
     }

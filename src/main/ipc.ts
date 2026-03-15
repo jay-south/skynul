@@ -52,6 +52,7 @@ import { glmRespond } from './providers/glm'
 import { minimaxRespond } from './providers/minimax'
 import { openrouterRespond } from './providers/openrouter'
 import { geminiRespond } from './providers/gemini'
+import { ollamaRespond } from './providers/ollama'
 import type { TaskManager } from './agent/task-manager'
 import type { ChannelManager } from './channels/channel-manager'
 import type { RuntimeStats } from '../shared/runtime'
@@ -267,7 +268,8 @@ export function registerIpcHandlers(opts: {
     'glm',
     'minimax',
     'openrouter',
-    'gemini'
+    'gemini',
+    'ollama'
   ]
 
   ipcMain.handle(IPC.setActiveProvider, async (_evt, providerId: string) => {
@@ -298,6 +300,38 @@ export function registerIpcHandlers(opts: {
 
   ipcMain.handle(IPC.hasProviderApiKey, async (_evt, req: { provider: string }) => {
     return hasSecret(`${req.provider}.apiKey`)
+  })
+
+  // ── Ollama ────────────────────────────────────────────────────────────
+  ipcMain.handle(IPC.ollamaPing, async () => {
+    const baseUrl = (await getSecret('ollama.baseUrl')) || 'http://localhost:11434'
+    try {
+      const res = await fetch(baseUrl, { signal: AbortSignal.timeout(3000) })
+      return res.ok
+    } catch {
+      return false
+    }
+  })
+
+  ipcMain.handle(IPC.ollamaInstalled, async () => {
+    try {
+      const { stdout } = await execAsync(process.platform === 'win32' ? 'where ollama' : 'which ollama')
+      return !!stdout.trim()
+    } catch {
+      return false
+    }
+  })
+
+  ipcMain.handle(IPC.ollamaModels, async () => {
+    const baseUrl = (await getSecret('ollama.baseUrl')) || 'http://localhost:11434'
+    try {
+      const res = await fetch(`${baseUrl}/api/tags`, { signal: AbortSignal.timeout(5000) })
+      if (!res.ok) return []
+      const data = (await res.json()) as { models?: Array<{ name: string }> }
+      return (data.models ?? []).map((m) => m.name)
+    } catch {
+      return []
+    }
   })
 
   ipcMain.handle(IPC.setCapability, async (_evt, req: SetCapabilityRequest) => {
@@ -458,6 +492,11 @@ export function registerIpcHandlers(opts: {
       const apiKey = await getSecret('gemini.apiKey')
       if (!apiKey) throw new Error('Gemini API key is not set. Go to Settings and add it.')
       const content = await geminiRespond({ apiKey, messages: req.messages })
+      return { content }
+    }
+
+    if (active === 'ollama') {
+      const content = await ollamaRespond({ messages: req.messages })
       return { content }
     }
 

@@ -91,6 +91,11 @@ export const IPC = {
   projectAddTask: 'skynul:project:addTask',
   projectRemoveTask: 'skynul:project:removeTask',
 
+  // ── Ollama ─────────────────────────────────────────────────────────────
+  ollamaPing: 'skynul:ollama:ping',
+  ollamaModels: 'skynul:ollama:models',
+  ollamaInstalled: 'skynul:ollama:installed',
+
   // ── Secrets (generic key-value) ──────────────────────────────────────
   getSecretKeys: 'skynul:secrets:getKeys',
   getSecret: 'skynul:secrets:get',

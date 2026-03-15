@@ -244,7 +244,27 @@ function validateResponse(obj: unknown): ModelResponse {
   }
 
   const rec = obj as Record<string, unknown>
-  const action = rec.action as Record<string, unknown> | undefined
+  let action = rec.action as Record<string, unknown> | undefined
+  let thought = typeof rec.thought === 'string' ? rec.thought : undefined
+
+  // Normalize alternative formats from local models (e.g. llama3)
+  // Format: { "step": { "actions": [{ "type": "navigate", ... }] } }
+  if (!action && rec.step && typeof rec.step === 'object') {
+    const step = rec.step as Record<string, unknown>
+    if (Array.isArray(step.actions) && step.actions.length > 0) {
+      action = step.actions[0] as Record<string, unknown>
+    }
+  }
+
+  // Format: { "actions": [{ "type": "navigate", ... }] }
+  if (!action && Array.isArray(rec.actions) && rec.actions.length > 0) {
+    action = rec.actions[0] as Record<string, unknown>
+  }
+
+  // Format: { "type": "navigate", ... } (action at root level, no wrapper)
+  if (!action && typeof rec.type === 'string' && VALID_ACTION_TYPES.has(rec.type)) {
+    action = rec as Record<string, unknown>
+  }
 
   if (!action || typeof action !== 'object' || !action.type) {
     throw new Error('Response missing action.type')
@@ -255,7 +275,7 @@ function validateResponse(obj: unknown): ModelResponse {
   }
 
   return {
-    thought: typeof rec.thought === 'string' ? rec.thought : undefined,
+    thought,
     action: action as unknown as TaskAction
   }
 }

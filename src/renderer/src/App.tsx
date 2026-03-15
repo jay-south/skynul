@@ -241,6 +241,12 @@ function App(): React.JSX.Element {
   const [apiKeyDraft, setApiKeyDraft] = useState<string>('')
   const [apiKeyBusy, setApiKeyBusy] = useState<boolean>(false)
   const [hasApiKey, setHasApiKey] = useState<boolean>(false)
+  const [showLocalModels, setShowLocalModels] = useState<boolean>(false)
+  const [ollamaOnline, setOllamaOnline] = useState<boolean | null>(null)
+  const [ollamaInstalled, setOllamaInstalled] = useState<boolean | null>(null)
+  const [ollamaModels, setOllamaModels] = useState<string[]>([])
+  const [ollamaSelectedModel, setOllamaSelectedModel] = useState<string>('')
+  const [ollamaBusy, setOllamaBusy] = useState<boolean>(false)
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
   const [isMaximized, setIsMaximized] = useState<boolean>(false)
 
@@ -655,6 +661,43 @@ function App(): React.JSX.Element {
     } finally {
       setApiKeyBusy(false)
     }
+  }
+
+  const detectOllama = async (): Promise<void> => {
+    setOllamaBusy(true)
+    setOllamaOnline(null)
+    try {
+      const [online, installed] = await Promise.all([
+        window.skynul.ollamaPing(),
+        window.skynul.ollamaInstalled()
+      ])
+      setOllamaOnline(online)
+      setOllamaInstalled(installed)
+      if (online) {
+        const models = await window.skynul.ollamaModels()
+        setOllamaModels(models)
+        // Restore saved model selection
+        const saved = await window.skynul.getSecret('ollama.model')
+        if (saved && models.includes(saved)) {
+          setOllamaSelectedModel(saved)
+        } else if (models.length > 0) {
+          setOllamaSelectedModel(models[0])
+        }
+      }
+    } finally {
+      setOllamaBusy(false)
+    }
+  }
+
+  const selectOllamaModel = async (model: string): Promise<void> => {
+    setOllamaSelectedModel(model)
+    await window.skynul.setSecret('ollama.model', model)
+  }
+
+  const connectOllama = async (): Promise<void> => {
+    if (!ollamaSelectedModel) return
+    await window.skynul.setSecret('ollama.model', ollamaSelectedModel)
+    await setActiveProvider('ollama' as ProviderId)
   }
 
   const setActiveProvider = async (id: ProviderId): Promise<void> => {
@@ -1711,7 +1754,21 @@ function App(): React.JSX.Element {
                 <>
                   {/* ── AI Provider ─────────────────────────────────── */}
                   <div className="settingsSection">
-                    <div className="settingsLabel">{t(lang, 'settings_provider')}</div>
+                    <div className="settingsLabel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      {t(lang, 'settings_provider')}
+                      <button
+                        type="button"
+                        className="btn btn--small"
+                        style={{ fontSize: '11px', padding: '2px 8px', opacity: 1, color: '#fff' }}
+                        onClick={() => {
+                          setShowLocalModels((v) => !v)
+                          if (!showLocalModels) void detectOllama()
+                        }}
+                      >
+                        {showLocalModels ? '← LLM Providers' : `+ ${t(lang, 'ollama_local_models')}`}
+                      </button>
+                    </div>
+                    {!showLocalModels ? (
                     <div className="providerGrid">
                       {PROVIDERS.map((p) => {
                         const isActive = policy?.provider.active === p.id
@@ -1767,10 +1824,143 @@ function App(): React.JSX.Element {
                         )
                       })}
                     </div>
+                    ) : (
+                      <div style={{ marginTop: '12px', padding: '12px', background: 'var(--nb-panel)', border: '1.5px solid var(--nb-border)', borderRadius: '14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                          <span style={{ fontWeight: 600, fontSize: '13px' }}>Ollama</span>
+                          {ollamaOnline === true && ollamaModels.length > 0 && (
+                            <span style={{ color: 'var(--green, #4ade80)', fontSize: '11px' }}>
+                              ● {t(lang, 'ollama_connected')}
+                            </span>
+                          )}
+                          {ollamaOnline === false && (
+                            <span style={{ color: 'var(--red, #f87171)', fontSize: '11px' }}>
+                              ● Offline
+                            </span>
+                          )}
+                          {ollamaOnline === null && ollamaBusy && (
+                            <span style={{ color: 'var(--text-muted, #888)', fontSize: '11px' }}>
+                              {t(lang, 'ollama_detecting')}
+                            </span>
+                          )}
+                        </div>
+
+                        {ollamaOnline === false && ollamaInstalled === true && (
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted, #888)', lineHeight: '1.6' }}>
+                            <div style={{ marginBottom: '6px' }}>{t(lang, 'ollama_installed_start')}</div>
+                            <code style={{ display: 'block', margin: '4px 0 8px 12px', padding: '4px 8px', background: 'var(--nb-border)', borderRadius: '4px', fontSize: '11px', fontFamily: 'monospace', userSelect: 'all' }}>
+                              {t(lang, 'ollama_step2_cmd')}
+                            </code>
+                            <div>{t(lang, 'ollama_step3')}</div>
+                            <code style={{ display: 'block', margin: '4px 0 8px 12px', padding: '4px 8px', background: 'var(--nb-border)', borderRadius: '4px', fontSize: '11px', fontFamily: 'monospace', userSelect: 'all' }}>
+                              {t(lang, 'ollama_step3_cmd')}
+                            </code>
+                            <button
+                              type="button"
+                              className="btn btn--small"
+                              style={{ marginTop: '6px', fontSize: '11px' }}
+                              onClick={() => void detectOllama()}
+                            >
+                              Retry
+                            </button>
+                          </div>
+                        )}
+
+                        {ollamaOnline === false && ollamaInstalled === false && (
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted, #888)', lineHeight: '1.6' }}>
+                            <div style={{ marginBottom: '6px' }}>{t(lang, 'ollama_not_installed')}</div>
+                            <div>
+                              <a
+                                href="#"
+                                onClick={(e) => { e.preventDefault(); void window.skynul.openExternal('https://ollama.com/download') }}
+                                style={{ color: 'var(--nb-accent, #6c8cff)', textDecoration: 'underline', cursor: 'pointer' }}
+                              >
+                                {t(lang, 'ollama_step1')}
+                              </a>
+                            </div>
+                            <div style={{ marginTop: '4px' }}>{t(lang, 'ollama_step2')}</div>
+                            <code style={{ display: 'block', margin: '4px 0 8px 12px', padding: '4px 8px', background: 'var(--nb-border)', borderRadius: '4px', fontSize: '11px', fontFamily: 'monospace', userSelect: 'all' }}>
+                              {t(lang, 'ollama_step2_cmd')}
+                            </code>
+                            <div>{t(lang, 'ollama_step3')}</div>
+                            <code style={{ display: 'block', margin: '4px 0 8px 12px', padding: '4px 8px', background: 'var(--nb-border)', borderRadius: '4px', fontSize: '11px', fontFamily: 'monospace', userSelect: 'all' }}>
+                              {t(lang, 'ollama_step3_cmd')}
+                            </code>
+                            <button
+                              type="button"
+                              className="btn btn--small"
+                              style={{ marginTop: '6px', fontSize: '11px' }}
+                              onClick={() => void detectOllama()}
+                            >
+                              Retry
+                            </button>
+                          </div>
+                        )}
+
+                        {ollamaOnline === true && ollamaModels.length === 0 && (
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted, #888)' }}>
+                            {t(lang, 'ollama_no_models')}
+                          </div>
+                        )}
+
+                        {ollamaOnline === true && ollamaModels.length > 0 && (
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <select
+                              value={ollamaSelectedModel}
+                              onChange={(e) => void selectOllamaModel(e.target.value)}
+                              className="apiKeyInput"
+                              style={{ flex: 1, fontSize: '12px' }}
+                            >
+                              {ollamaModels.map((m) => (
+                                <option key={m} value={m}>{m}</option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              className="btn"
+                              onClick={() => void connectOllama()}
+                              disabled={providerSwitchBusy || !ollamaSelectedModel}
+                            >
+                              {policy?.provider.active === 'ollama'
+                                ? t(lang, 'provider_connected')
+                                : 'Connect'}
+                            </button>
+                          </div>
+                        )}
+
+                        {policy?.provider.active === 'ollama' && (
+                          ollamaOnline && ollamaModels.includes(ollamaSelectedModel) ? (
+                            <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--green, #4ade80)' }}>
+                              ✓ Ollama active — model: {ollamaSelectedModel}
+                            </div>
+                          ) : (
+                            <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--red, #f87171)' }}>
+                              ✗ Ollama disconnected — {!ollamaOnline ? 'server not running' : 'model not found'}
+                            </div>
+                          )
+                        )}
+
+                        {ollamaOnline === true && !ollamaModels.some((m) => m.startsWith('qwen3.5')) && (
+                          <div style={{ marginTop: '8px', padding: '8px 10px', background: 'rgba(108,140,255,0.08)', border: '1px solid rgba(108,140,255,0.25)', borderRadius: '8px', fontSize: '11px', color: 'var(--text-muted, #aaa)', lineHeight: '1.5' }}>
+                            <span style={{ fontWeight: 600, color: 'var(--nb-accent, #6c8cff)' }}>Recommended:</span>{' '}
+                            <a
+                              href="#"
+                              onClick={(e) => { e.preventDefault(); void window.skynul.openExternal('https://ollama.com/library/qwen3.5:27b') }}
+                              style={{ color: 'var(--nb-accent, #6c8cff)', textDecoration: 'underline', cursor: 'pointer' }}
+                            >
+                              qwen3.5:27b
+                            </a>{' '}works best for agent tasks.
+                            <code style={{ display: 'block', margin: '4px 0 0 0', padding: '3px 6px', background: 'var(--nb-border)', borderRadius: '4px', fontSize: '11px', fontFamily: 'monospace', userSelect: 'all' }}>
+                              ollama pull qwen3.5:27b
+                            </code>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* ── ChatGPT OAuth (only when chatgpt is active) ── */}
-                  {policy?.provider.active === 'chatgpt' && (
+                  {!showLocalModels && policy?.provider.active === 'chatgpt' && (
                     <div className="settingsSection">
                       <div className="settingsLabel">{t(lang, 'settings_chatgpt_pro')}</div>
                       <div className="settingsField">
@@ -1804,7 +1994,7 @@ function App(): React.JSX.Element {
                   )}
 
                   {/* ── API key for Kimi / Claude / DeepSeek (when that provider is active) ── */}
-                  {(policy?.provider.active === 'kimi' ||
+                  {!showLocalModels && (policy?.provider.active === 'kimi' ||
                     policy?.provider.active === 'claude' ||
                     policy?.provider.active === 'deepseek' ||
                     policy?.provider.active === 'glm' ||
@@ -1844,7 +2034,11 @@ function App(): React.JSX.Element {
                         <input
                           type="password"
                           className="apiKeyInput"
-                          placeholder={t(lang, 'provider_api_key_placeholder')}
+                          placeholder={
+                            hasApiKey
+                              ? '••••••••••••••••••••••••'
+                              : t(lang, 'provider_api_key_placeholder')
+                          }
                           value={apiKeyDraft}
                           onChange={(e) => setApiKeyDraft(e.target.value)}
                           aria-label={t(lang, 'provider_api_key_placeholder')}

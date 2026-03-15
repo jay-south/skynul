@@ -78,32 +78,35 @@ export function InputBar(props: {
       submit()
       return
     }
-    // Ctrl+V / Cmd+V — check for image in clipboard
+    // Ctrl+V / Cmd+V — check clipboard for image or text
     if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
-      console.log('[paste] ctrl+v detected, key:', e.key, 'ctrl:', e.ctrlKey)
       e.preventDefault()
       void (async () => {
-        const filePath = await window.skynul.fsSaveTempFile()
-        console.log('[paste] raw result:', filePath)
-        if (filePath) {
-          setAttachments((prev) => (prev.includes(filePath) ? prev : [...prev, filePath]))
+        // Try reading text from clipboard first (instant)
+        const clipText = await window.skynul.clipboardReadText()
+
+        if (clipText) {
+          // Clipboard has text — paste it immediately
+          const el = textareaRef.current
+          if (!el) { setText((prev) => prev + clipText); return }
+          const start = el.selectionStart ?? el.value.length
+          const end = el.selectionEnd ?? el.value.length
+          const next = el.value.slice(0, start) + clipText + el.value.slice(end)
+          setText(next)
+          requestAnimationFrame(() => {
+            el.selectionStart = start + clipText.length
+            el.selectionEnd = start + clipText.length
+            el.style.height = 'auto'
+            el.style.height = Math.min(el.scrollHeight, 220) + 'px'
+          })
           return
         }
-        // No image — paste text manually
-        const clipText = await window.skynul.clipboardReadText()
-        if (!clipText) return
-        const el = textareaRef.current
-        if (!el) { setText((prev) => prev + clipText); return }
-        const start = el.selectionStart ?? el.value.length
-        const end = el.selectionEnd ?? el.value.length
-        const next = el.value.slice(0, start) + clipText + el.value.slice(end)
-        setText(next)
-        requestAnimationFrame(() => {
-          el.selectionStart = start + clipText.length
-          el.selectionEnd = start + clipText.length
-          el.style.height = 'auto'
-          el.style.height = Math.min(el.scrollHeight, 220) + 'px'
-        })
+
+        // No text — try saving image from clipboard (slower, IPC to main)
+        const filePath = await window.skynul.fsSaveTempFile()
+        if (filePath) {
+          setAttachments((prev) => (prev.includes(filePath) ? prev : [...prev, filePath]))
+        }
       })()
     }
   }

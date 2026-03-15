@@ -139,6 +139,11 @@ declare global {
       projectAddTask: (projectId: string, taskId: string) => Promise<void>
       projectRemoveTask: (projectId: string, taskId: string) => Promise<void>
 
+      // Ollama
+      ollamaPing: () => Promise<boolean>
+      ollamaModels: () => Promise<string[]>
+      ollamaInstalled: () => Promise<boolean>
+
       // Secrets
       getSecret: (key: string) => Promise<string | null>
       setSecret: (key: string, value: string) => Promise<void>
