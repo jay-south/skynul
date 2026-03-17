@@ -66,10 +66,10 @@ export function TaskDrawer({
         style={{
           position: "fixed",
           inset: 0,
-          background: "rgba(0, 0, 0, 0.4)",
-          backdropFilter: "blur(2px)",
-          zIndex: 100,
-          animation: "fadeIn 0.2s ease-out",
+          background: "rgba(0, 0, 0, 0.5)",
+          backdropFilter: "blur(4px)",
+          zIndex: 999,
+          animation: "fadeIn 0.15s ease-out",
         }}
       />
 
@@ -78,16 +78,17 @@ export function TaskDrawer({
         className="taskDrawer"
         style={{
           position: "fixed",
-          left: 72, // Ancho del sidebar principal
+          left: 0,
           top: 0,
           bottom: 0,
-          width: 240,
+          width: 280,
           background: "var(--nb-panel)",
           borderRight: "1px solid var(--nb-border)",
-          zIndex: 101,
+          zIndex: 1000,
           display: "flex",
           flexDirection: "column",
-          animation: "slideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+          animation: "slideIn 0.15s cubic-bezier(0.16, 1, 0.3, 1)",
+          boxShadow: "4px 0 24px rgba(0, 0, 0, 0.15)",
         }}
       >
         {/* Header */}
