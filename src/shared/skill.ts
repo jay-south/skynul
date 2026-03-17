@@ -1,9 +1,2 @@
-export type Skill = {
-  id: string
-  name: string
-  tag: string
-  description: string
-  prompt: string
-  enabled: boolean
-  createdAt: number
-}
+// Re-export from shared package — single source of truth
+export type { Skill } from '@skynul/shared'

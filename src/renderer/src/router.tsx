@@ -1,0 +1,105 @@
+import { createHashRouter, Navigate } from 'react-router-dom'
+import { RootLayout } from './layouts/root-layout'
+import { TasksLayout } from './layouts/tasks-layout'
+import { SettingsLayout } from './layouts/settings-layout'
+
+// Pages
+import { TasksIndexPage } from './pages/tasks-index-page'
+import { TaskChatPage } from './pages/task-chat-page'
+import { DashboardPage } from './pages/dashboard-page'
+import { ProjectsPage } from './pages/projects-page'
+import { ScheduledPage } from './pages/scheduled-page'
+import { ScheduleDetailPage } from './pages/schedule-detail-page'
+import { NewSchedulePage } from './pages/new-schedule-page'
+import { GeneralSettingsPage } from './pages/settings/general-settings-page'
+import { ProvidersSettingsPage } from './pages/settings/providers-settings-page'
+import { ComputerSettingsPage } from './pages/settings/computer-settings-page'
+import { ChannelsSettingsPage } from './pages/settings/channels-settings-page'
+import { SkillsSettingsPage } from './pages/settings/skills-settings-page'
+import { DeveloperSettingsPage } from './pages/settings/developer-settings-page'
+
+export const router = createHashRouter([
+  {
+    path: '/',
+    element: <RootLayout />,
+    children: [
+      {
+        index: true,
+        element: <Navigate to="/tasks" replace />
+      },
+      {
+        path: 'tasks',
+        element: <TasksLayout />,
+        children: [
+          {
+            index: true,
+            element: <TasksIndexPage />
+          },
+          {
+            path: ':taskId',
+            element: <TaskChatPage />
+          }
+        ]
+      },
+      {
+        path: 'dashboard',
+        element: <DashboardPage />
+      },
+      {
+        path: 'projects',
+        element: <ProjectsPage />
+      },
+      {
+        path: 'schedules',
+        children: [
+          {
+            index: true,
+            element: <ScheduledPage />
+          },
+          {
+            path: 'new',
+            element: <NewSchedulePage />
+          },
+          {
+            path: ':scheduleId',
+            element: <ScheduleDetailPage />
+          }
+        ]
+      },
+      {
+        path: 'settings',
+        element: <SettingsLayout />,
+        children: [
+          {
+            index: true,
+            element: <Navigate to="/settings/general" replace />
+          },
+          {
+            path: 'general',
+            element: <GeneralSettingsPage />
+          },
+          {
+            path: 'providers',
+            element: <ProvidersSettingsPage />
+          },
+          {
+            path: 'computer',
+            element: <ComputerSettingsPage />
+          },
+          {
+            path: 'channels',
+            element: <ChannelsSettingsPage />
+          },
+          {
+            path: 'skills',
+            element: <SkillsSettingsPage />
+          },
+          {
+            path: 'developer',
+            element: <DeveloperSettingsPage />
+          }
+        ]
+      }
+    ]
+  }
+])

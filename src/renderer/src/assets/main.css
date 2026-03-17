@@ -4458,3 +4458,72 @@ code {
   border-radius: 2px;
   transition: width 200ms ease;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   ROUTER LAYOUT STYLES
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Sidebar Navigation */
+.sidebarNav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+}
+
+.sidebarNavItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: var(--nb-muted);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 150ms ease;
+}
+
+.sidebarNavItem:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--nb-text);
+}
+
+.sidebarNavItem.active {
+  background: rgba(108, 140, 255, 0.12);
+  color: var(--nb-accent);
+}
+
+.sidebarNavItem svg {
+  flex-shrink: 0;
+}
+
+/* Tasks Layout */
+.tasksLayout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  height: 100%;
+}
+
+.tasksSidebar {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--nb-border);
+  background: var(--nb-panel);
+}
+
+.tasksMain {
+  overflow: auto;
+}
+
+/* Settings Layout */
+.settingsLayout {
+  height: 100%;
+  overflow: auto;
+}
+
+/* Active navigation state */
+.segBtn.active {
+  background: var(--nb-accent);
+  color: white;
+}

@@ -1,10 +1,2 @@
-export type Project = {
-  id: string
-  name: string
-  color: string
-  createdAt: number
-}
-
-export type ProjectWithTasks = Project & {
-  taskIds: string[]
-}
+// Re-export from shared package — single source of truth
+export type { Project, ProjectWithTasks } from '@skynul/shared'
