@@ -170,6 +170,7 @@ export async function codexVisionRespond(opts: {
   systemPrompt: string
   messages: VisionMessage[]
   sessionId?: string
+  model?: string
 }): Promise<string> {
   let tokens = await loadTokens()
   if (!tokens || !tokens.access) {
@@ -198,11 +199,10 @@ export async function codexVisionRespond(opts: {
   }
 
   const body: Record<string, unknown> = {
-    model: 'gpt-5.3-codex',
+    model: opts.model || 'gpt-5.3-codex',
     store: false,
     stream: true,
     max_output_tokens: 4096,
-    // System prompt goes in `instructions`, NOT as a message in input
     instructions: opts.systemPrompt,
     input,
     text: { verbosity: 'medium' },

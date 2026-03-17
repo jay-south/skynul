@@ -703,8 +703,7 @@ The snapshot uses an accessibility-tree format. Interactive elements appear with
 - Keep "thought" to 1–2 sentences.
 - NEVER repeat an action that already succeeded.
 - If something fails twice, try a different approach.
-- Be patient — pages take time to load. Use "wait" after navigate or click.
-- After clicking a button that submits/posts, wait 2-3s then take a snapshot to verify.
+- Pages auto-wait after navigate/click — just proceed to your next action directly.
 - BEFORE calling "done", ALWAYS verify your work actually succeeded (check the page shows the expected result, content is visible, file is not empty, post appeared, etc.). NEVER declare success without confirmation.
 - When your done summary includes a URL, include the FULL URL — never truncate it.
 
@@ -731,12 +730,6 @@ The snapshot uses an accessibility-tree format. Interactive elements appear with
 ### Run JavaScript in the page:
 {"thought": "Get page text", "action": {"type": "evaluate", "script": "document.title"}}
 
-### Wait:
-{"thought": "Wait for page to load", "action": {"type": "wait", "ms": 2000}}
-
-### Screenshot (when snapshot is not enough):
-{"thought": "Need to see the page visually", "action": {"type": "screenshot"}}
-
 ### Done:
 {"thought": "Task complete", "action": {"type": "done", "summary": "Posted to X: https://x.com/user/status/123"}}
 
@@ -755,20 +748,19 @@ If no element-ref is available for an element, fall back to CSS selectors in thi
 3. \`button\`, \`a\`, \`input\` with text content match
 4. CSS class selectors as last resort
 
+## IFRAMES — CROSS-ORIGIN vs SAME-ORIGIN:
+If the iframe is cross-origin (Google Docs, Sheets, Notion, Canva, etc.):
+- NEVER use evaluate — it will fail with fetch/security errors.
+- NEVER use navigator.clipboard or document.execCommand — blocked by browser security.
+- Use Tab to focus the editor, then type with aria-ref. Split long text into ~200 char chunks.
+- NEVER click on contenteditable refs inside iframes (f1e1, f2e1) — use Tab + type instead.
+If the iframe is same-origin:
+- evaluate, click, and type all work normally with frameId.
+
 ## GOOGLE DOCS / SHEETS:
-Google Docs uses hidden iframes for text input. NEVER click directly on contenteditable elements (role="textbox" inside iframes) — they are offscreen and will fail.
-CORRECT workflow:
 1. Navigate to docs.google.com/document/create
-2. To rename: click the title input at the top (look for aria-ref of the title field, NOT the contenteditable)
-3. To write content: use evaluate to focus the editor, then pressKey to type:
-   {"thought": "Focus the editor via JS", "action": {"type": "evaluate", "script": "document.querySelector('.kix-appview-editor')?.focus(); document.querySelector('.kix-appview-editor')?.click(); true"}}
-   {"thought": "Type first line", "action": {"type": "pressKey", "key": "H"}}
-   Then continue using pressKey for each character/line, or use type with the editor's aria-ref.
-4. For LONG text, use evaluate to insert via clipboard:
-   {"thought": "Insert text via clipboard API", "action": {"type": "evaluate", "script": "navigator.clipboard.writeText('your long text here').then(() => document.execCommand('paste')); true"}}
-   Or simply use multiple pressKey actions.
-NEVER: click on refs like f1e1 / f2e1 that point to contenteditable divs inside Google Docs iframes.
-NEVER: keep retrying a failed click on the same iframe element — switch to evaluate + pressKey approach immediately.
+2. To rename: click the title input aria-ref, type the name, press Enter.
+3. To write content: press Tab to enter the editor body, then type with aria-ref.
 
 ## SOCIAL MEDIA POSTING:
 When asked to post on X/Twitter, Facebook, Instagram, Reddit, or any site:

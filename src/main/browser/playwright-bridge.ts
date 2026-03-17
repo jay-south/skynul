@@ -1,5 +1,32 @@
 import type { Page, Frame } from 'playwright-core'
 
+/** Strip unnamed structural lines whose children have no [ref=] markers. */
+function compactSnapshot(snap: string): string {
+  const lines = snap.split('\n')
+  const out: string[] = []
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    // Keep lines that have a ref or visible text content (quoted names)
+    if (line.includes('[ref=') || line.includes('"')) {
+      out.push(line)
+      continue
+    }
+    // Keep structural lines only if a descendant has [ref=]
+    const indent = line.search(/\S/)
+    let hasUsefulChild = false
+    for (let j = i + 1; j < lines.length; j++) {
+      const childIndent = lines[j].search(/\S/)
+      if (childIndent <= indent) break
+      if (lines[j].includes('[ref=') || lines[j].includes('"')) {
+        hasUsefulChild = true
+        break
+      }
+    }
+    if (hasUsefulChild) out.push(line)
+  }
+  return out.join('\n')
+}
+
 /** Keep head+tail of long text so the model sees both beginning and end. */
 function headTail(text: string, limit: number): string {
   if (text.length <= limit) return text
@@ -193,7 +220,7 @@ export class PlaywrightBridge {
         const result = await maybePage._snapshotForAI({ timeout: 10_000, track: 'response' })
         const snap = String(result?.full ?? '')
         if (snap.length > 20) {
-          return { url, title, snapshot: headTail(snap, 16_000) }
+          return { url, title, snapshot: headTail(compactSnapshot(snap), 8_000) }
         }
       } catch {
         // fallback below
@@ -204,7 +231,7 @@ export class PlaywrightBridge {
     try {
       const snap = await this.page.locator('body').ariaSnapshot({ timeout: 10_000 })
       if (snap && snap.length > 20) {
-        return { url, title, snapshot: headTail(snap, 14_000) }
+        return { url, title, snapshot: headTail(compactSnapshot(snap), 8_000) }
       }
     } catch {
       // fallback below
@@ -246,7 +273,7 @@ export class PlaywrightBridge {
       })
       .catch(() => '')
 
-    return { url, title, snapshot: headTail(text, 12_000) }
+    return { url, title, snapshot: headTail(text, 8_000) }
   }
 
   async getPageInfo(): Promise<PageInfo> {

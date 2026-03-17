@@ -251,7 +251,23 @@ export class TaskRunner {
           ]
         }
 
-        if (history.length > 20) history.splice(1, history.length - 19)
+        // Compress old turns: keep first (task prompt) + last 6 msgs (3 turns), summarize the rest
+        if (history.length > 8) {
+          const oldMessages = history.slice(1, history.length - 6)
+          const summary = oldMessages
+            .filter((m) => m.role === 'assistant')
+            .map((m) => {
+              const txt = m.content?.[0] && 'text' in m.content[0] ? m.content[0].text : ''
+              const actionMatch = txt.match(/"type"\s*:\s*"([^"]+)"/)
+              return actionMatch ? actionMatch[1] : ''
+            })
+            .filter(Boolean)
+            .join(' → ')
+          history.splice(1, oldMessages.length, {
+            role: 'user',
+            content: [{ type: 'input_text', text: `[Previous actions: ${summary}]` }]
+          })
+        }
         history.push(turnMessage)
 
         const { text: rawResponse, usage } = await this.callVisionModel(systemPrompt, history)
@@ -377,13 +393,10 @@ export class TaskRunner {
         await engine.uploadFile(selector, filePaths, frameId)
         break
       }
-      case 'screenshot': {
-        const b64 = await engine.screenshot()
-        return b64 ? `Screenshot taken (${b64.length} bytes base64)` : '(empty screenshot)'
-      }
+      case 'screenshot':
+        return '[BLOCKED] screenshot action is disabled — use the page snapshot text instead.'
       case 'wait':
-        await this.sleep((raw.ms as number) ?? 1000)
-        break
+        return '[BLOCKED] wait is disabled — the engine handles timing internally. Use your next action directly.'
       case 'scroll':
         await engine.evaluate(
           `window.scrollBy(0, ${(raw.direction as string) === 'up' ? -400 : 400})`
@@ -945,7 +958,7 @@ export class TaskRunner {
     switch (this.opts.provider) {
       case 'chatgpt':
         return {
-          text: await codexVisionRespond({ systemPrompt, messages, sessionId: this.task.id })
+          text: await codexVisionRespond({ systemPrompt, messages, sessionId: this.task.id, model: this.opts.openaiModel })
         }
       case 'claude': {
         const { claudeVisionRespond } = await import('../providers/claude-vision')

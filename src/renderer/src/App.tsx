@@ -64,7 +64,7 @@ const PROVIDERS: Array<{
   icon: string
   desc: string
 }> = [
-  { id: 'chatgpt', label: 'ChatGPT Pro', icon: chatgptIcon, desc: 'OAuth · gpt-5.2 via Codex' },
+  { id: 'chatgpt', label: 'ChatGPT Pro', icon: chatgptIcon, desc: 'OAuth · Model switchable' },
   { id: 'claude', label: 'Claude', icon: claudeIcon, desc: 'Supabase edge function' },
   { id: 'deepseek', label: 'DeepSeek', icon: deepseekIcon, desc: 'Supabase edge function' },
   { id: 'kimi', label: 'Kimi', icon: kimiIcon, desc: 'API key · api.kimi.com (Kimi for Coding)' },
@@ -1769,6 +1769,7 @@ function App(): React.JSX.Element {
                       </button>
                     </div>
                     {!showLocalModels ? (
+                    <>
                     <div className="providerGrid">
                       {PROVIDERS.map((p) => {
                         const isActive = policy?.provider.active === p.id
@@ -1824,6 +1825,33 @@ function App(): React.JSX.Element {
                         )
                       })}
                     </div>
+                    {/* Model selector for ChatGPT provider */}
+                    {policy?.provider.active === 'chatgpt' && chatgptConnected && (
+                      <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <label style={{ fontSize: '12px', color: 'var(--text-muted, #888)', whiteSpace: 'nowrap' }}>Model:</label>
+                        <select
+                          value={policy?.provider.openaiModel || 'gpt-5.3-codex'}
+                          onChange={async (e) => {
+                            const next = await window.skynul.setOpenAIModel(e.target.value)
+                            setPolicy(next)
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: '6px 8px',
+                            fontSize: '12px',
+                            borderRadius: '8px',
+                            border: '1px solid var(--nb-border)',
+                            background: 'var(--nb-panel)',
+                            color: 'var(--text-primary, #fff)',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <option value="gpt-5.3-codex">GPT-5.3 Codex</option>
+                          <option value="gpt-5.2-codex">GPT-5.2 Codex</option>
+                        </select>
+                      </div>
+                    )}
+                    </>
                     ) : (
                       <div style={{ marginTop: '12px', padding: '12px', background: 'var(--nb-panel)', border: '1.5px solid var(--nb-border)', borderRadius: '14px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>

@@ -194,7 +194,6 @@ const VALID_ACTION_TYPES = new Set([
   'scroll',
   'move',
   'launch',
-  'wait',
   'web_scrape',
   'save_to_excel',
   'done',
@@ -207,8 +206,6 @@ const VALID_ACTION_TYPES = new Set([
   'shell',
   // CDP file upload
   'upload_file',
-  // Screenshot
-  'screenshot',
   // Scroll element into view
   'scrollIntoView',
   // Code mode file operations
