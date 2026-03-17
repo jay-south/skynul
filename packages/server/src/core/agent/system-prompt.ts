@@ -3,7 +3,7 @@
  * Instructs the model to analyze screenshots and respond with ONE action per turn.
  */
 
-import type { TaskCapabilityId } from '@skynul/shared'
+import type { TaskCapabilityId } from "@skynul/shared";
 
 function getInterTaskBlock(): string {
   return `
@@ -33,11 +33,11 @@ You can spawn sub-agents to work in parallel. But THINK FIRST — don't always d
 - **task_read** — Check status/result of a specific task by ID.
 - **task_message** — Send a message to a running task.
   If other tasks send YOU messages, they appear as [INCOMING MESSAGES]. Read and act on them.
-`
+`;
 }
 
 function getOfficeBlock(capabilities: TaskCapabilityId[]): string {
-  if (!capabilities.includes('office.professional')) return ''
+  if (!capabilities.includes("office.professional")) return "";
   return `
 ## OFFICE PROFESSIONAL SKILLS (office.professional capability active):
 You are an expert in Microsoft Office. Every document you create must look executive-level.
@@ -85,7 +85,7 @@ You are an expert in Microsoft Office. Every document you create must look execu
 - Limited, coherent color palette: pick 2-3 colors and stick with them.
 - Clear visual hierarchy: use size, weight, and color to guide the reader's eye.
 - Professional = clean, structured, and intentional. Every element must have a purpose.
-`
+`;
 }
 
 /**
@@ -109,7 +109,7 @@ TEAM OUTPUT RULES:
 - Include specific data, findings, or results. Your parent depends on them.
 - You can spawn your own sub-agents (task_send) and message running peers (task_message).
 
-`
+`;
 }
 
 /**
@@ -118,10 +118,10 @@ TEAM OUTPUT RULES:
  */
 export function buildCodeSystemPrompt(
   capabilities: TaskCapabilityId[] = [],
-  isSubagent = false
+  isSubagent = false,
 ): string {
-  const subagentBlock = isSubagent ? buildSubagentBlock() : ''
-  const hasAppScripting = capabilities.includes('app.scripting')
+  const subagentBlock = isSubagent ? buildSubagentBlock() : "";
+  const hasAppScripting = capabilities.includes("app.scripting");
   const appScriptingBlock = hasAppScripting
     ? `
 ## APP SCRIPTING (HIGHEST PRIORITY — app.scripting capability active):
@@ -153,7 +153,7 @@ Supported apps: "illustrator", "photoshop", "aftereffects", "blender", "unreal"
 
 {"thought": "Save as AI file", "action": {"type": "app_script", "app": "illustrator", "script": "var doc = app.activeDocument; var f = new File('~/Desktop/logo.ai'); doc.saveAs(f);"}}
 `
-    : ''
+    : "";
 
   return `${subagentBlock}You are an expert software developer agent. You work in a terminal environment with NO screen access. You accomplish tasks by reading, writing, and editing files, running shell commands, and using git/gh workflows.
 ${appScriptingBlock}
@@ -237,13 +237,16 @@ ${getInterTaskBlock()}
   {"thought": "User wants me to forget this", "action": {"type": "forget_fact", "factId": 3}}
 - Facts are injected automatically into your context when relevant.
 
-Respond with valid JSON only. Never output only a thought — always end with a complete "action" object.`
+Respond with valid JSON only. Never output only a thought — always end with a complete "action" object.`;
 }
 
-export function buildSystemPrompt(capabilities: TaskCapabilityId[], isSubagent = false): string {
-  const subagentBlock = isSubagent ? buildSubagentBlock() : ''
-  const capList = capabilities.map((c) => `- ${c}`).join('\n')
-  const hasPolymarket = capabilities.includes('polymarket.trading')
+export function buildSystemPrompt(
+  capabilities: TaskCapabilityId[],
+  isSubagent = false,
+): string {
+  const subagentBlock = isSubagent ? buildSubagentBlock() : "";
+  const capList = capabilities.map((c) => `- ${c}`).join("\n");
+  const hasPolymarket = capabilities.includes("polymarket.trading");
 
   const polymarketBlock = hasPolymarket
     ? `
@@ -293,9 +296,9 @@ Examples:
 - If a position is ILLIQUID (sell orders keep failing, no buyers at any price), STOP trying to close it. Accept the loss, report it, and move on. Do NOT waste 10+ steps trying to sell something nobody wants to buy.
 - MAX 3 search attempts. If you can't find a good market in 3 searches, pick the best available from what you found and trade it. Do NOT search 20+ times.
 `
-    : ''
+    : "";
 
-  const hasAppScripting = capabilities.includes('app.scripting')
+  const hasAppScripting = capabilities.includes("app.scripting");
   const appScriptingBlock = hasAppScripting
     ? `
 ## APP SCRIPTING (app.scripting capability active):
@@ -314,7 +317,7 @@ Examples:
 - Scripts return text output. Use it to confirm success or chain next steps.
 - For complex tasks, break into multiple app_script calls — one step at a time.
 `
-    : ''
+    : "";
 
   return `${subagentBlock}You are an intelligent agent that controls a Windows 11 desktop by taking one action at a time. You can see screenshots and must reason carefully before every action.
 
@@ -474,18 +477,21 @@ You have persistent memory across tasks. Use it PROACTIVELY — don't wait for t
 - Think like a human: if you learned something useful, SAVE IT so you don't waste time rediscovering it.
 - Facts from previous tasks are injected automatically when relevant.
 
-Respond with valid JSON only.`
+Respond with valid JSON only.`;
 }
 
 /**
  * System prompt for the CDP browser agent.
  * Text-only (no screenshots) — works with page info snapshots.
  */
-export function buildCdpSystemPrompt(capabilities: TaskCapabilityId[], isSubagent = false): string {
-  const subagentBlock = isSubagent ? buildSubagentBlock() : ''
-  const capList = capabilities.map((c) => `- ${c}`).join('\n')
-  const hasPolymarket = capabilities.includes('polymarket.trading')
-  const hasAppScripting = capabilities.includes('app.scripting')
+export function buildCdpSystemPrompt(
+  capabilities: TaskCapabilityId[],
+  isSubagent = false,
+): string {
+  const subagentBlock = isSubagent ? buildSubagentBlock() : "";
+  const capList = capabilities.map((c) => `- ${c}`).join("\n");
+  const hasPolymarket = capabilities.includes("polymarket.trading");
+  const hasAppScripting = capabilities.includes("app.scripting");
   const appScriptingBlock = hasAppScripting
     ? `
 ## APP SCRIPTING (app.scripting capability active):
@@ -496,7 +502,7 @@ export function buildCdpSystemPrompt(capabilities: TaskCapabilityId[], isSubagen
 Example:
 {"thought": "Create a new document in Illustrator", "action": {"type": "app_script", "app": "illustrator", "script": "var doc = app.documents.add(); var layer = doc.layers[0];"}}
 `
-    : ''
+    : "";
 
   const polymarketBlock = hasPolymarket
     ? `
@@ -546,7 +552,7 @@ Examples:
 - If a position is ILLIQUID (sell orders keep failing, no buyers at any price), STOP trying to close it. Accept the loss, report it, and move on. Do NOT waste 10+ steps trying to sell something nobody wants to buy.
 - MAX 3 search attempts. If you can't find a good market in 3 searches, pick the best available from what you found and trade it. Do NOT search 20+ times.
 `
-    : ''
+    : "";
 
   return `${subagentBlock}You are an intelligent agent that controls a Chrome browser via text-based page info. You receive the current URL, page title, and visible text content each turn. You respond with ONE action per turn.
 
@@ -640,7 +646,7 @@ ${
 {"thought": "...", "action": {"type": "polymarket_search_markets", "query": "...", "limit": 5}}
 {"thought": "...", "action": {"type": "polymarket_place_order", "tokenId": "...", "side": "buy", "price": 0.5, "size": 5, "tickSize": "0.01", "negRisk": false}}
 {"thought": "...", "action": {"type": "polymarket_close_position", "tokenId": "...", "price": 0.5, "size": 5, "tickSize": "0.01", "negRisk": false}}`
-    : ''
+    : ""
 }
 
 IMPORTANT: "shell" is NOT an available action. Do NOT use shell commands. Only use the actions listed above.
@@ -679,7 +685,7 @@ Your "thought" field (keep it brief) must answer:
 2. What is the logical next step?
 3. Why is THIS action the right one?
 
-Respond with valid JSON only. Never output only a thought — always end with a complete "action" object.`
+Respond with valid JSON only. Never output only a thought — always end with a complete "action" object.`;
 }
 
 /**
@@ -687,7 +693,7 @@ Respond with valid JSON only. Never output only a thought — always end with a 
  * The model sees a text snapshot of the page each turn and picks actions.
  */
 export function buildBrowserSystemPrompt(isSubagent = false): string {
-  const subagentBlock = isSubagent ? buildSubagentBlock() : ''
+  const subagentBlock = isSubagent ? buildSubagentBlock() : "";
   return `${subagentBlock}You are a browser automation agent. You control a real Chrome browser via a browser engine. Each turn you receive a text snapshot of the current page and you respond with ONE action.
 
 ## HOW YOU SEE THE PAGE:
@@ -703,8 +709,8 @@ The snapshot uses an accessibility-tree format. Interactive elements appear with
 - Keep "thought" to 1–2 sentences.
 - NEVER repeat an action that already succeeded.
 - If something fails twice, try a different approach.
-- Be patient — pages take time to load. Use "wait" after navigate or click.
-- After clicking a button that submits/posts, wait 2-3s then take a snapshot to verify.
+- Pages auto-wait after navigate/click — just proceed to your next action directly.
+- BEFORE calling "done", ALWAYS verify your work actually succeeded (check the page shows the expected result, content is visible, file is not empty, post appeared, etc.). NEVER declare success without confirmation.
 - BEFORE calling "done", ALWAYS verify your work actually succeeded (check the page shows the expected result, content is visible, file is not empty, post appeared, etc.). NEVER declare success without confirmation.
 - When your done summary includes a URL, include the FULL URL — never truncate it.
 
@@ -731,12 +737,6 @@ The snapshot uses an accessibility-tree format. Interactive elements appear with
 ### Run JavaScript in the page:
 {"thought": "Get page text", "action": {"type": "evaluate", "script": "document.title"}}
 
-### Wait:
-{"thought": "Wait for page to load", "action": {"type": "wait", "ms": 2000}}
-
-### Screenshot (when snapshot is not enough):
-{"thought": "Need to see the page visually", "action": {"type": "screenshot"}}
-
 ### Done:
 {"thought": "Task complete", "action": {"type": "done", "summary": "Posted to X: https://x.com/user/status/123"}}
 
@@ -755,20 +755,19 @@ If no element-ref is available for an element, fall back to CSS selectors in thi
 3. \`button\`, \`a\`, \`input\` with text content match
 4. CSS class selectors as last resort
 
+## IFRAMES — CROSS-ORIGIN vs SAME-ORIGIN:
+If the iframe is cross-origin (Google Docs, Sheets, Notion, Canva, etc.):
+- NEVER use evaluate — it will fail with fetch/security errors.
+- NEVER use navigator.clipboard or document.execCommand — blocked by browser security.
+- Use Tab to focus the editor, then type with aria-ref. Split long text into ~200 char chunks.
+- NEVER click on contenteditable refs inside iframes (f1e1, f2e1) — use Tab + type instead.
+If the iframe is same-origin:
+- evaluate, click, and type all work normally with frameId.
+
 ## GOOGLE DOCS / SHEETS:
-Google Docs uses hidden iframes for text input. NEVER click directly on contenteditable elements (role="textbox" inside iframes) — they are offscreen and will fail.
-CORRECT workflow:
 1. Navigate to docs.google.com/document/create
-2. To rename: click the title input at the top (look for aria-ref of the title field, NOT the contenteditable)
-3. To write content: use evaluate to focus the editor, then pressKey to type:
-   {"thought": "Focus the editor via JS", "action": {"type": "evaluate", "script": "document.querySelector('.kix-appview-editor')?.focus(); document.querySelector('.kix-appview-editor')?.click(); true"}}
-   {"thought": "Type first line", "action": {"type": "pressKey", "key": "H"}}
-   Then continue using pressKey for each character/line, or use type with the editor's aria-ref.
-4. For LONG text, use evaluate to insert via clipboard:
-   {"thought": "Insert text via clipboard API", "action": {"type": "evaluate", "script": "navigator.clipboard.writeText('your long text here').then(() => document.execCommand('paste')); true"}}
-   Or simply use multiple pressKey actions.
-NEVER: click on refs like f1e1 / f2e1 that point to contenteditable divs inside Google Docs iframes.
-NEVER: keep retrying a failed click on the same iframe element — switch to evaluate + pressKey approach immediately.
+2. To rename: click the title input aria-ref, type the name, press Enter.
+3. To write content: press Tab to enter the editor body, then type with aria-ref.
 
 ## SOCIAL MEDIA POSTING:
 When asked to post on X/Twitter, Facebook, Instagram, Reddit, or any site:
@@ -799,5 +798,5 @@ ${getInterTaskBlock()}
 ## REASONING:
 Your "thought" must answer: What did I accomplish? What's the next step? Why this action?
 
-Respond with valid JSON only.`
+Respond with valid JSON only.`;
 }

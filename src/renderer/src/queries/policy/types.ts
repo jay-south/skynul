@@ -1,28 +1,38 @@
-import type { CapabilityId, LanguageCode, PolicyState, ProviderId, ThemeMode } from '@skynul/shared'
+import type {
+  CapabilityId,
+  LanguageCode,
+  PolicyState,
+  ProviderId,
+  ThemeMode,
+} from "@skynul/shared";
 
-export type PolicyResponse = PolicyState
+export type PolicyResponse = PolicyState;
 
 export type SetLanguageRequest = {
-  language: LanguageCode
-}
+  language: LanguageCode;
+};
 
 export type SetThemeRequest = {
-  themeMode: ThemeMode
-}
+  themeMode: ThemeMode;
+};
 
 export type SetCapabilityRequest = {
-  capability: CapabilityId
-  enabled: boolean
-}
+  capability: CapabilityId;
+  enabled: boolean;
+};
 
 export type SetTaskMemoryRequest = {
-  enabled: boolean
-}
+  enabled: boolean;
+};
 
 export type SetAutoApproveRequest = {
-  enabled: boolean
-}
+  enabled: boolean;
+};
 
 export type SetProviderRequest = {
-  providerId: ProviderId
-}
+  providerId: ProviderId;
+};
+
+export type SetOpenAIModelRequest = {
+  model: string;
+};
