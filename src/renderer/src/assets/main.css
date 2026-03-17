@@ -131,7 +131,11 @@ code {
   height: 46px;
   border-radius: 14px;
   background:
-    radial-gradient(18px 18px at 30% 35%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0)),
+    radial-gradient(
+      18px 18px at 30% 35%,
+      rgba(255, 255, 255, 0.9),
+      rgba(255, 255, 255, 0)
+    ),
     linear-gradient(135deg, rgba(31, 122, 122, 0.95), rgba(43, 76, 126, 0.95));
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.35);
@@ -1501,7 +1505,11 @@ code {
       color-mix(in srgb, var(--nb-accent-2), transparent 88%),
       transparent 60%
     ),
-    linear-gradient(180deg, color-mix(in srgb, var(--nb-panel-2), #000 6%), var(--nb-panel-2));
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--nb-panel-2), #000 6%),
+      var(--nb-panel-2)
+    );
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.06),
     0 26px 70px rgba(0, 0, 0, 0.55);
@@ -2002,12 +2010,24 @@ code {
 }
 
 .taskBtnApprove {
-  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 50%) !important;
-  background: color-mix(in srgb, var(--nb-accent-2), transparent 85%) !important;
+  border-color: color-mix(
+    in srgb,
+    var(--nb-accent-2),
+    transparent 50%
+  ) !important;
+  background: color-mix(
+    in srgb,
+    var(--nb-accent-2),
+    transparent 85%
+  ) !important;
 }
 
 .taskBtnCancel {
-  border-color: color-mix(in srgb, var(--nb-danger), transparent 60%) !important;
+  border-color: color-mix(
+    in srgb,
+    var(--nb-danger),
+    transparent 60%
+  ) !important;
   background: color-mix(in srgb, var(--nb-danger), transparent 90%) !important;
   color: var(--nb-danger) !important;
 }
@@ -4501,7 +4521,7 @@ code {
 /* Tasks Layout */
 .tasksLayout {
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: 200px 1fr;
   height: 100%;
 }
 
