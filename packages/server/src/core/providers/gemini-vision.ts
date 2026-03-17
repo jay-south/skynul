@@ -81,9 +81,7 @@ export async function geminiVisionRespond(opts: {
 
   if (!res.ok) {
     const txt = await res.text().catch(() => '')
-    throw new Error(
-      `Gemini vision error: ${res.status} ${res.statusText}${txt ? ` - ${txt}` : ''}`
-    )
+    throw new Error(`Gemini vision error: ${res.status} ${res.statusText}${txt ? ` - ${txt}` : ''}`)
   }
 
   const data = (await res.json()) as GeminiResponse

@@ -43,9 +43,7 @@ export async function minimaxRespond(opts: {
 
   if (!res.ok) {
     const txt = await res.text().catch(() => '')
-    throw new Error(
-      `MiniMax error: ${res.status} ${res.statusText}${txt ? ` - ${txt}` : ''}`
-    )
+    throw new Error(`MiniMax error: ${res.status} ${res.statusText}${txt ? ` - ${txt}` : ''}`)
   }
 
   const data = (await res.json()) as OpenAIChatCompletionResponse

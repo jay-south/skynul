@@ -36,10 +36,10 @@ if (isWslEnv && !process.env.TZ) {
   }
 }
 
-import { app, shell, BrowserWindow, screen, session, nativeTheme, protocol } from 'electron'
+import { electronApp, is, optimizer } from '@electron-toolkit/utils'
+import { app, BrowserWindow, nativeTheme, protocol, screen, session, shell } from 'electron'
 import { readFile } from 'fs/promises'
 import { join } from 'path'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { initAutoUpdater } from './updater'
 
@@ -179,7 +179,7 @@ app.whenReady().then(async () => {
 
   initAutoUpdater(win)
 
-  app.on('activate', function () {
+  app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })

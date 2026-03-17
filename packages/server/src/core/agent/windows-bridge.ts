@@ -1,7 +1,7 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'child_process'
-import { readFile, writeFile, unlink, mkdir, access } from 'fs/promises'
+import { type ChildProcessWithoutNullStreams, spawn } from 'child_process'
+import { createHash, randomBytes } from 'crypto'
+import { access, mkdir, readFile, unlink, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
-import { randomBytes, createHash } from 'crypto'
 
 /**
  * Persistent PowerShell process that provides screenshot capture and
@@ -113,13 +113,25 @@ const SENDKEYS_MAP: Record<string, string> = {
   left: '{LEFT}',
   right: '{RIGHT}',
   space: ' ',
-  f1: '{F1}', f2: '{F2}', f3: '{F3}', f4: '{F4}',
-  f5: '{F5}', f6: '{F6}', f7: '{F7}', f8: '{F8}',
-  f9: '{F9}', f10: '{F10}', f11: '{F11}', f12: '{F12}'
+  f1: '{F1}',
+  f2: '{F2}',
+  f3: '{F3}',
+  f4: '{F4}',
+  f5: '{F5}',
+  f6: '{F6}',
+  f7: '{F7}',
+  f8: '{F8}',
+  f9: '{F9}',
+  f10: '{F10}',
+  f11: '{F11}',
+  f12: '{F12}'
 }
 
 function comboToSendKeys(combo: string): string {
-  const parts = combo.toLowerCase().split('+').map((p) => p.trim())
+  const parts = combo
+    .toLowerCase()
+    .split('+')
+    .map((p) => p.trim())
   let prefix = ''
   let key = ''
 
@@ -264,7 +276,7 @@ export class WindowsBridge {
       this.destroy()
       throw new Error(
         `Failed to load .NET assemblies: ${e instanceof Error ? e.message : String(e)}` +
-        (stderr ? `\nPowerShell stderr: ${stderr}` : '')
+          (stderr ? `\nPowerShell stderr: ${stderr}` : '')
       )
     }
 
@@ -288,7 +300,7 @@ export class WindowsBridge {
       this.destroy()
       throw new Error(
         `Failed to load C# input types: ${e instanceof Error ? e.message : String(e)}` +
-        (stderr ? `\nPowerShell stderr: ${stderr}` : '')
+          (stderr ? `\nPowerShell stderr: ${stderr}` : '')
       )
     }
 
@@ -371,10 +383,12 @@ export class WindowsBridge {
       const timer = setTimeout(() => {
         this.pending = null
         const stderr = this.stderrBuffer.slice(-300)
-        reject(new Error(
-          `PowerShell command timed out after ${timeoutMs}ms` +
-          (stderr ? `\nstderr: ${stderr}` : '')
-        ))
+        reject(
+          new Error(
+            `PowerShell command timed out after ${timeoutMs}ms` +
+              (stderr ? `\nstderr: ${stderr}` : '')
+          )
+        )
       }, timeoutMs)
 
       this.pending = { resolve, reject, timer }
@@ -412,7 +426,11 @@ Write-Host '${MARKER}'
    * Execute a complex script by writing it to a temp .ps1 file first.
    * This avoids PowerShell parser issues with braces inside try/catch wrappers.
    */
-  private async execViaFile(script: string, withData: boolean, timeoutMs: number): Promise<BridgeResult> {
+  private async execViaFile(
+    script: string,
+    withData: boolean,
+    timeoutMs: number
+  ): Promise<BridgeResult> {
     // Build the full .ps1 content with try/catch and JSON output
     let ps1Content: string
     if (withData) {
@@ -447,10 +465,12 @@ Write-Host '${MARKER}'
         const timer = setTimeout(() => {
           this.pending = null
           const stderr = this.stderrBuffer.slice(-300)
-          reject(new Error(
-            `PowerShell command timed out after ${timeoutMs}ms` +
-            (stderr ? `\nstderr: ${stderr}` : '')
-          ))
+          reject(
+            new Error(
+              `PowerShell command timed out after ${timeoutMs}ms` +
+                (stderr ? `\nstderr: ${stderr}` : '')
+            )
+          )
         }, timeoutMs)
 
         this.pending = { resolve, reject, timer }
@@ -563,12 +583,8 @@ $bmp.Dispose()`
   }
 
   async type(text: string): Promise<void> {
-    const escaped = text
-      .replace(/[+^%~{}[\]()]/g, '{$&}')
-      .replace(/'/g, "''")
-    const result = await this.exec(
-      `[System.Windows.Forms.SendKeys]::SendWait('${escaped}')`
-    )
+    const escaped = text.replace(/[+^%~{}[\]()]/g, '{$&}').replace(/'/g, "''")
+    const result = await this.exec(`[System.Windows.Forms.SendKeys]::SendWait('${escaped}')`)
     if (!result.ok) throw new Error(result.error ?? 'Type failed')
   }
 
@@ -597,9 +613,7 @@ $bmp.Dispose()`
 
     const seq = comboToSendKeys(combo)
     const escaped = seq.replace(/'/g, "''")
-    const result = await this.exec(
-      `[System.Windows.Forms.SendKeys]::SendWait('${escaped}')`
-    )
+    const result = await this.exec(`[System.Windows.Forms.SendKeys]::SendWait('${escaped}')`)
     if (!result.ok) throw new Error(result.error ?? 'Key combo failed')
   }
 

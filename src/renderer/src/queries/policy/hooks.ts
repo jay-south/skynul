@@ -1,16 +1,16 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import type { CapabilityId, LanguageCode, ProviderId, ThemeMode } from '@skynul/shared'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { policyKeys } from './keys'
 import {
   fetchPolicy,
-  setLanguage,
-  setTheme,
-  setCapability,
-  setTaskMemory,
+  pickWorkspace,
   setAutoApprove,
+  setCapability,
+  setLanguage,
   setProvider,
-  pickWorkspace
+  setTaskMemory,
+  setTheme
 } from './service'
-import type { LanguageCode, ThemeMode, CapabilityId, ProviderId } from '@skynul/shared'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // QUERIES

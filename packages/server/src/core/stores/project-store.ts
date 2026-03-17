@@ -1,6 +1,6 @@
+import type { ProjectWithTasks } from '@skynul/shared'
 import Database from 'better-sqlite3'
 import { join } from 'path'
-import type { ProjectWithTasks } from '@skynul/shared'
 import { getDataDir } from '../config'
 
 let db: Database.Database | null = null
@@ -40,9 +40,10 @@ function rowToProject(row: Record<string, unknown>, taskIds: string[]): ProjectW
 
 export function projectList(): ProjectWithTasks[] {
   const d = getDb()
-  const rows = d
-    .prepare('SELECT * FROM projects ORDER BY created_at DESC')
-    .all() as Record<string, unknown>[]
+  const rows = d.prepare('SELECT * FROM projects ORDER BY created_at DESC').all() as Record<
+    string,
+    unknown
+  >[]
   return rows.map((r) => {
     const tasks = d
       .prepare('SELECT task_id FROM project_tasks WHERE project_id = ? ORDER BY added_at')
@@ -75,9 +76,7 @@ export function projectDelete(id: string): void {
 
 export function projectAddTask(projectId: string, taskId: string): void {
   getDb()
-    .prepare(
-      'INSERT OR IGNORE INTO project_tasks (project_id, task_id, added_at) VALUES (?, ?, ?)'
-    )
+    .prepare('INSERT OR IGNORE INTO project_tasks (project_id, task_id, added_at) VALUES (?, ?, ?)')
     .run(projectId, taskId, Date.now())
 }
 

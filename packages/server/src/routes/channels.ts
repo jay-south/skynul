@@ -1,7 +1,7 @@
-import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
-import { z } from 'zod'
 import type { ChannelId } from '@skynul/shared'
+import { Hono } from 'hono'
+import { z } from 'zod'
 import { ChannelManager } from '../core/channels/channel-manager'
 import { taskManager } from './tasks'
 
@@ -20,18 +20,25 @@ const channels = new Hono()
   .get('/global', (c) => {
     return c.json(cm.getGlobalSettings())
   })
-  .put('/:id/enabled', zValidator('json', z.object({
-    enabled: z.boolean()
-  })), async (c) => {
-    const id = c.req.param('id') as ChannelId
-    try {
-      const ch = cm.getChannel(id)
-      const settings = await ch.setEnabled(c.req.valid('json').enabled)
-      return c.json(settings)
-    } catch (e) {
-      return c.json({ error: e instanceof Error ? e.message : String(e) }, 400)
+  .put(
+    '/:id/enabled',
+    zValidator(
+      'json',
+      z.object({
+        enabled: z.boolean()
+      })
+    ),
+    async (c) => {
+      const id = c.req.param('id') as ChannelId
+      try {
+        const ch = cm.getChannel(id)
+        const settings = await ch.setEnabled(c.req.valid('json').enabled)
+        return c.json(settings)
+      } catch (e) {
+        return c.json({ error: e instanceof Error ? e.message : String(e) }, 400)
+      }
     }
-  })
+  )
   .put('/:id/credentials', zValidator('json', z.record(z.string())), async (c) => {
     const id = c.req.param('id') as ChannelId
     const credentials = c.req.valid('json')
@@ -63,13 +70,20 @@ const channels = new Hono()
       return c.json({ error: e instanceof Error ? e.message : String(e) }, 400)
     }
   })
-  .put('/auto-approve', zValidator('json', z.object({
-    enabled: z.boolean()
-  })), async (c) => {
-    const { enabled } = c.req.valid('json')
-    const settings = await cm.setAutoApprove(enabled)
-    return c.json(settings)
-  })
+  .put(
+    '/auto-approve',
+    zValidator(
+      'json',
+      z.object({
+        enabled: z.boolean()
+      })
+    ),
+    async (c) => {
+      const { enabled } = c.req.valid('json')
+      const settings = await cm.setAutoApprove(enabled)
+      return c.json(settings)
+    }
+  )
 
 export { channels }
 export type ChannelsRoute = typeof channels

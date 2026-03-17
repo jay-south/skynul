@@ -365,7 +365,8 @@ const MESSAGES = {
     ollama_step3_cmd: 'ollama pull qwen3.5:27b',
     ollama_step4: '4. Hacé click en Reintentar',
     ollama_select_model: 'Elegir modelo',
-    ollama_no_models: 'No se encontraron modelos. Abrí una terminal y ejecutá: ollama pull qwen3.5:27b',
+    ollama_no_models:
+      'No se encontraron modelos. Abrí una terminal y ejecutá: ollama pull qwen3.5:27b',
     ollama_model_saved: 'Modelo guardado',
 
     provider_api_key_placeholder: 'Pega tu clave API',

@@ -1,15 +1,15 @@
-import { Bot, InputFile } from 'grammy'
-import { randomBytes } from 'crypto'
-import { readFile, writeFile, mkdir, stat } from 'fs/promises'
-import { join, dirname, basename } from 'path'
-import { createWriteStream } from 'fs'
-import { pipeline } from 'stream/promises'
-import { getDataDir } from '../config'
 import type { ChannelId, ChannelSettings } from '@skynul/shared'
+import { randomBytes } from 'crypto'
+import { createWriteStream } from 'fs'
+import { mkdir, readFile, stat, writeFile } from 'fs/promises'
+import { Bot, InputFile } from 'grammy'
+import { basename, dirname, join } from 'path'
+import { pipeline } from 'stream/promises'
 import type { TaskManager } from '../agent/task-manager'
+import { getDataDir } from '../config'
+import { getSecret, setSecret } from '../stores/secret-store'
 import { Channel } from './channel'
 import { formatTaskList, formatTaskSummary } from './message-formatter'
-import { getSecret, setSecret } from '../stores/secret-store'
 
 type TelegramState = {
   enabled: boolean
@@ -80,20 +80,22 @@ export class TelegramChannel extends Channel {
       this.subscribeToTaskUpdates()
 
       console.log('[TelegramChannel] Starting bot polling...')
-      this.bot.start({
-        onStart: () => {
-          console.log('[TelegramChannel] Polling started OK')
-          this.statusError = null
-        },
-        drop_pending_updates: true
-      }).catch((e) => {
-        // Polling died — mark as error and schedule retry
-        const msg = e instanceof Error ? e.message : String(e)
-        console.error('[TelegramChannel] Polling stopped:', msg)
-        this.statusError = msg
-        this.bot = null
-        this.scheduleRetry()
-      })
+      this.bot
+        .start({
+          onStart: () => {
+            console.log('[TelegramChannel] Polling started OK')
+            this.statusError = null
+          },
+          drop_pending_updates: true
+        })
+        .catch((e) => {
+          // Polling died — mark as error and schedule retry
+          const msg = e instanceof Error ? e.message : String(e)
+          console.error('[TelegramChannel] Polling stopped:', msg)
+          this.statusError = msg
+          this.bot = null
+          this.scheduleRetry()
+        })
     } catch (e) {
       console.error('[TelegramChannel] Failed to start bot:', e)
       this.statusError = e instanceof Error ? e.message : String(e)
@@ -209,7 +211,9 @@ export class TelegramChannel extends Channel {
         return
       }
       if (!this.state.pairingCode) {
-        await ctx.reply('No hay código de vinculación activo. Generá uno desde los ajustes de Skynul.')
+        await ctx.reply(
+          'No hay código de vinculación activo. Generá uno desde los ajustes de Skynul.'
+        )
         return
       }
       if (code !== this.state.pairingCode) {
@@ -263,7 +267,9 @@ export class TelegramChannel extends Channel {
       }
       try {
         this.taskManager.cancel(task.id)
-        await ctx.reply(toHtml(`\u26d4 *Cancelada:* ${task.prompt.slice(0, 80)}`), { parse_mode: 'HTML' })
+        await ctx.reply(toHtml(`\u26d4 *Cancelada:* ${task.prompt.slice(0, 80)}`), {
+          parse_mode: 'HTML'
+        })
       } catch (e) {
         await ctx.reply(`Error: ${e instanceof Error ? e.message : String(e)}`)
       }
@@ -278,8 +284,14 @@ export class TelegramChannel extends Channel {
       }
       try {
         const info = await stat(filePath)
-        if (!info.isFile()) { await ctx.reply('No es un archivo.'); return }
-        if (info.size > 50 * 1024 * 1024) { await ctx.reply('El archivo supera 50MB (límite de Telegram).'); return }
+        if (!info.isFile()) {
+          await ctx.reply('No es un archivo.')
+          return
+        }
+        if (info.size > 50 * 1024 * 1024) {
+          await ctx.reply('El archivo supera 50MB (límite de Telegram).')
+          return
+        }
         await ctx.replyWithDocument(new InputFile(filePath, basename(filePath)))
       } catch (e) {
         await ctx.reply(`Error: ${e instanceof Error ? e.message : String(e)}`)

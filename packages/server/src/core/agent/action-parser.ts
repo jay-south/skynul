@@ -38,7 +38,7 @@ function stripTrailingNoise(text: string): string {
       lines.pop()
       continue
     }
-    const looksLikeJson = /[{}\[\]"]/.test(last)
+    const looksLikeJson = /[{}[\]"]/.test(last)
     if (
       !looksLikeJson &&
       (last.startsWith('·') || /Starting agent loop|bridge ready|CDP browser/i.test(last))
@@ -245,7 +245,7 @@ function validateResponse(obj: unknown): ModelResponse {
 
   const rec = obj as Record<string, unknown>
   let action = rec.action as Record<string, unknown> | undefined
-  let thought = typeof rec.thought === 'string' ? rec.thought : undefined
+  const thought = typeof rec.thought === 'string' ? rec.thought : undefined
 
   // Normalize alternative formats from local models (e.g. llama3)
   // Format: { "step": { "actions": [{ "type": "navigate", ... }] } }

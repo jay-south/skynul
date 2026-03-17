@@ -1,6 +1,6 @@
-import { readFile, writeFile, mkdir } from 'fs/promises'
+import { DEFAULT_POLICY, type PolicyState, type ProviderId } from '@skynul/shared'
+import { mkdir, readFile, writeFile } from 'fs/promises'
 import { dirname, join } from 'path'
-import { DEFAULT_POLICY, type ProviderId, type PolicyState } from '@skynul/shared'
 import { getDataDir } from '../config'
 
 function policyPath(): string {

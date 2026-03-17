@@ -1,7 +1,7 @@
-import { useState, useRef } from 'react'
 import type { Skill } from '@skynul/shared'
+import { useRef, useState } from 'react'
 import { SkillGraph } from '../../components/SkillGraph'
-import { useSkills, useSaveSkill, useToggleSkill, useDeleteSkill } from '../../queries'
+import { useDeleteSkill, useSaveSkill, useSkills, useToggleSkill } from '../../queries'
 
 export function SkillsSettingsPage(): React.JSX.Element {
   const [skillModal, setSkillModal] = useState<Skill | 'new' | null>(null)

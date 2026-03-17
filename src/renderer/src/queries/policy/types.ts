@@ -1,10 +1,4 @@
-import type {
-  PolicyState,
-  LanguageCode,
-  ThemeMode,
-  CapabilityId,
-  ProviderId
-} from '@skynul/shared'
+import type { CapabilityId, LanguageCode, PolicyState, ProviderId, ThemeMode } from '@skynul/shared'
 
 export type PolicyResponse = PolicyState
 

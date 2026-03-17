@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process'
 import {
   cpSync,
   existsSync,
@@ -9,7 +10,6 @@ import {
 } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
-import { spawnSync } from 'node:child_process'
 
 const rootDir = process.cwd()
 const stageDir = path.join(rootDir, '.packaged-app')
@@ -83,8 +83,8 @@ if (existsSync(buildResourcesDir)) {
 cpSync(outDir, path.join(stageDir, 'out'), { recursive: true })
 
 const builderConfig = readFileSync(builderConfigPath, 'utf8')
-  .replace(/^  app: \.$/m, '  # app dir defaults to the staged project root')
-  .replace(/^  output: dist$/m, '  output: ../dist')
+  .replace(/^ {2}app: \.$/m, '  # app dir defaults to the staged project root')
+  .replace(/^ {2}output: dist$/m, '  output: ../dist')
 writeFileSync(stageBuilderConfigPath, builderConfig)
 
 const electronBuilderCli = path.join(

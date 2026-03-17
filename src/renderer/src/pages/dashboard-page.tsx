@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
-import { useTasks, useSchedules } from '../queries'
 import { TaskDashboard } from '../components/TaskDashboard'
+import { useSchedules, useTasks } from '../queries'
 
 export function DashboardPage(): React.JSX.Element {
   const navigate = useNavigate()

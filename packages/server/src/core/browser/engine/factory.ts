@@ -1,4 +1,4 @@
-import { BROWSER_ENGINE_ID, type AcquiredBrowserEngine } from './browser-engine'
+import { type AcquiredBrowserEngine, BROWSER_ENGINE_ID } from './browser-engine'
 import { acquirePlaywrightBrowserEngine } from './playwright-engine'
 
 function normalizeEngineId(raw: string | undefined): string {

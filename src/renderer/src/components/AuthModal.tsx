@@ -1,6 +1,6 @@
 import type { LanguageCode } from '@skynul/shared'
-import { t } from '../i18n'
 import { useEffect, useId, useRef } from 'react'
+import { t } from '../i18n'
 
 export const AUTH_PROVIDER = {
   GOOGLE: 'google',

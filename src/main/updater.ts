@@ -1,7 +1,7 @@
-import { autoUpdater } from 'electron-updater'
-import { app, BrowserWindow } from 'electron'
 import { is } from '@electron-toolkit/utils'
+import { app, type BrowserWindow } from 'electron'
 import log from 'electron-log'
+import { autoUpdater } from 'electron-updater'
 
 let mainWindow: BrowserWindow | null = null
 

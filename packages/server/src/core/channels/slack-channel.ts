@@ -1,12 +1,12 @@
-import { readFile, writeFile, mkdir } from 'fs/promises'
-import { join, dirname } from 'path'
-import { randomBytes } from 'crypto'
-import { getDataDir } from '../config'
-import { App as SlackApp } from '@slack/bolt'
 import type { ChannelId, ChannelSettings } from '@skynul/shared'
+import { App as SlackApp } from '@slack/bolt'
+import { randomBytes } from 'crypto'
+import { mkdir, readFile, writeFile } from 'fs/promises'
+import { dirname, join } from 'path'
 import type { TaskManager } from '../agent/task-manager'
-import { Channel } from './channel'
+import { getDataDir } from '../config'
 import { getSecret, setSecret } from '../stores/secret-store'
+import { Channel } from './channel'
 import { formatTaskList, formatTaskSummary } from './message-formatter'
 
 type SlackState = {
@@ -77,7 +77,9 @@ export class SlackChannel extends Channel {
     if (this.slackApp) {
       try {
         await this.slackApp.stop()
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       this.slackApp = null
       this.ready = false
     }

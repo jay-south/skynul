@@ -15,8 +15,7 @@ type UserContentPart =
   | { type: 'input_text'; text: string }
   | { type: 'input_image'; detail: 'auto' | 'low' | 'high'; image_url: string }
 
-type AssistantContentPart =
-  | { type: 'output_text'; text: string; annotations?: unknown[] }
+type AssistantContentPart = { type: 'output_text'; text: string; annotations?: unknown[] }
 
 // User/system messages use role+content format
 type UserMessage = {
@@ -101,7 +100,11 @@ function convertMessages(messages: VisionMessage[]): InputItem[] {
         role: 'user',
         content: msg.content.map((part) => {
           if (part.type === 'input_image') {
-            return { type: 'input_image' as const, detail: 'auto' as const, image_url: part.image_url }
+            return {
+              type: 'input_image' as const,
+              detail: 'auto' as const,
+              image_url: part.image_url
+            }
           }
           return { type: 'input_text' as const, text: part.text }
         })
@@ -118,7 +121,8 @@ function convertMessages(messages: VisionMessage[]): InputItem[] {
         .filter((p) => p.type === 'output_text' || p.type === 'input_text')
         .map((p) => ({
           type: 'output_text' as const,
-          text: p.type === 'output_text' ? p.text : (p as { type: 'input_text'; text: string }).text,
+          text:
+            p.type === 'output_text' ? p.text : (p as { type: 'input_text'; text: string }).text,
           annotations: []
         }))
     } as AssistantMessage

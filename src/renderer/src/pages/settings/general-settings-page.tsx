@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react'
 import type { LanguageCode, ThemeMode } from '@skynul/shared'
-import { SUPABASE_CONFIGURED, supabase } from '../../supabase'
+import { useEffect, useState } from 'react'
 import { UpdateSettings } from '../../components/UpdateSettings'
 import { t } from '../../i18n'
-import { usePolicy, useSetLanguage, useSetTheme, usePickWorkspace } from '../../queries'
+import { usePickWorkspace, usePolicy, useSetLanguage, useSetTheme } from '../../queries'
+import { SUPABASE_CONFIGURED, supabase } from '../../supabase'
 
 export function GeneralSettingsPage(): React.JSX.Element {
   const [accountEmail, setAccountEmail] = useState('')

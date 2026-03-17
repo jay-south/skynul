@@ -3,8 +3,8 @@
  * Uses exceljs to create professional-looking tables.
  */
 
-import ExcelJS from 'exceljs'
 import { execSync } from 'child_process'
+import ExcelJS from 'exceljs'
 import path from 'path'
 import { getDataDir } from '../config'
 
@@ -106,7 +106,9 @@ export async function createExcelFromTsv(
     const IS_WSL = process.platform === 'linux' && !!process.env.WSL_DISTRO_NAME
     if (IS_WSL) {
       const winPath = filePath.replace(/^\/mnt\/([a-z])\//, '$1:\\\\').replace(/\//g, '\\')
-      execSync(`powershell.exe -NoProfile -NonInteractive -Command "Start-Process '${winPath}'"`, { timeout: 5000 })
+      execSync(`powershell.exe -NoProfile -NonInteractive -Command "Start-Process '${winPath}'"`, {
+        timeout: 5000
+      })
     } else {
       // In server mode, just log — no shell.openPath available
       console.log(`[excel] File saved: ${filePath}`)
@@ -125,10 +127,13 @@ function getDesktopPath(): string {
     // Try Windows desktop via WSL
     try {
       const { execSync } = require('child_process')
-      const winUser = execSync('powershell.exe -NoProfile -NonInteractive -Command "[Environment]::UserName"', {
-        encoding: 'utf-8',
-        timeout: 3000
-      }).trim()
+      const winUser = execSync(
+        'powershell.exe -NoProfile -NonInteractive -Command "[Environment]::UserName"',
+        {
+          encoding: 'utf-8',
+          timeout: 3000
+        }
+      ).trim()
       return `/mnt/c/Users/${winUser}/Desktop`
     } catch {
       return path.join('/mnt/c/Users', user, 'Desktop')

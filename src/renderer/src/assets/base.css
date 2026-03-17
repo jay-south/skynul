@@ -15,8 +15,8 @@
   color-scheme: light;
 }
 
-:root[data-theme='dark'],
-html[data-theme='dark'] {
+:root[data-theme="dark"],
+html[data-theme="dark"] {
   --nb-bg: #121212;
   --nb-sidebar-bg: #1a1a1a;
   --nb-panel: rgba(37, 37, 38, 0.6);
@@ -71,15 +71,8 @@ body {
   line-height: 1.5;
   font-size: 14px;
   font-family:
-    ui-sans-serif,
-    'Segoe UI Variable',
-    'Segoe UI',
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    'SF Pro Text',
-    'Helvetica Neue',
-    sans-serif;
+    ui-sans-serif, "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont,
+    "SF Pro Text", "Helvetica Neue", sans-serif;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

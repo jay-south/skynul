@@ -1,4 +1,4 @@
-import type { Page, Frame } from 'playwright-core'
+import type { Frame, Page } from 'playwright-core'
 
 /** Keep head+tail of long text so the model sees both beginning and end. */
 function headTail(text: string, limit: number): string {
@@ -54,9 +54,7 @@ export class PlaywrightBridge {
     const frames = this.page.frames()
     const idx = Number(frameId)
     if (!Number.isNaN(idx) && idx >= 0 && idx < frames.length) return frames[idx]
-    const match = frames.find(
-      (f) => f.name() === frameId || f.url().includes(frameId)
-    )
+    const match = frames.find((f) => f.name() === frameId || f.url().includes(frameId))
     return match ?? this.page.mainFrame()
   }
 
@@ -157,9 +155,7 @@ export class PlaywrightBridge {
   async evaluate(script: string, frameId?: string): Promise<string> {
     const frame = this.resolveFrame(frameId)
     // Wrap scripts containing `return` in an IIFE so they work with eval
-    const expr = /^\s*return\s/m.test(script)
-      ? `(function(){${script}})()`
-      : script
+    const expr = /^\s*return\s/m.test(script) ? `(function(){${script}})()` : script
     const val = await frame.evaluate((code) => {
       // eslint-disable-next-line no-eval
       return (0, eval)(code)

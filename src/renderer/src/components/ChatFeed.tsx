@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
-import type { Task, TaskStep, TaskCapabilityId } from '@skynul/shared'
+import type { Task, TaskCapabilityId, TaskStep } from '@skynul/shared'
 import { ALL_TASK_CAPABILITIES } from '@skynul/shared'
+import { useEffect, useRef, useState } from 'react'
 
 /** Convert URLs in text to clickable <a> tags, preserving the rest as text */
 function renderLinked(text: string): (string | React.ReactElement)[] {
@@ -12,7 +12,13 @@ function renderLinked(text: string): (string | React.ReactElement)[] {
     if (m.index > last) parts.push(text.slice(last, m.index))
     const url = m[1]
     parts.push(
-      <a key={m.index} href={url} target="_blank" rel="noopener noreferrer" style={{ color: '#58a6ff', wordBreak: 'break-all' }}>
+      <a
+        key={m.index}
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ color: '#58a6ff', wordBreak: 'break-all' }}
+      >
         {url}
       </a>
     )
@@ -29,11 +35,18 @@ function formatAction(step: TaskStep): string | null {
   switch (type) {
     case 'navigate': {
       const url = (a.url as string) ?? ''
-      try { return `Opening ${new URL(url).hostname}` } catch { return `Opening page…` }
+      try {
+        return `Opening ${new URL(url).hostname}`
+      } catch {
+        return `Opening page…`
+      }
     }
-    case 'launch': return `Opening ${a.app}`
-    case 'done': return String(a.summary)
-    case 'fail': return String(a.reason)
+    case 'launch':
+      return `Opening ${a.app}`
+    case 'done':
+      return String(a.summary)
+    case 'fail':
+      return String(a.reason)
     // Technical actions — hide, the thought already explains what's happening
     case 'evaluate':
     case 'click':
@@ -47,10 +60,10 @@ function formatAction(step: TaskStep): string | null {
     case 'shell':
     case 'user_message':
       return null
-    default: return null
+    default:
+      return null
   }
 }
-
 
 function CapsApproval(props: {
   caps: TaskCapabilityId[]
@@ -63,9 +76,7 @@ function CapsApproval(props: {
   return (
     <div className="feedBubble feedBubbleBot">
       <div className="feedBubbleContent">
-        <span className="feedCapsLabel">
-          {isPending ? 'Capabilities:' : 'Approved:'}
-        </span>
+        <span className="feedCapsLabel">{isPending ? 'Capabilities:' : 'Approved:'}</span>
         {props.caps.map((capId) => {
           const cap = ALL_TASK_CAPABILITIES.find((c) => c.id === capId)
           return (
@@ -76,9 +87,19 @@ function CapsApproval(props: {
         })}
         {isPending && (
           <div className="feedCapsActions">
-            <button className="btn feedBtnAllow" onClick={props.onApprove}>Allow & Run</button>
-            <button className="btn feedBtnCancel" onClick={props.onCancel}>Cancel</button>
-            <button className="feedDontAsk" onClick={() => { props.onDontAskAgain(); props.onApprove() }}>
+            <button className="btn feedBtnAllow" onClick={props.onApprove}>
+              Allow & Run
+            </button>
+            <button className="btn feedBtnCancel" onClick={props.onCancel}>
+              Cancel
+            </button>
+            <button
+              className="feedDontAsk"
+              onClick={() => {
+                props.onDontAskAgain()
+                props.onApprove()
+              }}
+            >
               Don't ask again
             </button>
           </div>
@@ -109,7 +130,10 @@ function ResultBlock(props: { text: string }): React.JSX.Element {
 function StepLine(props: { step: TaskStep }): React.JSX.Element {
   const { step } = props
   const hasError = !!step.error
-  const time = new Date(step.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  const time = new Date(step.timestamp).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 
   return (
     <div className={`feedStep ${hasError ? 'feedStepError' : ''}`}>
@@ -136,14 +160,13 @@ export function ChatFeed(props: {
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
   }, [task.steps.length, task.status])
 
-  const isTerminal = task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled'
+  const isTerminal =
+    task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled'
 
   return (
     <div className="chatFeed" ref={scrollRef}>
       {/* User prompt */}
-      <div className="feedBubble feedBubbleUser">
-        {task.prompt}
-      </div>
+      <div className="feedBubble feedBubbleUser">{task.prompt}</div>
 
       {/* Caps */}
       <CapsApproval
@@ -156,66 +179,73 @@ export function ChatFeed(props: {
 
       {/* Thinking */}
       {task.status === 'running' && task.steps.length === 0 && (
-        <div className="feedBubble feedBubbleBot feedThinking">
-          {task.summary || 'Thinking...'}
-        </div>
+        <div className="feedBubble feedBubbleBot feedThinking">{task.summary || 'Thinking...'}</div>
       )}
 
       {/* Steps — user messages as user bubbles, agent steps grouped in bot blocks */}
-      {task.steps.length > 0 && (() => {
-        const elements: React.JSX.Element[] = []
-        let agentBatch: TaskStep[] = []
-        let lastDateStr = ''
+      {task.steps.length > 0 &&
+        (() => {
+          const elements: React.JSX.Element[] = []
+          let agentBatch: TaskStep[] = []
+          let lastDateStr = ''
 
-        const flushBatch = (key: string): void => {
-          if (agentBatch.length > 0) {
-            elements.push(
-              <div key={key} className="feedBubble feedBubbleBot feedStepsBlock">
-                {agentBatch.map((s) => <StepLine key={s.index} step={s} />)}
-              </div>
-            )
-            agentBatch = []
+          const flushBatch = (key: string): void => {
+            if (agentBatch.length > 0) {
+              elements.push(
+                <div key={key} className="feedBubble feedBubbleBot feedStepsBlock">
+                  {agentBatch.map((s) => (
+                    <StepLine key={s.index} step={s} />
+                  ))}
+                </div>
+              )
+              agentBatch = []
+            }
           }
-        }
 
-        const maybeAddDateSep = (ts: number | undefined, key: string): void => {
-          if (!ts) return
-          const dateStr = new Date(ts).toLocaleDateString(undefined, {
-            year: 'numeric', month: 'short', day: 'numeric'
-          })
-          if (dateStr !== lastDateStr) {
-            flushBatch(`bot-before-date-${key}`)
-            elements.push(
-              <div key={`date-sep-${key}`} className="feedDateSep">
-                <span>{dateStr}</span>
-              </div>
-            )
-            lastDateStr = dateStr
+          const maybeAddDateSep = (ts: number | undefined, key: string): void => {
+            if (!ts) return
+            const dateStr = new Date(ts).toLocaleDateString(undefined, {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric'
+            })
+            if (dateStr !== lastDateStr) {
+              flushBatch(`bot-before-date-${key}`)
+              elements.push(
+                <div key={`date-sep-${key}`} className="feedDateSep">
+                  <span>{dateStr}</span>
+                </div>
+              )
+              lastDateStr = dateStr
+            }
           }
-        }
 
-        for (const step of task.steps) {
-          const a = step.action as Record<string, unknown>
-          maybeAddDateSep(step.timestamp, String(step.index))
-          if (a.type === 'user_message') {
-            flushBatch(`bot-before-${step.index}`)
-            elements.push(
-              <div key={`user-${step.index}`} className="feedBubble feedBubbleUser">
-                {String(a.text)}
-              </div>
-            )
-          } else {
-            agentBatch.push(step)
+          for (const step of task.steps) {
+            const a = step.action as Record<string, unknown>
+            maybeAddDateSep(step.timestamp, String(step.index))
+            if (a.type === 'user_message') {
+              flushBatch(`bot-before-${step.index}`)
+              elements.push(
+                <div key={`user-${step.index}`} className="feedBubble feedBubbleUser">
+                  {String(a.text)}
+                </div>
+              )
+            } else {
+              agentBatch.push(step)
+            }
           }
-        }
-        flushBatch('bot-final')
-        return elements
-      })()}
+          flushBatch('bot-final')
+          return elements
+        })()}
 
       {/* Typing indicator while model is thinking between steps */}
       {task.status === 'running' && task.steps.length > 0 && (
         <div className="feedBubble feedBubbleBot feedThinking feedTyping">
-          <span className="typingDots"><span /><span /><span /></span>
+          <span className="typingDots">
+            <span />
+            <span />
+            <span />
+          </span>
         </div>
       )}
 

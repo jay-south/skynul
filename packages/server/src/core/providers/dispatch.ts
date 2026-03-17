@@ -2,12 +2,12 @@ import type { ChatMessage, ProviderId } from '@skynul/shared'
 import { getSecret } from '../stores/secret-store'
 import { claudeRespond } from './claude'
 import { deepseekRespond } from './deepseek'
-import { kimiRespond } from './kimi'
-import { glmRespond } from './glm'
-import { minimaxRespond } from './minimax'
-import { openrouterRespond } from './openrouter'
 import { geminiRespond } from './gemini'
+import { glmRespond } from './glm'
+import { kimiRespond } from './kimi'
+import { minimaxRespond } from './minimax'
 import { ollamaRespond } from './ollama'
+import { openrouterRespond } from './openrouter'
 
 /**
  * Dispatch a chat request to the active provider.
@@ -16,17 +16,14 @@ import { ollamaRespond } from './ollama'
  * because it requires Electron's OAuth flow. Use API key-based providers instead,
  * or set up an OpenAI API key and use the openrouter/openai provider.
  */
-export async function dispatchChat(
-  provider: ProviderId,
-  messages: ChatMessage[]
-): Promise<string> {
+export async function dispatchChat(provider: ProviderId, messages: ChatMessage[]): Promise<string> {
   if (provider === 'chatgpt') {
     // Codex OAuth requires Electron context — fallback to OpenAI API key if available
     const apiKey = await getSecret('openai.apiKey')
     if (!apiKey) {
       throw new Error(
         'ChatGPT OAuth is only available in desktop mode. ' +
-        'Set an OpenAI API key in Settings to use this provider via the API.'
+          'Set an OpenAI API key in Settings to use this provider via the API.'
       )
     }
     // Use OpenAI-compatible endpoint directly

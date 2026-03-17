@@ -1,6 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { projectsKeys } from './keys'
-import { fetchProjects, createProject, deleteProject } from './service'
+import { createProject, deleteProject, fetchProjects } from './service'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // QUERIES

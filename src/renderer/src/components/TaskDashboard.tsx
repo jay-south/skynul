@@ -1,7 +1,5 @@
+import type { RuntimeStats, Schedule, Task } from '@skynul/shared'
 import { useEffect, useMemo, useState } from 'react'
-import type { Task } from '@skynul/shared'
-import type { Schedule } from '@skynul/shared'
-import type { RuntimeStats } from '@skynul/shared'
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -46,11 +44,11 @@ function RecentTask(props: { task: Task; onClick: () => void }): React.JSX.Eleme
 
   return (
     <button className="dashRecentItem" onClick={props.onClick}>
-        <div
-          className="dashRecentDot"
-          style={{ background: STATUS_COLOR[task.status] ?? 'var(--nb-muted)' }}
-        />
-        <div className="dashRecentContent">
+      <div
+        className="dashRecentDot"
+        style={{ background: STATUS_COLOR[task.status] ?? 'var(--nb-muted)' }}
+      />
+      <div className="dashRecentContent">
         <div className="dashRecentTitle">
           {task.prompt.slice(0, 50)}
           {task.prompt.length > 50 ? '…' : ''}
@@ -145,11 +143,12 @@ function ScheduleCard(props: { schedule: Schedule; onClick: () => void }): React
         <div className="agentCardPills">
           <span className="agentPill">
             Next: {fmtNext(s.nextRunAt)}{' '}
-            {new Date(s.nextRunAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+            {new Date(s.nextRunAt).toLocaleTimeString(undefined, {
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
           </span>
-          {s.lastRunAt && (
-            <span className="agentPill">Last: {formatAgo(s.lastRunAt)}</span>
-          )}
+          {s.lastRunAt && <span className="agentPill">Last: {formatAgo(s.lastRunAt)}</span>}
         </div>
       </div>
     </div>
@@ -341,7 +340,10 @@ export function TaskDashboard(props: {
             }
             color={failedRuns > 0 ? 'var(--nb-danger)' : 'var(--nb-accent-2)'}
           />
-          <StatCard label="Total tokens" value={totalTokens > 0 ? totalTokens.toLocaleString() : '—'} />
+          <StatCard
+            label="Total tokens"
+            value={totalTokens > 0 ? totalTokens.toLocaleString() : '—'}
+          />
           <StatCard
             label="Status"
             value={selectedSchedule.enabled ? 'Active' : 'Paused'}
@@ -436,7 +438,9 @@ export function TaskDashboard(props: {
             label="Tokens"
             value={
               selectedAgent.usage
-                ? (selectedAgent.usage.inputTokens + selectedAgent.usage.outputTokens).toLocaleString()
+                ? (
+                    selectedAgent.usage.inputTokens + selectedAgent.usage.outputTokens
+                  ).toLocaleString()
                 : '—'
             }
           />
@@ -564,7 +568,6 @@ export function TaskDashboard(props: {
               ))}
             </div>
           </div>
-
         </>
       )}
 

@@ -72,9 +72,7 @@ export async function glmVisionRespond(opts: {
 
   if (!res.ok) {
     const txt = await res.text().catch(() => '')
-    throw new Error(
-      `GLM vision error: ${res.status} ${res.statusText}${txt ? ` - ${txt}` : ''}`
-    )
+    throw new Error(`GLM vision error: ${res.status} ${res.statusText}${txt ? ` - ${txt}` : ''}`)
   }
 
   const data = (await res.json()) as OpenAIChatCompletionResponse

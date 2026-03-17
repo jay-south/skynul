@@ -1,5 +1,5 @@
-import { getSecret, setSecret } from '../stores/secret-store'
 import type { ChatMessage } from '@skynul/shared'
+import { getSecret, setSecret } from '../stores/secret-store'
 
 const CLIENT_ID = 'app_EMoamEEZ73f0CkXaXp7hrann'
 const ISSUER = 'https://auth.openai.com'
@@ -249,7 +249,9 @@ export async function codexRespond(opts: { messages: ChatMessage[] }): Promise<s
         }
         // output_item with text content (non-delta fallback)
         if (evt.type === 'response.output_item.done') {
-          const item = evt.item as { type?: string; content?: Array<{ type: string; text?: string }> } | undefined
+          const item = evt.item as
+            | { type?: string; content?: Array<{ type: string; text?: string }> }
+            | undefined
           if (item?.content) {
             for (const c of item.content) {
               if (c.type === 'output_text' && typeof c.text === 'string' && !accumulated) {

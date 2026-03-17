@@ -55,8 +55,10 @@ export class PolymarketClient {
   private async getLiveSdkClient(): Promise<unknown> {
     const { getSecret } = await import('./secret-store')
     const pk = (await getSecret('POLYMARKET_PRIVATE_KEY')) ?? process.env.POLYMARKET_PRIVATE_KEY
-    const funder = (await getSecret('POLYMARKET_FUNDER_ADDRESS')) ?? process.env.POLYMARKET_FUNDER_ADDRESS
-    const sigTypeRaw = (await getSecret('POLYMARKET_SIGNATURE_TYPE')) ?? process.env.POLYMARKET_SIGNATURE_TYPE ?? '2'
+    const funder =
+      (await getSecret('POLYMARKET_FUNDER_ADDRESS')) ?? process.env.POLYMARKET_FUNDER_ADDRESS
+    const sigTypeRaw =
+      (await getSecret('POLYMARKET_SIGNATURE_TYPE')) ?? process.env.POLYMARKET_SIGNATURE_TYPE ?? '2'
 
     if (!pk) {
       throw new Error('POLYMARKET_PRIVATE_KEY is not set. Configure it in Settings → Secrets.')
@@ -82,7 +84,10 @@ export class PolymarketClient {
     // a _signTypedData method (ethers v5). In ethers v6 this is exposed as
     // signTypedData, so we provide a small shim.
     const anySigner = signer as any
-    if (typeof anySigner._signTypedData !== 'function' && typeof anySigner.signTypedData === 'function') {
+    if (
+      typeof anySigner._signTypedData !== 'function' &&
+      typeof anySigner.signTypedData === 'function'
+    ) {
       anySigner._signTypedData = (...args: unknown[]) => anySigner.signTypedData(...args)
     }
 
@@ -116,14 +121,17 @@ export class PolymarketClient {
 
     // LIVE MODE: read positions via public Data API.
     const { getSecret } = await import('./secret-store')
-    const funder = (await getSecret('POLYMARKET_FUNDER_ADDRESS')) ?? process.env.POLYMARKET_FUNDER_ADDRESS
+    const funder =
+      (await getSecret('POLYMARKET_FUNDER_ADDRESS')) ?? process.env.POLYMARKET_FUNDER_ADDRESS
     if (!funder) {
       throw new Error('POLYMARKET_FUNDER_ADDRESS is not set. Configure it in Settings → Secrets.')
     }
 
     const fetchFn: typeof fetch | undefined = (globalThis as any).fetch
     if (!fetchFn) {
-      throw new Error('Global fetch is not available in this runtime; cannot query Polymarket Data API.')
+      throw new Error(
+        'Global fetch is not available in this runtime; cannot query Polymarket Data API.'
+      )
     }
 
     const url = `https://data-api.polymarket.com/positions?user=${encodeURIComponent(funder)}&limit=500`
@@ -133,15 +141,16 @@ export class PolymarketClient {
     }
 
     const raw = await res.json()
-    const rawPositions: any[] = Array.isArray(raw) ? raw : Array.isArray(raw?.positions) ? raw.positions : []
+    const rawPositions: any[] = Array.isArray(raw)
+      ? raw
+      : Array.isArray(raw?.positions)
+        ? raw.positions
+        : []
 
     const positions: PolymarketPosition[] = rawPositions.map((p) => {
-      const size =
-        Number(p.size ?? p.tokens ?? p.tokenCount ?? 0) || 0
-      const avgPrice =
-        Number(p.avgPrice ?? p.avg_price ?? p.price ?? 0) || 0
-      const pnl =
-        Number(p.cashPnl ?? p.cash_pnl ?? p.pnl ?? 0) || 0
+      const size = Number(p.size ?? p.tokens ?? p.tokenCount ?? 0) || 0
+      const avgPrice = Number(p.avgPrice ?? p.avg_price ?? p.price ?? 0) || 0
+      const pnl = Number(p.cashPnl ?? p.cash_pnl ?? p.pnl ?? 0) || 0
 
       return {
         marketId: String(p.marketId ?? p.market_id ?? p.conditionId ?? p.condition_id ?? ''),
@@ -161,10 +170,15 @@ export class PolymarketClient {
       const rpcRes = await fetchFn('https://rpc-mainnet.matic.quiknode.pro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_call', params: [{ to: USDC, data: `0x70a08231${addr}` }, 'latest'] })
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'eth_call',
+          params: [{ to: USDC, data: `0x70a08231${addr}` }, 'latest']
+        })
       })
       if (rpcRes.ok) {
-        const rpcData = await rpcRes.json() as any
+        const rpcData = (await rpcRes.json()) as any
         if (rpcData.result) {
           balanceUsd = Number(BigInt(rpcData.result)) / 1e6
         }
@@ -185,14 +199,14 @@ export class PolymarketClient {
    * This uses the public data API:
    *   GET /v1/leaderboard?category=OVERALL&timePeriod=MONTH&orderBy=PNL&limit=...
    */
-  async getTopTraders(opts: {
-    limit?: number
-    category?: string
-    timePeriod?: 'DAY' | 'WEEK' | 'MONTH' | 'ALL'
-  } = {}): Promise<PolymarketTrader[]> {
+  async getTopTraders(
+    opts: { limit?: number; category?: string; timePeriod?: 'DAY' | 'WEEK' | 'MONTH' | 'ALL' } = {}
+  ): Promise<PolymarketTrader[]> {
     const fetchFn: typeof fetch | undefined = (globalThis as any).fetch
     if (!fetchFn) {
-      throw new Error('Global fetch is not available in this runtime; cannot query Polymarket leaderboard.')
+      throw new Error(
+        'Global fetch is not available in this runtime; cannot query Polymarket leaderboard.'
+      )
     }
 
     const limit = Math.min(Math.max(opts.limit ?? 10, 1), 50)
@@ -233,14 +247,19 @@ export class PolymarketClient {
    * 1. Try gamma-api by exact slug (works for slugs like "nba-gsw-nop-2026-02-24").
    * 2. Fetch trending/active events from Polymarket home SSR and filter by query keywords.
    */
-  async searchMarkets(query: string, limit = 5): Promise<Array<{
-    conditionId: string
-    slug: string
-    title: string
-    tokens: Array<{ tokenId: string; outcome: string; price: number }>
-    volume: number
-    active: boolean
-  }>> {
+  async searchMarkets(
+    query: string,
+    limit = 5
+  ): Promise<
+    Array<{
+      conditionId: string
+      slug: string
+      title: string
+      tokens: Array<{ tokenId: string; outcome: string; price: number }>
+      volume: number
+      active: boolean
+    }>
+  > {
     const fetchFn: typeof fetch | undefined = (globalThis as any).fetch
     if (!fetchFn) throw new Error('Global fetch not available')
 
@@ -253,7 +272,9 @@ export class PolymarketClient {
         const slugEvents = await slugRes.json()
         if (Array.isArray(slugEvents) && slugEvents.length > 0) events = slugEvents
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     // 2) Fetch active events by volume and filter by keywords locally
     if (events.length === 0) {
@@ -263,7 +284,10 @@ export class PolymarketClient {
         if (activeRes.ok) {
           const allEvents = await activeRes.json()
           if (Array.isArray(allEvents)) {
-            const words = query.toLowerCase().split(/\s+/).filter(w => w.length > 2)
+            const words = query
+              .toLowerCase()
+              .split(/\s+/)
+              .filter((w) => w.length > 2)
             // First try: all words match
             events = allEvents.filter((e: any) => {
               const text = `${e.title ?? ''} ${e.slug ?? ''} ${e.description ?? ''}`.toLowerCase()
@@ -278,14 +302,19 @@ export class PolymarketClient {
             }
           }
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
 
     // Flatten events → markets with clobTokenIds
     const results: Array<{
-      conditionId: string; slug: string; title: string
+      conditionId: string
+      slug: string
+      title: string
       tokens: Array<{ tokenId: string; outcome: string; price: number }>
-      volume: number; active: boolean
+      volume: number
+      active: boolean
     }> = []
 
     for (const evt of events) {
@@ -293,25 +322,37 @@ export class PolymarketClient {
       for (const m of markets) {
         let tids: string[] = []
         if (typeof m.clobTokenIds === 'string') {
-          try { tids = JSON.parse(m.clobTokenIds) } catch { /* */ }
+          try {
+            tids = JSON.parse(m.clobTokenIds)
+          } catch {
+            /* */
+          }
         } else if (Array.isArray(m.clobTokenIds)) {
           tids = m.clobTokenIds
         }
         let outcomes: string[] = []
         if (typeof m.outcomes === 'string') {
-          try { outcomes = JSON.parse(m.outcomes) } catch { /* */ }
+          try {
+            outcomes = JSON.parse(m.outcomes)
+          } catch {
+            /* */
+          }
         } else if (Array.isArray(m.outcomes)) {
           outcomes = m.outcomes
         }
         let prices: number[] = []
         if (typeof m.outcomePrices === 'string') {
-          try { prices = JSON.parse(m.outcomePrices).map(Number) } catch { /* */ }
+          try {
+            prices = JSON.parse(m.outcomePrices).map(Number)
+          } catch {
+            /* */
+          }
         }
 
         if (tids.length === 0) continue
 
         // Only include markets with at least one token priced 0.10-0.90 (tradeable range)
-        const hasTradeablePrice = prices.some(p => p >= 0.10 && p <= 0.90)
+        const hasTradeablePrice = prices.some((p) => p >= 0.1 && p <= 0.9)
         if (!hasTradeablePrice && prices.length > 0) continue
 
         results.push({
@@ -410,4 +451,3 @@ export class PolymarketClient {
     )
   }
 }
-

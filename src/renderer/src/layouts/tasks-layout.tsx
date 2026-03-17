@@ -1,6 +1,6 @@
-import { Outlet, NavLink, useParams, useNavigate } from 'react-router-dom'
-import { useState, useMemo } from 'react'
-import { useTasks, useDeleteTask, useCancelTask } from '../queries/tasks'
+import { useMemo, useState } from 'react'
+import { NavLink, Outlet, useNavigate, useParams } from 'react-router-dom'
+import { useCancelTask, useDeleteTask, useTasks } from '../queries/tasks'
 
 export function TasksLayout(): React.JSX.Element {
   const navigate = useNavigate()

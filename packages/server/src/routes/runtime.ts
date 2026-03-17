@@ -1,5 +1,5 @@
-import { Hono } from 'hono'
 import { execSync } from 'child_process'
+import { Hono } from 'hono'
 
 const runtime = new Hono().get('/stats', (c) => {
   try {

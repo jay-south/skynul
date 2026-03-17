@@ -1,5 +1,5 @@
 import type { Task } from '@skynul/shared'
-import type { TaskListResponse, TaskCreateRequest, TaskCreateResponse } from './types'
+import type { TaskCreateRequest, TaskCreateResponse, TaskListResponse } from './types'
 
 const API_BASE = 'http://localhost:3141/api'
 

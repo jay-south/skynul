@@ -1,4 +1,4 @@
-import { Outlet, NavLink } from 'react-router-dom'
+import { NavLink, Outlet } from 'react-router-dom'
 
 export function SettingsLayout(): React.JSX.Element {
   return (

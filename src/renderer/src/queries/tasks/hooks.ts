@@ -1,12 +1,12 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { tasksKeys } from './keys'
 import {
-  fetchTasks,
-  fetchTask,
-  createTask,
   approveTask,
   cancelTask,
+  createTask,
   deleteTask,
+  fetchTask,
+  fetchTasks,
   sendTaskMessage
 } from './service'
 

@@ -1,9 +1,9 @@
-import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
-import { z } from 'zod'
-import { readFile } from 'fs/promises'
 import type { Skill } from '@skynul/shared'
-import { loadSkills, saveSkills, createSkillId } from '../core/stores/skill-store'
+import { readFile } from 'fs/promises'
+import { Hono } from 'hono'
+import { z } from 'zod'
+import { createSkillId, loadSkills, saveSkills } from '../core/stores/skill-store'
 
 const skillSchema = z.object({
   id: z.string().optional(),
@@ -48,55 +48,62 @@ const skills = new Hono()
     await saveSkills(all)
     return c.json({ skills: all })
   })
-  .post('/import', zValidator('json', z.object({
-    filePath: z.string()
-  })), async (c) => {
-    const { filePath } = c.req.valid('json')
-    const raw = await readFile(filePath, 'utf8')
-    const isMarkdown = filePath.endsWith('.md') || filePath.endsWith('.markdown')
+  .post(
+    '/import',
+    zValidator(
+      'json',
+      z.object({
+        filePath: z.string()
+      })
+    ),
+    async (c) => {
+      const { filePath } = c.req.valid('json')
+      const raw = await readFile(filePath, 'utf8')
+      const isMarkdown = filePath.endsWith('.md') || filePath.endsWith('.markdown')
 
-    const basename = filePath.split(/[\\/]/).pop() ?? 'Imported'
-    const nameFromFile = basename.replace(/\.(json|md|markdown)$/i, '')
+      const basename = filePath.split(/[\\/]/).pop() ?? 'Imported'
+      const nameFromFile = basename.replace(/\.(json|md|markdown)$/i, '')
 
-    let name = nameFromFile
-    let tag = ''
-    let description = ''
-    let prompt = raw
+      let name = nameFromFile
+      let tag = ''
+      let description = ''
+      let prompt = raw
 
-    if (isMarkdown) {
-      const fmMatch = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/)
-      if (fmMatch) {
-        const frontmatter = fmMatch[1]
-        prompt = fmMatch[2].trim()
-        for (const line of frontmatter.split('\n')) {
-          const [key, ...rest] = line.split(':')
-          const val = rest.join(':').trim()
-          if (key.trim() === 'name') name = val
-          else if (key.trim() === 'tag' || key.trim() === 'category') tag = val
-          else if (key.trim() === 'description') description = val
+      if (isMarkdown) {
+        const fmMatch = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/)
+        if (fmMatch) {
+          const frontmatter = fmMatch[1]
+          prompt = fmMatch[2].trim()
+          for (const line of frontmatter.split('\n')) {
+            const [key, ...rest] = line.split(':')
+            const val = rest.join(':').trim()
+            if (key.trim() === 'name') name = val
+            else if (key.trim() === 'tag' || key.trim() === 'category') tag = val
+            else if (key.trim() === 'description') description = val
+          }
         }
+      } else {
+        const parsed = JSON.parse(raw) as Record<string, unknown>
+        name = String(parsed.name ?? nameFromFile)
+        tag = String(parsed.tag ?? parsed.category ?? '')
+        description = String(parsed.description ?? '')
+        prompt = String(parsed.prompt ?? '')
       }
-    } else {
-      const parsed = JSON.parse(raw) as Record<string, unknown>
-      name = String(parsed.name ?? nameFromFile)
-      tag = String(parsed.tag ?? parsed.category ?? '')
-      description = String(parsed.description ?? '')
-      prompt = String(parsed.prompt ?? '')
-    }
 
-    const all = await loadSkills()
-    all.push({
-      id: createSkillId(),
-      name,
-      tag,
-      description,
-      prompt,
-      enabled: true,
-      createdAt: Date.now()
-    })
-    await saveSkills(all)
-    return c.json({ skills: all })
-  })
+      const all = await loadSkills()
+      all.push({
+        id: createSkillId(),
+        name,
+        tag,
+        description,
+        prompt,
+        enabled: true,
+        createdAt: Date.now()
+      })
+      await saveSkills(all)
+      return c.json({ skills: all })
+    }
+  )
 
 export { skills }
 export type SkillsRoute = typeof skills

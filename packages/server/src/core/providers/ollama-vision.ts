@@ -51,7 +51,8 @@ export async function ollamaVisionRespond(opts: {
     let content = toText(m)
     // Append JSON reminder to the last user message so the model doesn't lose track
     if (m.role === 'user' && i === sliced.length - 1) {
-      content += '\n\nRemember: respond with ONLY a JSON object like {"thought":"...","action":{"type":"..."}}'
+      content +=
+        '\n\nRemember: respond with ONLY a JSON object like {"thought":"...","action":{"type":"..."}}'
     }
     messages.push({
       role: m.role === 'assistant' ? 'assistant' : 'user',

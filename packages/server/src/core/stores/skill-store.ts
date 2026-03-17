@@ -1,7 +1,7 @@
-import { readFile, writeFile, mkdir } from 'fs/promises'
-import { join, dirname } from 'path'
-import { randomBytes } from 'crypto'
 import type { Skill } from '@skynul/shared'
+import { randomBytes } from 'crypto'
+import { mkdir, readFile, writeFile } from 'fs/promises'
+import { dirname, join } from 'path'
 import { getDataDir } from '../config'
 
 function filePath(): string {

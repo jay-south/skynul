@@ -10,26 +10,24 @@
  * 7. Repeat until done, fail, timeout, or max steps
  */
 
-import type { Task, TaskAction, TaskStep } from '@skynul/shared'
-import type { ProviderId } from '@skynul/shared'
-import {
-  buildCdpSystemPrompt,
-  buildCodeSystemPrompt,
-  buildBrowserSystemPrompt
-} from './system-prompt'
-import { parseModelResponse } from './action-parser'
-import { codexVisionRespond, type VisionMessage } from '../providers/codex-vision'
-import { PolymarketClient } from '../polymarket-client'
-import { scrapeUrl } from './web-scraper'
-import { createExcelFromTsv } from './excel-writer'
-import { AppBridge } from './app-bridge'
-import { saveFact, deleteFact } from './task-memory'
-import { generateImage } from '../providers/image-gen'
+import type { ProviderId, Task, TaskAction, TaskStep } from '@skynul/shared'
 import { writeFile } from 'fs/promises'
 import os from 'os'
-
 import type { BrowserEngine } from '../browser/engine/browser-engine'
 import { acquireBrowserEngine } from '../browser/engine/factory'
+import { PolymarketClient } from '../polymarket-client'
+import { codexVisionRespond, type VisionMessage } from '../providers/codex-vision'
+import { generateImage } from '../providers/image-gen'
+import { parseModelResponse } from './action-parser'
+import { AppBridge } from './app-bridge'
+import { createExcelFromTsv } from './excel-writer'
+import {
+  buildBrowserSystemPrompt,
+  buildCdpSystemPrompt,
+  buildCodeSystemPrompt
+} from './system-prompt'
+import { deleteFact, saveFact } from './task-memory'
+import { scrapeUrl } from './web-scraper'
 
 /** Keep head+tail of long text so the model sees both beginning and end. */
 function headTail(text: string, limit: number): string {

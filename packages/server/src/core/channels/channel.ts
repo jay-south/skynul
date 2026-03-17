@@ -1,13 +1,8 @@
-import type { ChannelId, ChannelSettings } from '@skynul/shared'
+import type { ChannelId, ChannelSettings, Task, TaskSource } from '@skynul/shared'
+import { stat } from 'fs/promises'
 import type { TaskManager } from '../agent/task-manager'
 import type { ChannelManager } from './channel-manager'
-import { stat } from 'fs/promises'
-import type { Task, TaskSource } from '@skynul/shared'
-import {
-  formatTaskSummary,
-  formatTaskComplete,
-  formatTaskFailed
-} from './message-formatter'
+import { formatTaskComplete, formatTaskFailed, formatTaskSummary } from './message-formatter'
 
 /** Extract file paths from task summary (Windows & WSL paths). */
 function extractFilePaths(text: string): string[] {
@@ -20,10 +15,7 @@ function extractFilePaths(text: string): string[] {
 }
 
 /** Default capabilities for tasks created via messaging channels. */
-export const DEFAULT_CHANNEL_CAPABILITIES = [
-  'browser.cdp',
-  'app.launch'
-] as const
+export const DEFAULT_CHANNEL_CAPABILITIES = ['browser.cdp', 'app.launch'] as const
 
 export abstract class Channel {
   abstract readonly id: ChannelId
@@ -63,7 +55,9 @@ export abstract class Channel {
   }
 
   private async handleTaskUpdate(task: Task): Promise<void> {
-    console.log(`[${this.id}] taskUpdate: id=${task.id} status=${task.status} source=${task.source}`)
+    console.log(
+      `[${this.id}] taskUpdate: id=${task.id} status=${task.status} source=${task.source}`
+    )
 
     // Only notify for tasks originated from THIS channel
     if (task.source !== this.id) return

@@ -3,18 +3,30 @@
  * Server-side version: uses broadcast() instead of Electron BrowserWindow.
  */
 
+import type {
+  PolicyState,
+  Task,
+  TaskCapabilityId,
+  TaskCreateRequest,
+  TaskMode
+} from '@skynul/shared'
 import { randomBytes } from 'crypto'
-import { readFile, writeFile, mkdir } from 'fs/promises'
-import { writeFileSync, mkdirSync } from 'fs'
-import { join, dirname } from 'path'
 import { EventEmitter } from 'events'
-import type { Task, TaskCreateRequest, TaskCapabilityId, TaskMode } from '@skynul/shared'
-import type { PolicyState } from '@skynul/shared'
-import { TaskRunner } from './task-runner'
-import { saveMemory, searchMemories, formatMemoriesForPrompt, searchFacts, formatFactsForPrompt, closeMemoryDb } from './task-memory'
-import { loadSkills, getActiveSkillPrompts } from '../stores/skill-store'
-import { getDataDir } from '../config'
+import { mkdirSync, writeFileSync } from 'fs'
+import { mkdir, readFile, writeFile } from 'fs/promises'
+import { dirname, join } from 'path'
 import { broadcast } from '../../ws/events'
+import { getDataDir } from '../config'
+import { getActiveSkillPrompts, loadSkills } from '../stores/skill-store'
+import {
+  closeMemoryDb,
+  formatFactsForPrompt,
+  formatMemoriesForPrompt,
+  saveMemory,
+  searchFacts,
+  searchMemories
+} from './task-memory'
+import { TaskRunner } from './task-runner'
 
 const DEFAULT_MAX_STEPS = 200
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000 // 30 minutes
@@ -391,21 +403,27 @@ export class TaskManager extends EventEmitter {
       }
 
       if (step.error) {
-        failedActions.push(`${type}${raw.selector ? ` on "${raw.selector}"` : ''}: ${step.error.slice(0, 120)}`)
+        failedActions.push(
+          `${type}${raw.selector ? ` on "${raw.selector}"` : ''}: ${step.error.slice(0, 120)}`
+        )
       }
 
       if (step.thought && !step.error) {
         const t = step.thought
-        if (t.length > 20 && t.length < 300 && (
+        if (
+          t.length > 20 &&
+          t.length < 300 &&
           /found|discover|work|success|correct|need to|should|instead/i.test(t)
-        )) {
+        ) {
           const hint = t.slice(0, 200)
           if (successHints.length < 3) successHints.push(hint)
         }
       }
     }
 
-    const parts: string[] = [`Outcome: ${summary}. Steps: ${task.steps.length}. Duration: ${Math.round(durationMs / 1000)}s.`]
+    const parts: string[] = [
+      `Outcome: ${summary}. Steps: ${task.steps.length}. Duration: ${Math.round(durationMs / 1000)}s.`
+    ]
 
     if (urls.length > 0) parts.push(`URLs: ${urls.slice(0, 5).join(', ')}`)
     if (selectors.length > 0) parts.push(`Working selectors: ${selectors.slice(0, 10).join(' | ')}`)

@@ -1,7 +1,6 @@
-import { useRef, useState } from 'react'
-import type { LanguageCode } from '@skynul/shared'
-import type { TaskCapabilityId } from '@skynul/shared'
+import type { LanguageCode, TaskCapabilityId } from '@skynul/shared'
 import { ALL_TASK_CAPABILITIES } from '@skynul/shared'
+import { useRef, useState } from 'react'
 import { speechLocale } from '../i18n'
 
 export function InputBar(props: {
@@ -88,7 +87,10 @@ export function InputBar(props: {
         if (clipText) {
           // Clipboard has text — paste it immediately
           const el = textareaRef.current
-          if (!el) { setText((prev) => prev + clipText); return }
+          if (!el) {
+            setText((prev) => prev + clipText)
+            return
+          }
           const start = el.selectionStart ?? el.value.length
           const end = el.selectionEnd ?? el.value.length
           const next = el.value.slice(0, start) + clipText + el.value.slice(end)
@@ -158,10 +160,14 @@ export function InputBar(props: {
       <div className="inputBarAttachments" aria-label="Attachments">
         {attachments.slice(0, 8).map((p) => {
           const isDataUrl = p.startsWith('data:image/')
-          const name = isDataUrl ? 'imagen' : (p.split(/[\\/]/).pop() || p)
+          const name = isDataUrl ? 'imagen' : p.split(/[\\/]/).pop() || p
           const isImage = isDataUrl || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(p)
           return (
-            <div key={p} className={`inputBarAttachment${isImage ? ' inputBarAttachmentImg' : ''}`} title={p}>
+            <div
+              key={p}
+              className={`inputBarAttachment${isImage ? ' inputBarAttachmentImg' : ''}`}
+              title={p}
+            >
               {isImage ? (
                 <img src={p} className="inputBarAttachmentThumb" alt={name} />
               ) : (

@@ -1,5 +1,5 @@
-import { readFileSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
+import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
 function run(cmd, args, opts = {}) {

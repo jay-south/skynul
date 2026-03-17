@@ -1,14 +1,14 @@
-import { readFile, writeFile, mkdir } from 'fs/promises'
+import type { ChannelGlobalSettings, ChannelId, ChannelSettings } from '@skynul/shared'
+import { mkdir, readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
-import { getDataDir } from '../config'
-import type { ChannelId, ChannelSettings, ChannelGlobalSettings } from '@skynul/shared'
 import type { TaskManager } from '../agent/task-manager'
+import { getDataDir } from '../config'
 import type { Channel } from './channel'
-import { TelegramChannel } from './telegram-channel'
-import { WhatsAppChannel } from './whatsapp-channel'
 import { DiscordChannel } from './discord-channel'
 import { SignalChannel } from './signal-channel'
 import { SlackChannel } from './slack-channel'
+import { TelegramChannel } from './telegram-channel'
+import { WhatsAppChannel } from './whatsapp-channel'
 
 const DEFAULT_GLOBAL: ChannelGlobalSettings = { autoApprove: true }
 

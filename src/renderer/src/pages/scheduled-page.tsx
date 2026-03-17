@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { useSchedules, useToggleSchedule, useDeleteSchedule } from '../queries'
+import { useDeleteSchedule, useSchedules, useToggleSchedule } from '../queries'
 
 export function ScheduledPage(): React.JSX.Element {
   const navigate = useNavigate()

@@ -1,8 +1,8 @@
 import { exec } from 'child_process'
-import { writeFile, readFile, unlink, mkdir } from 'fs/promises'
-import { join } from 'path'
-import { tmpdir } from 'os'
 import { randomBytes } from 'crypto'
+import { mkdir, readFile, unlink, writeFile } from 'fs/promises'
+import { tmpdir } from 'os'
+import { join } from 'path'
 
 // ── App configs ──────────────────────────────────────────────────────────────
 
@@ -88,9 +88,8 @@ export class AppBridge {
   private platform: NodeJS.Platform
 
   constructor() {
-    this.platform = process.platform === 'linux' && process.env.WSL_DISTRO_NAME
-      ? 'win32'
-      : process.platform
+    this.platform =
+      process.platform === 'linux' && process.env.WSL_DISTRO_NAME ? 'win32' : process.platform
   }
 
   getSupportedApps(): AppName[] {
@@ -132,7 +131,8 @@ export class AppBridge {
         cmd = config.run.win32(winScriptPath)
       } else {
         const runFn = config.run[this.platform as keyof typeof config.run]
-        if (!runFn) return { ok: false, output: '', error: `${appName} not supported on ${this.platform}` }
+        if (!runFn)
+          return { ok: false, output: '', error: `${appName} not supported on ${this.platform}` }
         cmd = runFn(scriptFile)
       }
 
@@ -158,7 +158,10 @@ export class AppBridge {
 
   /** Run a quick inventory script to tell the model what's in the document */
   private async getDocInventory(
-    tmpDir: string, isWSL: boolean, comName: string, filesToClean: string[]
+    tmpDir: string,
+    isWSL: boolean,
+    comName: string,
+    filesToClean: string[]
   ): Promise<string> {
     const invScript = `
 var doc = app.activeDocument;
@@ -187,7 +190,10 @@ out;`
       const ps1Content = `$app = New-Object -ComObject ${comName}\n$result = $app.DoJavaScriptFile('C:\\Temp\\${invFileName}')\nWrite-Output $result\n`
       await writeFile(ps1File, ps1Content, 'utf-8')
       filesToClean.push(ps1File)
-      return await this.exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\\Temp\\${ps1Name}"`, 10_000)
+      return await this.exec(
+        `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\\Temp\\${ps1Name}"`,
+        10_000
+      )
     }
     return ''
   }
@@ -227,7 +233,10 @@ doc.exportFile(f, ExportType.PNG24, opts);
     try {
       await writeFile(jsxFile, jsxScript, 'utf-8')
       await writeFile(ps1File, ps1Content, 'utf-8')
-      await this.exec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\\Temp\\${ps1Name}"`, 15_000)
+      await this.exec(
+        `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\\Temp\\${ps1Name}"`,
+        15_000
+      )
       const buf = await readFile(pngWslPath)
       return buf.toString('base64')
     } catch {

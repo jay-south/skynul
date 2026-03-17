@@ -625,7 +625,7 @@ When finishing with "done", the summary goes DIRECTLY to the user. Format it wel
 {"thought": "...", "action": {"type": "navigate", "url": "https://..."}}
 {"thought": "...", "action": {"type": "click", "selector": "exact selector from the list"}}
 {"thought": "...", "action": {"type": "type", "selector": "exact selector from the list", "text": "search term"}}
-{"thought": "...", "action": {"type": "upload_file", "selector": "input[type=\"file\"]", "filePaths": ["/absolute/path/to/image.png"]}}
+{"thought": "...", "action": {"type": "upload_file", "selector": "input[type="file"]", "filePaths": ["/absolute/path/to/image.png"]}}
 {"thought": "...", "action": {"type": "pressKey", "key": "Enter"}}
 {"thought": "...", "action": {"type": "evaluate", "script": "document.title"}}
 {"thought": "...", "action": {"type": "save_to_excel", "filename": "my_data", "filter": "optional"}}
@@ -782,7 +782,7 @@ When asked to post on X/Twitter, Facebook, Instagram, Reddit, or any site:
 
 ## DOWNLOADING IMAGES FROM CHATGPT:
 After ChatGPT generates an image, to get it as a local file:
-1. Use evaluate to find the image src: {"type": "evaluate", "code": "document.querySelector('img[src*=\"oaiusercontent\"]')?.src || document.querySelector('img[alt*=\"generated\"]')?.src || ''"}
+1. Use evaluate to find the image src: {"type": "evaluate", "code": "document.querySelector('img[src*="oaiusercontent"]')?.src || document.querySelector('img[alt*="generated"]')?.src || ''"}
 2. Download with shell: {"type": "shell", "command": "wget -q 'IMAGE_URL' -O /tmp/chatgpt-gen.png"}
 3. Use /tmp/chatgpt-gen.png for upload_file when posting
 If the download button in the UI gets stuck, always fall back to this evaluate+wget approach.

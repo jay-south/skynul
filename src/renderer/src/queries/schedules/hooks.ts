@@ -1,6 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { schedulesKeys } from './keys'
-import { fetchSchedules, createSchedule, toggleSchedule, deleteSchedule } from './service'
+import { createSchedule, deleteSchedule, fetchSchedules, toggleSchedule } from './service'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // QUERIES

@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
 import type { Schedule, ScheduleFrequency } from '@skynul/shared'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 /* ── Helpers ───────────────────────────────────────────────────────── */
 
@@ -234,13 +234,12 @@ export function NewScheduleForm(props: {
 
   const buildCustomCron = (): string => {
     const [h, m] = customTime.split(':').map(Number)
-    const days = customDays.length === 7 || customDays.length === 0 ? '*' : customDays.sort().join(',')
+    const days =
+      customDays.length === 7 || customDays.length === 0 ? '*' : customDays.sort().join(',')
     return `${m} ${h} * * ${days}`
   }
 
-  const cronExpr = preset.needsCustomCron
-    ? buildCustomCron()
-    : buildCron(preset, time, dow)
+  const cronExpr = preset.needsCustomCron ? buildCustomCron() : buildCron(preset, time, dow)
 
   const nextRunAtPreview = prompt.trim() ? nextCronLocal(cronExpr) : 0
 
@@ -396,12 +395,21 @@ export function NewScheduleForm(props: {
       </div>
 
       {presetId !== 'custom' && (
-        <button
-          className="schedCustomToggle"
-          onClick={() => setPresetId('custom')}
-        >
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+        <button className="schedCustomToggle" onClick={() => setPresetId('custom')}>
+          <svg
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
           </svg>
           Custom schedule
         </button>
@@ -513,15 +521,14 @@ export function ScheduleDetail(props: {
         <div className="schedRunHistoryTitle">Run history</div>
         {runs.length === 0 && <div className="schedRunEmpty">No runs yet.</div>}
         {runs.map((t) => (
-          <button
-            key={t.id}
-            className="schedRunItem"
-            onClick={() => props.onViewProcess(t.id)}
-          >
+          <button key={t.id} className="schedRunItem" onClick={() => props.onViewProcess(t.id)}>
             <span className="schedRunDot">{statusDot(t.status)}</span>
             <span className="schedRunDate">
               {new Date(t.createdAt).toLocaleString(undefined, {
-                month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
               })}
             </span>
             <span className="schedRunDuration">
@@ -532,7 +539,13 @@ export function ScheduleDetail(props: {
                 {((t.usage.inputTokens + t.usage.outputTokens) / 1000).toFixed(1)}k tok
               </span>
             )}
-            <svg className="schedRunArrow" viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+            <svg
+              className="schedRunArrow"
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              fill="currentColor"
+            >
               <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z" />
             </svg>
           </button>

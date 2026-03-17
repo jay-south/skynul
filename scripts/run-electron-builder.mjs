@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
-import path from 'node:path'
 import { createRequire } from 'node:module'
+import path from 'node:path'
 
 const rootDir = process.cwd()
 const stageDir = path.join(rootDir, '.packaged-app')

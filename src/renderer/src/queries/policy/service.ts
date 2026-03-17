@@ -1,11 +1,11 @@
 import type { PolicyState } from '@skynul/shared'
 import type {
-  SetLanguageRequest,
-  SetThemeRequest,
-  SetCapabilityRequest,
-  SetTaskMemoryRequest,
   SetAutoApproveRequest,
-  SetProviderRequest
+  SetCapabilityRequest,
+  SetLanguageRequest,
+  SetProviderRequest,
+  SetTaskMemoryRequest,
+  SetThemeRequest
 } from './types'
 
 const API_BASE = 'http://localhost:3141/api'

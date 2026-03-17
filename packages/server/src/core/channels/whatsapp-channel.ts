@@ -1,9 +1,9 @@
-import { readFile, writeFile, mkdir } from 'fs/promises'
-import { join, dirname } from 'path'
-import { getDataDir } from '../config'
-import WAWebJS from 'whatsapp-web.js'
 import type { ChannelId, ChannelSettings } from '@skynul/shared'
+import { mkdir, readFile, writeFile } from 'fs/promises'
+import { dirname, join } from 'path'
+import WAWebJS from 'whatsapp-web.js'
 import type { TaskManager } from '../agent/task-manager'
+import { getDataDir } from '../config'
 import { Channel } from './channel'
 import { formatTaskList, formatTaskSummary } from './message-formatter'
 
@@ -93,7 +93,11 @@ export class WhatsAppChannel extends Channel {
 
   async stop(): Promise<void> {
     if (this.client) {
-      try { await this.client.destroy() } catch { /* ignore */ }
+      try {
+        await this.client.destroy()
+      } catch {
+        /* ignore */
+      }
       this.client = null
     }
     this.qrCode = null
@@ -136,7 +140,11 @@ export class WhatsAppChannel extends Channel {
 
   async unpair(): Promise<void> {
     if (this.client) {
-      try { await this.client.logout() } catch { /* ignore */ }
+      try {
+        await this.client.logout()
+      } catch {
+        /* ignore */
+      }
     }
     this.state.paired = false
     this.state.pairedChatId = null
@@ -161,7 +169,10 @@ export class WhatsAppChannel extends Channel {
       this.state.pairedChatId = chatId
       this.state.paired = true
       await this.saveState()
-      await this.client!.sendMessage(chatId, '\u2705 Vinculado! Mandame un mensaje para crear una tarea.')
+      await this.client!.sendMessage(
+        chatId,
+        '\u2705 Vinculado! Mandame un mensaje para crear una tarea.'
+      )
       return
     }
 
@@ -180,7 +191,10 @@ export class WhatsAppChannel extends Channel {
         this.taskManager.cancel(taskId)
         await this.client!.sendMessage(chatId, `\u26d4 Tarea cancelada.`)
       } catch (e) {
-        await this.client!.sendMessage(chatId, `Error: ${e instanceof Error ? e.message : String(e)}`)
+        await this.client!.sendMessage(
+          chatId,
+          `Error: ${e instanceof Error ? e.message : String(e)}`
+        )
       }
       return
     }
@@ -201,7 +215,10 @@ export class WhatsAppChannel extends Channel {
       const task = await this.createTaskFromMessage(body)
       await this.client!.sendMessage(chatId, this.formatSummary(task))
     } catch (e) {
-      await this.client!.sendMessage(chatId, `No se pudo crear la tarea: ${e instanceof Error ? e.message : String(e)}`)
+      await this.client!.sendMessage(
+        chatId,
+        `No se pudo crear la tarea: ${e instanceof Error ? e.message : String(e)}`
+      )
     }
   }
 

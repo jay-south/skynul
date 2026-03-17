@@ -1,5 +1,5 @@
-import { Outlet, NavLink } from 'react-router-dom'
 import { useState } from 'react'
+import { NavLink, Outlet } from 'react-router-dom'
 import skynulLogo from '../assets/logo-skynul.svg'
 
 export function RootLayout(): React.JSX.Element {

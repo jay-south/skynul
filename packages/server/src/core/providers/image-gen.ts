@@ -17,11 +17,7 @@ export async function generateImage(
   )
 }
 
-async function generateWithDalle(
-  prompt: string,
-  size: string,
-  apiKey: string
-): Promise<string> {
+async function generateWithDalle(prompt: string, size: string, apiKey: string): Promise<string> {
   const res = await fetch('https://api.openai.com/v1/images/generations', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },

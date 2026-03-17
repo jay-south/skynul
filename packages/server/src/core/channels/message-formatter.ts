@@ -42,13 +42,9 @@ function statusIcon(status: string): string {
 
 /** Convert bare URLs to Telegram-clickable markdown links */
 function linkify(text: string): string {
-  return text.replace(
-    /🔗\s*(https?:\/\/[^\s)]+)/g,
-    (_m, url) => `🔗 [Ver acá](${url})`
-  ).replace(
-    /(?<![\(\[])(https?:\/\/[^\s)]+)(?!\))/g,
-    (url) => `[Link](${url})`
-  )
+  return text
+    .replace(/🔗\s*(https?:\/\/[^\s)]+)/g, (_m, url) => `🔗 [Ver acá](${url})`)
+    .replace(/(?<![([])(https?:\/\/[^\s)]+)(?!\))/g, (url) => `[Link](${url})`)
 }
 
 // ── Public formatters ────────────────────────────────────────────────────────
@@ -76,11 +72,7 @@ export function formatTaskComplete(task: Task): string {
   const duration = durationText(task)
   const durationLine = duration ? `\u23f1 Duración: ${duration}` : ''
 
-  const lines = [
-    `\u2705 *Listo!*`,
-    '',
-    `\u{1f4dd} *Pedido:* ${truncate(task.prompt, 150)}`
-  ]
+  const lines = [`\u2705 *Listo!*`, '', `\u{1f4dd} *Pedido:* ${truncate(task.prompt, 150)}`]
 
   if (task.summary) {
     lines.push('')
@@ -99,11 +91,7 @@ export function formatTaskComplete(task: Task): string {
 }
 
 export function formatTaskFailed(task: Task): string {
-  const lines = [
-    `\u274c *Tarea fallida*`,
-    '',
-    `\u{1f4dd} *Pedido:* ${truncate(task.prompt, 150)}`
-  ]
+  const lines = [`\u274c *Tarea fallida*`, '', `\u{1f4dd} *Pedido:* ${truncate(task.prompt, 150)}`]
 
   if (task.error) {
     lines.push('')
@@ -124,9 +112,7 @@ export function formatTaskList(tasks: Task[]): string {
 
   tasks.slice(0, 10).forEach((t, i) => {
     const date = friendlyDate(t.createdAt)
-    lines.push(
-      `${statusIcon(t.status)} *${i + 1}.* ${truncate(t.prompt, 60)}`
-    )
+    lines.push(`${statusIcon(t.status)} *${i + 1}.* ${truncate(t.prompt, 60)}`)
     lines.push(`     _${statusText(t.status)}_ \u2022 ${date}`)
     lines.push('')
   })

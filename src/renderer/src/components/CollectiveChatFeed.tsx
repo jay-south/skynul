@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Task, TaskStep } from '@skynul/shared'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 type AgentLabel = { name?: string; role?: string; strippedPrompt: string }
 
@@ -288,7 +288,6 @@ export function CollectiveChatFeed(props: { rootTask: Task; tasks: Task[] }): Re
                 <div className="cFeedMeta">{e.text}</div>
               </div>
             )
-            continue
           }
         }
 

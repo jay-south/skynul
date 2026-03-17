@@ -1,8 +1,8 @@
-import { readFile, writeFile, mkdir } from 'fs/promises'
-import { join, dirname } from 'path'
-import { getDataDir } from '../config'
 import type { ChannelId, ChannelSettings } from '@skynul/shared'
+import { mkdir, readFile, writeFile } from 'fs/promises'
+import { dirname, join } from 'path'
 import type { TaskManager } from '../agent/task-manager'
+import { getDataDir } from '../config'
 import { Channel } from './channel'
 import { formatTaskList, formatTaskSummary } from './message-formatter'
 
@@ -120,7 +120,9 @@ export class SignalChannel extends Channel {
       return 'Configure API URL and registered number first'
     }
     try {
-      const res = await fetch(`${this.state.apiUrl}/v1/qrcodelink?device_name=Skynul`, { method: 'GET' })
+      const res = await fetch(`${this.state.apiUrl}/v1/qrcodelink?device_name=Skynul`, {
+        method: 'GET'
+      })
       if (!res.ok) return 'Failed to generate link — check signal-cli'
       return 'Device link initiated — check signal-cli logs'
     } catch {
@@ -159,7 +161,9 @@ export class SignalChannel extends Channel {
   private async poll(): Promise<void> {
     if (!this.state.apiUrl || !this.state.registeredNumber) return
     try {
-      const res = await fetch(`${this.state.apiUrl}/v1/receive/${encodeURIComponent(this.state.registeredNumber)}`)
+      const res = await fetch(
+        `${this.state.apiUrl}/v1/receive/${encodeURIComponent(this.state.registeredNumber)}`
+      )
       if (!res.ok) return
       const envelopes = (await res.json()) as SignalEnvelope[]
       for (const env of envelopes) {
@@ -223,7 +227,9 @@ export class SignalChannel extends Channel {
       const task = await this.createTaskFromMessage(body)
       await this.sendMessage(this.formatSummary(task))
     } catch (e) {
-      await this.sendMessage(`No se pudo crear la tarea: ${e instanceof Error ? e.message : String(e)}`)
+      await this.sendMessage(
+        `No se pudo crear la tarea: ${e instanceof Error ? e.message : String(e)}`
+      )
     }
   }
 

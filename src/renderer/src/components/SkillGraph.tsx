@@ -1,14 +1,14 @@
-import { useCallback, useEffect, useState, useMemo } from 'react'
 import {
-  ReactFlow,
-  type Node,
-  type Edge,
-  type NodeChange,
-  Position,
+  applyNodeChanges,
   Background,
   BackgroundVariant,
-  applyNodeChanges
+  type Edge,
+  type Node,
+  type NodeChange,
+  Position,
+  ReactFlow
 } from '@xyflow/react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import '@xyflow/react/dist/style.css'
 import type { Skill } from '@skynul/shared'
 
@@ -74,7 +74,7 @@ function buildNodes(skills: Skill[], saved: SavedPositions): Node[] {
     data: { label: s.name },
     style: {
       background: s.enabled
-        ? CATEGORY_COLORS[s.tag] ?? CATEGORY_COLORS.custom
+        ? (CATEGORY_COLORS[s.tag] ?? CATEGORY_COLORS.custom)
         : 'var(--nb-panel-2)',
       color: s.enabled ? '#fff' : 'var(--nb-muted)',
       border: s.enabled ? 'none' : '1px solid var(--nb-border)',
@@ -111,7 +111,9 @@ export function SkillGraph({ skills }: { skills: Skill[] }): React.JSX.Element {
     setNodes((prev) => {
       const next = applyNodeChanges(changes, prev)
       // Persist positions on drag end
-      const hasDragStop = changes.some((c) => c.type === 'position' && !('dragging' in c && c.dragging))
+      const hasDragStop = changes.some(
+        (c) => c.type === 'position' && !('dragging' in c && c.dragging)
+      )
       if (hasDragStop) {
         const positions: SavedPositions = {}
         for (const n of next) {
@@ -123,25 +125,34 @@ export function SkillGraph({ skills }: { skills: Skill[] }): React.JSX.Element {
     })
   }, [])
 
-  const edges: Edge[] = useMemo(() =>
-    skills.map((s) => ({
-      id: `e-${s.id}`,
-      source: 'agent',
-      target: s.id,
-      animated: s.enabled,
-      style: {
-        stroke: s.enabled
-          ? CATEGORY_COLORS[s.tag] ?? CATEGORY_COLORS.custom
-          : 'var(--nb-border)',
-        strokeWidth: s.enabled ? 2 : 1,
-        opacity: s.enabled ? 0.8 : 0.3
-      }
-    })),
+  const edges: Edge[] = useMemo(
+    () =>
+      skills.map((s) => ({
+        id: `e-${s.id}`,
+        source: 'agent',
+        target: s.id,
+        animated: s.enabled,
+        style: {
+          stroke: s.enabled
+            ? (CATEGORY_COLORS[s.tag] ?? CATEGORY_COLORS.custom)
+            : 'var(--nb-border)',
+          strokeWidth: s.enabled ? 2 : 1,
+          opacity: s.enabled ? 0.8 : 0.3
+        }
+      })),
     [skills]
   )
 
   return (
-    <div style={{ width: '100%', height: 360, borderRadius: 14, overflow: 'hidden', border: '1px solid var(--nb-border)' }}>
+    <div
+      style={{
+        width: '100%',
+        height: 360,
+        borderRadius: 14,
+        overflow: 'hidden',
+        border: '1px solid var(--nb-border)'
+      }}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}

@@ -1,19 +1,19 @@
+import type { Task, TaskCapabilityId } from '@skynul/shared'
+import { useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { useState, useMemo } from 'react'
 import { ChatFeed } from '../components/ChatFeed'
+import { CollectiveChatFeed } from '../components/CollectiveChatFeed'
 import { InputBar } from '../components/InputBar'
 import { MultiAgentControlRoom } from '../components/MultiAgentControlRoom'
-import { CollectiveChatFeed } from '../components/CollectiveChatFeed'
 import {
-  useTask,
-  useTasks,
-  usePolicy,
   useApproveTask,
   useCancelTask,
+  usePolicy,
+  useSendTaskMessage,
   useSetAutoApprove,
-  useSendTaskMessage
+  useTask,
+  useTasks
 } from '../queries'
-import type { Task, TaskCapabilityId } from '@skynul/shared'
 
 export function TaskChatPage(): React.JSX.Element {
   const { taskId } = useParams()

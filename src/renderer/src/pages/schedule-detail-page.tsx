@@ -1,7 +1,6 @@
-import { useParams, useNavigate } from 'react-router-dom'
-import { useState, useEffect, useMemo } from 'react'
-import type { Schedule } from '@skynul/shared'
-import type { Task } from '@skynul/shared'
+import type { Schedule, Task } from '@skynul/shared'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 
 export function ScheduleDetailPage(): React.JSX.Element {
   const { scheduleId } = useParams()

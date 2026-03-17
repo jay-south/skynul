@@ -1,6 +1,6 @@
+import { mkdirSync } from 'fs'
 import { homedir } from 'os'
 import { join } from 'path'
-import { mkdirSync } from 'fs'
 
 /**
  * Resolve the data directory for persistent storage.

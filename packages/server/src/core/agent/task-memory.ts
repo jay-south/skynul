@@ -75,18 +75,20 @@ export function saveMemory(entry: {
   durationMs?: number
 }): void {
   try {
-    getDb().prepare(`
+    getDb()
+      .prepare(`
       INSERT OR REPLACE INTO task_memories (task_id, prompt, outcome, learnings, provider, duration_ms, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      entry.taskId,
-      entry.prompt,
-      entry.outcome,
-      entry.learnings,
-      entry.provider ?? null,
-      entry.durationMs ?? null,
-      Date.now()
-    )
+    `)
+      .run(
+        entry.taskId,
+        entry.prompt,
+        entry.outcome,
+        entry.learnings,
+        entry.provider ?? null,
+        entry.durationMs ?? null,
+        Date.now()
+      )
   } catch {
     // Non-critical
   }
@@ -95,14 +97,16 @@ export function saveMemory(entry: {
 export function searchMemories(query: string, limit = 3): TaskMemory[] {
   try {
     // Decay: boost recent memories by combining FTS rank with recency score
-    const rows = getDb().prepare(`
+    const rows = getDb()
+      .prepare(`
       SELECT t.prompt, t.outcome, t.learnings
       FROM task_memories_fts f
       JOIN task_memories t ON t.id = f.rowid
       WHERE task_memories_fts MATCH ?
       ORDER BY (rank * (1.0 + (CAST(? AS REAL) - t.created_at) / 2592000000.0))
       LIMIT ?
-    `).all(sanitizeFtsQuery(query), Date.now(), limit) as TaskMemory[]
+    `)
+      .all(sanitizeFtsQuery(query), Date.now(), limit) as TaskMemory[]
     return rows
   } catch {
     return []
@@ -125,29 +129,43 @@ export function saveFact(fact: string): void {
     const trimmed = fact.trim()
     if (!trimmed) return
     // Dedup: skip if a very similar fact already exists
-    const existing = getDb().prepare('SELECT id, fact FROM user_facts').all() as { id: number; fact: string }[]
+    const existing = getDb().prepare('SELECT id, fact FROM user_facts').all() as {
+      id: number
+      fact: string
+    }[]
     const lower = trimmed.toLowerCase()
     for (const e of existing) {
       const eLower = e.fact.toLowerCase()
       // Exact or near-duplicate — update instead of inserting
       if (eLower === lower || eLower.includes(lower) || lower.includes(eLower)) {
-        getDb().prepare('UPDATE user_facts SET fact = ?, created_at = ? WHERE id = ?').run(trimmed, Date.now(), e.id)
+        getDb()
+          .prepare('UPDATE user_facts SET fact = ?, created_at = ? WHERE id = ?')
+          .run(trimmed, Date.now(), e.id)
         return
       }
     }
-    getDb().prepare('INSERT INTO user_facts (fact, created_at) VALUES (?, ?)').run(trimmed, Date.now())
-  } catch { /* non-critical */ }
+    getDb()
+      .prepare('INSERT INTO user_facts (fact, created_at) VALUES (?, ?)')
+      .run(trimmed, Date.now())
+  } catch {
+    /* non-critical */
+  }
 }
 
 export function deleteFact(id: number): void {
   try {
     getDb().prepare('DELETE FROM user_facts WHERE id = ?').run(id)
-  } catch { /* non-critical */ }
+  } catch {
+    /* non-critical */
+  }
 }
 
 export function listFacts(): { id: number; fact: string }[] {
   try {
-    return getDb().prepare('SELECT id, fact FROM user_facts ORDER BY created_at DESC').all() as { id: number; fact: string }[]
+    return getDb().prepare('SELECT id, fact FROM user_facts ORDER BY created_at DESC').all() as {
+      id: number
+      fact: string
+    }[]
   } catch {
     return []
   }
@@ -155,16 +173,20 @@ export function listFacts(): { id: number; fact: string }[] {
 
 export function searchFacts(query: string, limit = 5): string[] {
   try {
-    const all = getDb().prepare('SELECT fact FROM user_facts ORDER BY created_at DESC').all() as { fact: string }[]
+    const all = getDb().prepare('SELECT fact FROM user_facts ORDER BY created_at DESC').all() as {
+      fact: string
+    }[]
     // Few facts → inject all (minimal token cost, avoids FTS miss)
     if (all.length <= 20) return all.map((r) => r.fact)
     // Many facts → FTS search for relevance
-    const rows = getDb().prepare(`
+    const rows = getDb()
+      .prepare(`
       SELECT f.fact FROM user_facts_fts fts
       JOIN user_facts f ON f.id = fts.rowid
       WHERE user_facts_fts MATCH ?
       LIMIT ?
-    `).all(sanitizeFtsQuery(query), limit) as { fact: string }[]
+    `)
+      .all(sanitizeFtsQuery(query), limit) as { fact: string }[]
     return rows.map((r) => r.fact)
   } catch {
     return []

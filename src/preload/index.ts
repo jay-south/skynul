@@ -1,5 +1,3 @@
-import { contextBridge, ipcRenderer } from 'electron'
-import { IPC } from '@skynul/shared'
 import type {
   CapabilityId,
   ChatSendRequest,
@@ -7,22 +5,22 @@ import type {
   LanguageCode,
   PolicyState,
   ReadTextFileRequest,
+  RuntimeStats,
   SetCapabilityRequest,
   SetLanguageRequest,
   SetOpenAIModelRequest,
   SetThemeRequest,
-  ThemeMode,
-  WriteTextFileRequest
-} from '@skynul/shared'
-import type {
   Task,
   TaskCapabilityId,
   TaskCreateRequest,
   TaskCreateResponse,
   TaskListResponse,
-  TaskUpdateEvent
+  TaskUpdateEvent,
+  ThemeMode,
+  WriteTextFileRequest
 } from '@skynul/shared'
-import type { RuntimeStats } from '@skynul/shared'
+import { IPC } from '@skynul/shared'
+import { contextBridge, ipcRenderer } from 'electron'
 
 const skynul = {
   ping: (): Promise<string> => ipcRenderer.invoke(IPC.ping),
@@ -175,17 +173,13 @@ const skynul = {
     ipcRenderer.invoke(IPC.channelUnpair, channelId),
   channelGetGlobal: (): Promise<import('@skynul/shared').ChannelGlobalSettings> =>
     ipcRenderer.invoke(IPC.channelGetGlobal),
-  channelSetAutoApprove: (
-    val: boolean
-  ): Promise<import('@skynul/shared').ChannelGlobalSettings> =>
+  channelSetAutoApprove: (val: boolean): Promise<import('@skynul/shared').ChannelGlobalSettings> =>
     ipcRenderer.invoke(IPC.channelSetAutoApprove, val),
 
   // ── Schedules ────────────────────────────────────────────────────────
   scheduleList: (): Promise<import('@skynul/shared').Schedule[]> =>
     ipcRenderer.invoke(IPC.scheduleList),
-  scheduleSave: (
-    sched: Record<string, unknown>
-  ): Promise<import('@skynul/shared').Schedule[]> =>
+  scheduleSave: (sched: Record<string, unknown>): Promise<import('@skynul/shared').Schedule[]> =>
     ipcRenderer.invoke(IPC.scheduleSave, sched),
   scheduleDelete: (id: string): Promise<import('@skynul/shared').Schedule[]> =>
     ipcRenderer.invoke(IPC.scheduleDelete, id),
@@ -199,9 +193,7 @@ const skynul = {
   // ── Browser Snapshots ────────────────────────────────────────────────
   browserSnapshotList: (): Promise<import('@skynul/shared').BrowserSnapshot[]> =>
     ipcRenderer.invoke(IPC.browserSnapshotList),
-  browserSnapshotSave: (
-    name: string
-  ): Promise<import('@skynul/shared').BrowserSnapshot> =>
+  browserSnapshotSave: (name: string): Promise<import('@skynul/shared').BrowserSnapshot> =>
     ipcRenderer.invoke(IPC.browserSnapshotSave, name),
   browserSnapshotRestore: (id: string): Promise<{ success: boolean }> =>
     ipcRenderer.invoke(IPC.browserSnapshotRestore, id),

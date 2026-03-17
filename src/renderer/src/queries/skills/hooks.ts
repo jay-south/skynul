@@ -1,6 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { skillsKeys } from './keys'
-import { fetchSkills, saveSkill, toggleSkill, deleteSkill, importSkill } from './service'
+import { deleteSkill, fetchSkills, importSkill, saveSkill, toggleSkill } from './service'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // QUERIES

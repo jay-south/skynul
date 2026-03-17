@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useProjects, useCreateProject, useDeleteProject } from '../queries'
+import { useCreateProject, useDeleteProject, useProjects } from '../queries'
 import { addTaskToProject } from '../queries/projects/service'
 
 export function ProjectsPage(): React.JSX.Element {

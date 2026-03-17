@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react'
 import type { TaskStep } from '@skynul/shared'
+import { useEffect, useRef } from 'react'
 
 const ACTION_LABELS: Record<string, string> = {
   click: 'Click',
@@ -48,9 +48,10 @@ function formatAction(step: TaskStep): string {
       return `Wait ${(a.ms as number) ?? 0}ms`
     case 'navigate':
       return `Navigate: ${(a.url as string) ?? ''}`
-    case 'evaluate':
+    case 'evaluate': {
       const script = (a.script as string) ?? ''
       return `Evaluate: ${script.length > 40 ? script.slice(0, 40) + '…' : script}`
+    }
     case 'done':
       return `Done: ${a.summary}`
     case 'fail':
@@ -69,9 +70,7 @@ export function TaskStepLog(props: { steps: TaskStep[] }): React.JSX.Element {
 
   return (
     <div className="stepLog" ref={scrollRef}>
-      {props.steps.length === 0 && (
-        <div className="stepLogEmpty">Waiting for first step...</div>
-      )}
+      {props.steps.length === 0 && <div className="stepLogEmpty">Waiting for first step...</div>}
       {props.steps.map((step) => (
         <div key={step.index} className={`stepItem ${step.error ? 'error' : ''}`}>
           <div className="stepHeader">
@@ -79,9 +78,7 @@ export function TaskStepLog(props: { steps: TaskStep[] }): React.JSX.Element {
             <span className="stepAction">
               {ACTION_LABELS[step.action.type] ?? step.action.type}
             </span>
-            <span className="stepTime">
-              {new Date(step.timestamp).toLocaleTimeString()}
-            </span>
+            <span className="stepTime">{new Date(step.timestamp).toLocaleTimeString()}</span>
           </div>
           <div className="stepDetail">{formatAction(step)}</div>
           {step.thought && <div className="stepThought">{step.thought}</div>}

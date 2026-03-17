@@ -1,12 +1,12 @@
+import { PlaywrightBridge } from '../playwright-bridge'
+import { acquirePlaywrightPage } from '../playwright-cdp'
 import type { BrowserEngine } from './browser-engine'
 import {
-  BROWSER_ENGINE_ID,
   type AcquiredBrowserEngine,
+  BROWSER_ENGINE_ID,
   type BrowserPageInfo,
   type BrowserSnapshot
 } from './browser-engine'
-import { acquirePlaywrightPage } from '../playwright-cdp'
-import { PlaywrightBridge } from '../playwright-bridge'
 
 class PlaywrightBrowserEngine implements BrowserEngine {
   constructor(private bridge: PlaywrightBridge) {}

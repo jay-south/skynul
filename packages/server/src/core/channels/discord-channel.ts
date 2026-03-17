@@ -1,13 +1,13 @@
-import { readFile, writeFile, mkdir } from 'fs/promises'
-import { join, dirname } from 'path'
-import { randomBytes } from 'crypto'
-import { getDataDir } from '../config'
-import { Client, GatewayIntentBits, Events } from 'discord.js'
-import type { Message as DiscordMessage } from 'discord.js'
 import type { ChannelId, ChannelSettings } from '@skynul/shared'
+import { randomBytes } from 'crypto'
+import type { Message as DiscordMessage } from 'discord.js'
+import { Client, Events, GatewayIntentBits } from 'discord.js'
+import { mkdir, readFile, writeFile } from 'fs/promises'
+import { dirname, join } from 'path'
 import type { TaskManager } from '../agent/task-manager'
-import { Channel } from './channel'
+import { getDataDir } from '../config'
 import { getSecret, setSecret } from '../stores/secret-store'
+import { Channel } from './channel'
 import { formatTaskList, formatTaskSummary } from './message-formatter'
 
 type DiscordState = {
@@ -81,7 +81,11 @@ export class DiscordChannel extends Channel {
 
   async stop(): Promise<void> {
     if (this.client) {
-      try { await this.client.destroy() } catch { /* ignore */ }
+      try {
+        await this.client.destroy()
+      } catch {
+        /* ignore */
+      }
       this.client = null
     }
   }
@@ -90,7 +94,11 @@ export class DiscordChannel extends Channel {
     return {
       id: 'discord',
       enabled: this.state.enabled,
-      status: this.client?.isReady() ? 'connected' : this.state.enabled ? 'connecting' : 'disconnected',
+      status: this.client?.isReady()
+        ? 'connected'
+        : this.state.enabled
+          ? 'connecting'
+          : 'disconnected',
       paired: this.state.paired,
       pairingCode: this.state.pairingCode,
       error: this.lastError,
@@ -151,7 +159,9 @@ export class DiscordChannel extends Channel {
     if (content.startsWith('/pair ')) {
       const code = content.slice(6).trim()
       if (!this.state.pairingCode) {
-        await msg.reply('No hay código de vinculación activo. Generá uno desde los ajustes de Skynul.')
+        await msg.reply(
+          'No hay código de vinculación activo. Generá uno desde los ajustes de Skynul.'
+        )
         return
       }
       if (code !== this.state.pairingCode) {
@@ -168,7 +178,12 @@ export class DiscordChannel extends Channel {
     }
 
     // Only respond to paired user in paired channel
-    if (!this.state.paired || msg.author.id !== this.state.pairedUserId || msg.channelId !== this.state.pairedChannelId) return
+    if (
+      !this.state.paired ||
+      msg.author.id !== this.state.pairedUserId ||
+      msg.channelId !== this.state.pairedChannelId
+    )
+      return
 
     if (content === '/list') {
       const tasks = this.taskManager.list()

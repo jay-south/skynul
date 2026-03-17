@@ -1,4 +1,4 @@
-@import './base.css';
+@import "./base.css";
 
 body {
   overflow: hidden;
@@ -436,11 +436,11 @@ code {
   object-fit: contain;
 }
 
-[data-theme='light'] .sbFooterLogo {
+[data-theme="light"] .sbFooterLogo {
   filter: brightness(0);
 }
 
-[data-theme='dark'] .sbFooterLogo {
+[data-theme="dark"] .sbFooterLogo {
   filter: brightness(0) invert(1);
 }
 
@@ -1648,7 +1648,7 @@ code {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--nb-accent-2), transparent 86%);
 }
 
-.authModal[data-busy='true'] .authModalProviderBtn {
+.authModal[data-busy="true"] .authModalProviderBtn {
   transform: none;
 }
 
@@ -2707,7 +2707,7 @@ code {
   filter: brightness(0);
 }
 
-[data-theme='dark'] .providerIcon {
+[data-theme="dark"] .providerIcon {
   filter: brightness(0) invert(1);
 }
 
@@ -3001,7 +3001,7 @@ code {
   filter: brightness(0);
 }
 
-[data-theme='dark'] .channelIconImg {
+[data-theme="dark"] .channelIconImg {
   filter: brightness(0) invert(1);
 }
 
@@ -4341,7 +4341,7 @@ code {
 }
 .feedDateSep::before,
 .feedDateSep::after {
-  content: '';
+  content: "";
   flex: 1;
   height: 1px;
   background: var(--nb-border);

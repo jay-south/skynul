@@ -1,5 +1,5 @@
 import { t } from '../../i18n'
-import { usePolicy, useSetCapability, usePickWorkspace } from '../../queries'
+import { usePickWorkspace, usePolicy, useSetCapability } from '../../queries'
 
 export function DeveloperSettingsPage(): React.JSX.Element {
   // Queries

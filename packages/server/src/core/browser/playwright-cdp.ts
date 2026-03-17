@@ -1,12 +1,13 @@
-import { spawn, execFile, type ChildProcessWithoutNullStreams } from 'child_process'
-import { mkdir, stat, cp, access, readFile, writeFile, unlink, readlink } from 'fs/promises'
+import { type ChildProcessWithoutNullStreams, execFile, spawn } from 'child_process'
 import { constants as fsConstants } from 'fs'
-import { join, dirname } from 'path'
-import net from 'net'
+import { access, cp, mkdir, readFile, readlink, stat, unlink, writeFile } from 'fs/promises'
 import http from 'http'
+import net from 'net'
 import os from 'os'
-import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core'
+import { dirname, join } from 'path'
+import { type Browser, type BrowserContext, chromium, type Page } from 'playwright-core'
 import { getDataDir } from '../config'
+
 const app = { getPath: (_: string) => getDataDir() }
 
 type LaunchResult = {

@@ -1,17 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import type { LanguageCode } from '@skynul/shared'
-import type { TaskCapabilityId } from '@skynul/shared'
+import type { LanguageCode, ScheduleFrequency, TaskCapabilityId } from '@skynul/shared'
 import { ALL_TASK_CAPABILITIES } from '@skynul/shared'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { speechLocale, t } from '../i18n'
 import {
   deleteSavedPrompt,
   loadSavedPrompts,
   persistSavedPrompts,
-  savePromptText,
-  type SavedPrompt
+  type SavedPrompt,
+  savePromptText
 } from '../task-prompts'
 import type { TaskTemplateId } from './TaskTemplates'
-import type { ScheduleFrequency } from '@skynul/shared'
 
 function templateTitleKey(template: TaskTemplateId): Parameters<typeof t>[1] {
   switch (template) {
@@ -39,16 +37,77 @@ type SchedPreset = {
 }
 
 const SCHED_PRESETS: SchedPreset[] = [
-  { id: 'hourly',    label: 'Every hour',      desc: 'Runs at :00 every hour',          frequency: 'custom', cronExpr: '0 * * * *',   needsTime: false, needsDow: false },
-  { id: '4h',        label: 'Every 4 hours',   desc: 'Runs every 4 hours from midnight', frequency: 'custom', cronExpr: '0 */4 * * *', needsTime: false, needsDow: false },
-  { id: '2x_day',    label: 'Twice a day',     desc: '9 AM and 3 PM',                   frequency: 'custom', cronExpr: '0 9,15 * * *', needsTime: false, needsDow: false },
-  { id: 'daily',     label: 'Once a day',      desc: 'Pick a time below',               frequency: 'daily',  cronExpr: '',             needsTime: true,  needsDow: false },
-  { id: 'weekdays',  label: 'Weekdays only',   desc: 'Mon–Fri at a chosen time',        frequency: 'custom', cronExpr: '',             needsTime: true,  needsDow: false },
-  { id: 'weekly',    label: 'Once a week',     desc: 'Pick day + time',                 frequency: 'weekly', cronExpr: '',             needsTime: true,  needsDow: true  },
-  { id: 'custom',    label: 'Custom (cron)',   desc: 'Advanced: write a cron expression', frequency: 'custom', cronExpr: '',           needsTime: false, needsDow: false }
+  {
+    id: 'hourly',
+    label: 'Every hour',
+    desc: 'Runs at :00 every hour',
+    frequency: 'custom',
+    cronExpr: '0 * * * *',
+    needsTime: false,
+    needsDow: false
+  },
+  {
+    id: '4h',
+    label: 'Every 4 hours',
+    desc: 'Runs every 4 hours from midnight',
+    frequency: 'custom',
+    cronExpr: '0 */4 * * *',
+    needsTime: false,
+    needsDow: false
+  },
+  {
+    id: '2x_day',
+    label: 'Twice a day',
+    desc: '9 AM and 3 PM',
+    frequency: 'custom',
+    cronExpr: '0 9,15 * * *',
+    needsTime: false,
+    needsDow: false
+  },
+  {
+    id: 'daily',
+    label: 'Once a day',
+    desc: 'Pick a time below',
+    frequency: 'daily',
+    cronExpr: '',
+    needsTime: true,
+    needsDow: false
+  },
+  {
+    id: 'weekdays',
+    label: 'Weekdays only',
+    desc: 'Mon–Fri at a chosen time',
+    frequency: 'custom',
+    cronExpr: '',
+    needsTime: true,
+    needsDow: false
+  },
+  {
+    id: 'weekly',
+    label: 'Once a week',
+    desc: 'Pick day + time',
+    frequency: 'weekly',
+    cronExpr: '',
+    needsTime: true,
+    needsDow: true
+  },
+  {
+    id: 'custom',
+    label: 'Custom (cron)',
+    desc: 'Advanced: write a cron expression',
+    frequency: 'custom',
+    cronExpr: '',
+    needsTime: false,
+    needsDow: false
+  }
 ]
 
-function buildPresetCron(preset: SchedPreset, time: string, dow: number, customCron: string): string {
+function buildPresetCron(
+  preset: SchedPreset,
+  time: string,
+  dow: number,
+  customCron: string
+): string {
   if (preset.id === 'custom') return customCron.trim() || '0 9 * * *'
   if (!preset.needsTime) return preset.cronExpr
 
@@ -352,7 +411,15 @@ export function TaskComposer(props: {
 
                 {/* Time picker — shown for presets that need it */}
                 {SCHED_PRESETS.find((p) => p.id === schedPresetId)?.needsTime && (
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: 8,
+                      flexWrap: 'wrap',
+                      alignItems: 'center',
+                      marginBottom: 8
+                    }}
+                  >
                     <input
                       type="time"
                       value={schedTime}

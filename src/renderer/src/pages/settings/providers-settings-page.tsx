@@ -1,17 +1,16 @@
-import { useState, useEffect } from 'react'
 import type { ProviderId } from '@skynul/shared'
-import { t } from '../../i18n'
-import { usePolicy, useSetProvider } from '../../queries'
-
+import { useEffect, useState } from 'react'
 // Provider icons
 import chatgptIcon from '../../assets/chatgpt.svg'
 import claudeIcon from '../../assets/claude-logo.svg'
 import deepseekIcon from '../../assets/deepseek.svg'
-import kimiIcon from '../../assets/kimi.svg'
+import geminiIcon from '../../assets/gemini.svg'
 import glmIcon from '../../assets/glm.svg'
+import kimiIcon from '../../assets/kimi.svg'
 import minimaxIcon from '../../assets/minimax.svg'
 import openrouterIcon from '../../assets/openrouter.svg'
-import geminiIcon from '../../assets/gemini.svg'
+import { t } from '../../i18n'
+import { usePolicy, useSetProvider } from '../../queries'
 
 const PROVIDERS: Array<{
   id: ProviderId

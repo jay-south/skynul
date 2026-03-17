@@ -4,8 +4,8 @@
  * Singleton browser instance reused across calls.
  */
 
-import { type Browser, chromium } from 'playwright-core'
 import { execSync } from 'child_process'
+import { type Browser, chromium } from 'playwright-core'
 
 const MAX_TEXT_LENGTH = 16000
 const PAGE_TIMEOUT_MS = 30_000
@@ -132,14 +132,22 @@ async function getBrowser(): Promise<Browser> {
  */
 export async function scrapeUrl(url: string, _instruction: string): Promise<string> {
   // Fast path: API URLs → fetch JSON directly, no browser needed
-  if (url.includes('api.mercadolibre.com') || url.includes('/api/') || url.match(/\.(json)(\?|$)/)) {
+  if (
+    url.includes('api.mercadolibre.com') ||
+    url.includes('/api/') ||
+    url.match(/\.(json)(\?|$)/)
+  ) {
     try {
       const res = await fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept': 'application/json' },
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          Accept: 'application/json'
+        },
         signal: AbortSignal.timeout(PAGE_TIMEOUT_MS)
       })
       const text = await res.text()
-      if (text.length > MAX_TEXT_LENGTH) return text.slice(0, MAX_TEXT_LENGTH) + '\n\n[... truncated]'
+      if (text.length > MAX_TEXT_LENGTH)
+        return text.slice(0, MAX_TEXT_LENGTH) + '\n\n[... truncated]'
       return text || '[Empty API response]'
     } catch (e) {
       return `[API fetch error: ${e instanceof Error ? e.message : String(e)}]`
@@ -169,15 +177,23 @@ export async function scrapeUrl(url: string, _instruction: string): Promise<stri
 
     // 2. Fake chrome runtime (headless doesn't have it)
     if (!(window as any).chrome) {
-      (window as any).chrome = { runtime: {}, loadTimes: () => ({}), csi: () => ({}) }
+      ;(window as any).chrome = { runtime: {}, loadTimes: () => ({}), csi: () => ({}) }
     }
 
     // 3. Realistic plugins array
     Object.defineProperty(navigator, 'plugins', {
       get: () => {
         const arr = [
-          { name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer', description: 'Portable Document Format' },
-          { name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai', description: '' },
+          {
+            name: 'Chrome PDF Plugin',
+            filename: 'internal-pdf-viewer',
+            description: 'Portable Document Format'
+          },
+          {
+            name: 'Chrome PDF Viewer',
+            filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai',
+            description: ''
+          },
           { name: 'Native Client', filename: 'internal-nacl-plugin', description: '' }
         ]
         Object.defineProperty(arr, 'length', { value: 3 })
@@ -189,7 +205,9 @@ export async function scrapeUrl(url: string, _instruction: string): Promise<stri
     Object.defineProperty(navigator, 'languages', { get: () => ['es-AR', 'es', 'en'] })
 
     // 5. Permissions API — pretend notifications are "denied" like a real browser
-    const origQuery = (navigator.permissions?.query || (() => Promise.resolve({ state: 'denied' }))).bind(navigator.permissions)
+    const origQuery = (
+      navigator.permissions?.query || (() => Promise.resolve({ state: 'denied' }))
+    ).bind(navigator.permissions)
     if (navigator.permissions) {
       navigator.permissions.query = (params: any) =>
         params.name === 'notifications'
@@ -203,10 +221,9 @@ export async function scrapeUrl(url: string, _instruction: string): Promise<stri
 
     // Wait for JS-rendered content (Maps, Airbnb, etc. need extra time)
     try {
-      await page.waitForFunction(
-        () => (document.body?.innerText?.length ?? 0) > 500,
-        { timeout: 10_000 }
-      )
+      await page.waitForFunction(() => (document.body?.innerText?.length ?? 0) > 500, {
+        timeout: 10_000
+      })
     } catch {
       // fallback — page may just be light on text
     }
@@ -225,11 +242,20 @@ export async function scrapeUrl(url: string, _instruction: string): Promise<stri
 
       // Parse listings into structured data
       const listings = await page.evaluate(() => {
-        const results: Array<{ name: string; rating: string; address: string; hasWebsite: boolean; category: string }> = []
+        const results: Array<{
+          name: string
+          rating: string
+          address: string
+          hasWebsite: boolean
+          category: string
+        }> = []
         const cards = document.querySelectorAll('div[role="feed"] > div')
         for (const card of cards) {
           const nameEl = card.querySelector('div.fontHeadlineSmall, a[aria-label]')
-          const name = nameEl?.textContent?.trim() || (nameEl as HTMLElement)?.getAttribute('aria-label')?.trim() || ''
+          const name =
+            nameEl?.textContent?.trim() ||
+            (nameEl as HTMLElement)?.getAttribute('aria-label')?.trim() ||
+            ''
           if (!name || name.length < 2) continue
 
           const text = (card as HTMLElement).innerText || ''
@@ -237,16 +263,27 @@ export async function scrapeUrl(url: string, _instruction: string): Promise<stri
           const rating = ratingMatch ? ratingMatch[1].replace(',', '.') : ''
 
           // Address: line after category, contains numbers or known street words
-          const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
+          const lines = text
+            .split('\n')
+            .map((l) => l.trim())
+            .filter(Boolean)
           let address = ''
           let category = ''
           for (const line of lines) {
             if (/^\d[.,]\d/.test(line)) continue // skip rating line
             if (line === name) continue
-            if (/Abierto|Cerrado|Cierra|Vuelve|Compras en tienda|Retiro|Entrega|Patrocinado/i.test(line)) continue
+            if (
+              /Abierto|Cerrado|Cierra|Vuelve|Compras en tienda|Retiro|Entrega|Patrocinado/i.test(
+                line
+              )
+            )
+              continue
             if (/^"/.test(line)) continue // skip reviews
             if (/·/.test(line) && !category) {
-              const parts = line.split('·').map(p => p.trim()).filter(Boolean)
+              const parts = line
+                .split('·')
+                .map((p) => p.trim())
+                .filter(Boolean)
               for (const part of parts) {
                 if (/\d/.test(part) && /[A-Za-záéíóú]/.test(part)) address = part
                 else if (!category && part.length > 2) category = part
@@ -257,8 +294,12 @@ export async function scrapeUrl(url: string, _instruction: string): Promise<stri
           }
 
           // Check if card has a website link
-          const hasWebsite = !!card.querySelector('a[data-value="Website"], a[href*="website"], a[data-tooltip="Open website"]')
-            || text.includes('Sitio web') || text.includes('Visitar sitio')
+          const hasWebsite =
+            !!card.querySelector(
+              'a[data-value="Website"], a[href*="website"], a[data-tooltip="Open website"]'
+            ) ||
+            text.includes('Sitio web') ||
+            text.includes('Visitar sitio')
 
           const r = parseFloat(rating)
           if (rating && r >= 3.0 && r <= 5.0) {
@@ -270,10 +311,11 @@ export async function scrapeUrl(url: string, _instruction: string): Promise<stri
 
       if (listings.length > 0) {
         const header = 'Nombre\tDirección\tCalificación\tCategoría\tTiene Sitio Web'
-        const rows = listings.map(l =>
-          `${l.name}\t${l.address || 'Sin dirección'}\t${l.rating}\t${l.category}\t${l.hasWebsite ? 'Sí' : 'No'}`
+        const rows = listings.map(
+          (l) =>
+            `${l.name}\t${l.address || 'Sin dirección'}\t${l.rating}\t${l.category}\t${l.hasWebsite ? 'Sí' : 'No'}`
         )
-        return `${header}\n${rows.join('\n')}\n\nTotal: ${listings.length} negocios con 3-5 estrellas. Sin sitio web: ${listings.filter(l => !l.hasWebsite).length}.`
+        return `${header}\n${rows.join('\n')}\n\nTotal: ${listings.length} negocios con 3-5 estrellas. Sin sitio web: ${listings.filter((l) => !l.hasWebsite).length}.`
       }
     }
 

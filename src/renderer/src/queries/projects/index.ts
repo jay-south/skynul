@@ -1,4 +1,4 @@
-export * from './types'
+export * from './hooks'
 export * from './keys'
 export * from './service'
-export * from './hooks'
+export * from './types'

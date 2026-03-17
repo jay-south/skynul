@@ -1,19 +1,24 @@
-import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
-import { z } from 'zod'
 import type { ChatSendResponse } from '@skynul/shared'
-import { policyState } from './policy'
+import { Hono } from 'hono'
+import { z } from 'zod'
 import { dispatchChat } from '../core/providers/dispatch'
+import { policyState } from './policy'
 
 const chatMessageSchema = z.object({
   role: z.enum(['user', 'assistant']),
   content: z.string()
 })
 
-const chat = new Hono()
-  .post('/send', zValidator('json', z.object({
-    messages: z.array(chatMessageSchema).min(1)
-  })), async (c) => {
+const chat = new Hono().post(
+  '/send',
+  zValidator(
+    'json',
+    z.object({
+      messages: z.array(chatMessageSchema).min(1)
+    })
+  ),
+  async (c) => {
     if (!policyState.capabilities['net.http']) {
       return c.json({ error: 'Capability net.http is disabled' }, 403)
     }
@@ -27,7 +32,8 @@ const chat = new Hono()
       const msg = e instanceof Error ? e.message : String(e)
       return c.json({ error: msg }, 400)
     }
-  })
+  }
+)
 
 export { chat }
 export type ChatRoute = typeof chat

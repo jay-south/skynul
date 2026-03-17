@@ -1,6 +1,6 @@
 import type { CapabilityId } from '@skynul/shared'
 import { t } from '../../i18n'
-import { usePolicy, useSetCapability, useSetTaskMemory, useSetAutoApprove } from '../../queries'
+import { usePolicy, useSetAutoApprove, useSetCapability, useSetTaskMemory } from '../../queries'
 
 const CAPABILITIES: Array<{ id: CapabilityId; title: string; desc: string }> = [
   {

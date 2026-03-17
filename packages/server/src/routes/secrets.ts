@@ -1,7 +1,7 @@
-import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
+import { Hono } from 'hono'
 import { z } from 'zod'
-import { getSecret, setSecret, hasSecret, getSecretKeys } from '../core/stores/secret-store'
+import { getSecret, getSecretKeys, hasSecret, setSecret } from '../core/stores/secret-store'
 
 const secrets = new Hono()
   .get('/keys', async (c) => {
@@ -12,14 +12,21 @@ const secrets = new Hono()
     const value = await getSecret(key)
     return c.json({ value })
   })
-  .put('/:key', zValidator('json', z.object({
-    value: z.string()
-  })), async (c) => {
-    const key = c.req.param('key')
-    const { value } = c.req.valid('json')
-    await setSecret(key, value)
-    return c.json({ ok: true })
-  })
+  .put(
+    '/:key',
+    zValidator(
+      'json',
+      z.object({
+        value: z.string()
+      })
+    ),
+    async (c) => {
+      const key = c.req.param('key')
+      const { value } = c.req.valid('json')
+      await setSecret(key, value)
+      return c.json({ ok: true })
+    }
+  )
   .get('/:key/exists', async (c) => {
     const key = c.req.param('key')
     return c.json({ exists: await hasSecret(key) })
