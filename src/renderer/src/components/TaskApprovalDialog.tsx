@@ -1,5 +1,5 @@
-import type { Task } from '../../../shared/task'
-import { ALL_TASK_CAPABILITIES } from '../../../shared/task'
+import type { Task } from '@skynul/shared'
+import { ALL_TASK_CAPABILITIES } from '@skynul/shared'
 
 export function TaskApprovalDialog(props: {
   task: Task

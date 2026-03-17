@@ -1,4 +1,4 @@
-import type { LanguageCode } from '../../shared/policy'
+import type { LanguageCode } from '@skynul/shared'
 
 const MESSAGES = {
   en: {

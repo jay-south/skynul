@@ -1,4 +1,4 @@
-import type { Schedule } from '../../../../shared/schedule'
+import type { Schedule } from '@skynul/shared'
 import type { ScheduleCreateRequest } from './types'
 
 const API_BASE = 'http://localhost:3141/api'

@@ -1,4 +1,4 @@
-import type { Schedule } from '../../../../shared/schedule'
+import type { Schedule } from '@skynul/shared'
 
 export type ScheduleCreateRequest = {
   prompt: string

@@ -13,7 +13,7 @@ import {
   useSetAutoApprove,
   useSendTaskMessage
 } from '../queries'
-import type { Task, TaskCapabilityId } from '../../../shared/task'
+import type { Task, TaskCapabilityId } from '@skynul/shared'
 
 export function TaskChatPage(): React.JSX.Element {
   const { taskId } = useParams()

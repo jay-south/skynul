@@ -1,4 +1,4 @@
-import type { CapabilityId } from '../../../../shared/policy'
+import type { CapabilityId } from '@skynul/shared'
 import { t } from '../../i18n'
 import { usePolicy, useSetCapability, useSetTaskMemory, useSetAutoApprove } from '../../queries'
 

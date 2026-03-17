@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { LanguageCode } from '../../../shared/policy'
-import type { TaskCapabilityId } from '../../../shared/task'
-import { ALL_TASK_CAPABILITIES } from '../../../shared/task'
+import type { LanguageCode } from '@skynul/shared'
+import type { TaskCapabilityId } from '@skynul/shared'
+import { ALL_TASK_CAPABILITIES } from '@skynul/shared'
 import { speechLocale, t } from '../i18n'
 import {
   deleteSavedPrompt,
@@ -11,7 +11,7 @@ import {
   type SavedPrompt
 } from '../task-prompts'
 import type { TaskTemplateId } from './TaskTemplates'
-import type { ScheduleFrequency } from '../../../shared/schedule'
+import type { ScheduleFrequency } from '@skynul/shared'
 
 function templateTitleKey(template: TaskTemplateId): Parameters<typeof t>[1] {
   switch (template) {

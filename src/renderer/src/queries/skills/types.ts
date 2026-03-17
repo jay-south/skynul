@@ -1,4 +1,4 @@
-import type { Skill } from '../../../../shared/skill'
+import type { Skill } from '@skynul/shared'
 
 export type SkillSaveRequest = Partial<Skill>
 

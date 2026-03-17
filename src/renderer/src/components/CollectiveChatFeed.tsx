@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Task, TaskStep } from '../../../shared/task'
+import type { Task, TaskStep } from '@skynul/shared'
 
 type AgentLabel = { name?: string; role?: string; strippedPrompt: string }
 

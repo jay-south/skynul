@@ -1,4 +1,4 @@
-import type { Task, TaskCapabilityId } from '../../../../shared/task'
+import type { Task, TaskCapabilityId } from '@skynul/shared'
 
 export type TaskListResponse = {
   tasks: Task[]

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import type { TaskStep } from '../../../shared/task'
+import type { TaskStep } from '@skynul/shared'
 
 const ACTION_LABELS: Record<string, string> = {
   click: 'Click',

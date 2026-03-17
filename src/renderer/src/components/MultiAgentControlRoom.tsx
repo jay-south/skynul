@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Task } from '../../../shared/task'
+import type { Task } from '@skynul/shared'
 
 type AgentLabel = { name?: string; role?: string; strippedPrompt: string }
 

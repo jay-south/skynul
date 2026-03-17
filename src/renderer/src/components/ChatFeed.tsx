@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Task, TaskStep, TaskCapabilityId } from '../../../shared/task'
-import { ALL_TASK_CAPABILITIES } from '../../../shared/task'
+import type { Task, TaskStep, TaskCapabilityId } from '@skynul/shared'
+import { ALL_TASK_CAPABILITIES } from '@skynul/shared'
 
 /** Convert URLs in text to clickable <a> tags, preserving the rest as text */
 function renderLinked(text: string): (string | React.ReactElement)[] {

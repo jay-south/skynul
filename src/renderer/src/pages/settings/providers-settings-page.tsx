@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import type { ProviderId } from '../../../../shared/policy'
+import type { ProviderId } from '@skynul/shared'
 import { t } from '../../i18n'
 import { usePolicy, useSetProvider } from '../../queries'
 

@@ -10,7 +10,7 @@ import {
   setProvider,
   pickWorkspace
 } from './service'
-import type { LanguageCode, ThemeMode, CapabilityId, ProviderId } from '../../../../shared/policy'
+import type { LanguageCode, ThemeMode, CapabilityId, ProviderId } from '@skynul/shared'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // QUERIES

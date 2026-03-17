@@ -1,4 +1,4 @@
-import type { LanguageCode } from '../../../shared/policy'
+import type { LanguageCode } from '@skynul/shared'
 import { t } from '../i18n'
 
 export type TaskTemplateId = 'daily' | 'trading' | 'chat' | 'custom'

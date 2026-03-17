@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { InputBar } from '../components/InputBar'
 import { useCreateTask } from '../queries'
-import type { TaskCapabilityId } from '../../../shared/task'
+import type { TaskCapabilityId } from '@skynul/shared'
 
 export function TasksIndexPage(): React.JSX.Element {
   const navigate = useNavigate()

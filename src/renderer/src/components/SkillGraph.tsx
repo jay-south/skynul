@@ -10,7 +10,7 @@ import {
   applyNodeChanges
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import type { Skill } from '../../../shared/skill'
+import type { Skill } from '@skynul/shared'
 
 const CATEGORY_COLORS: Record<string, string> = {
   trading: '#f59e0b',

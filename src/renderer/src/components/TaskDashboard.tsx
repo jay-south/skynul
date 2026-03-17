@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Task } from '../../../shared/task'
-import type { Schedule } from '../../../shared/schedule'
-import type { RuntimeStats } from '../../../shared/runtime'
+import type { Task } from '@skynul/shared'
+import type { Schedule } from '@skynul/shared'
+import type { RuntimeStats } from '@skynul/shared'
 
 // ── Helpers ──────────────────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import type { Skill } from '../../../../shared/skill'
+import type { Skill } from '@skynul/shared'
 import { SkillGraph } from '../../components/SkillGraph'
 import { useSkills, useSaveSkill, useToggleSkill, useDeleteSkill } from '../../queries'
 

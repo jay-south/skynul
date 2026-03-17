@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import type { Task } from '../../../shared/task'
+import type { Task } from '@skynul/shared'
 
 const STATUS_LABELS: Record<string, string> = {
   pending_approval: 'Pending',

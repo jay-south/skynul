@@ -1,4 +1,4 @@
-import type { Task } from '../../../shared/task'
+import type { Task } from '@skynul/shared'
 import { TaskStepLog } from './TaskStepLog'
 
 const STATUS_LABELS: Record<string, string> = {

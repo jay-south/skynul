@@ -1,4 +1,4 @@
-import type { Skill } from '../../../../shared/skill'
+import type { Skill } from '@skynul/shared'
 
 const API_BASE = 'http://localhost:3141/api'
 

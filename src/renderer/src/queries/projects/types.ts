@@ -1,4 +1,4 @@
-import type { ProjectWithTasks } from '../../../../shared/project'
+import type { ProjectWithTasks } from '@skynul/shared'
 
 export type ProjectCreateRequest = {
   name: string

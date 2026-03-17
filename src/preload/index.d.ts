@@ -1,6 +1,6 @@
-import type { CapabilityId, LanguageCode, PolicyState, ThemeMode } from '../shared/policy'
-import type { Task, TaskCapabilityId, TaskCreateResponse, TaskListResponse } from '../shared/task'
-import type { RuntimeStats } from '../shared/runtime'
+import type { CapabilityId, LanguageCode, PolicyState, ThemeMode } from '@skynul/shared'
+import type { Task, TaskCapabilityId, TaskCreateResponse, TaskListResponse } from '@skynul/shared'
+import type { RuntimeStats } from '@skynul/shared'
 
 declare global {
   interface Window {

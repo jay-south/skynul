@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import type { ChannelId, ChannelSettings as ChannelSettingsType } from '../../../shared/channel'
+import type { ChannelId, ChannelSettings as ChannelSettingsType } from '@skynul/shared'
 
 import discordIcon from '../assets/discord.svg'
 import signalIcon from '../assets/signal.svg'

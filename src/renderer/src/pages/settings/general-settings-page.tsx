@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import type { LanguageCode, ThemeMode } from '../../../../shared/policy'
+import type { LanguageCode, ThemeMode } from '@skynul/shared'
 import { SUPABASE_CONFIGURED, supabase } from '../../supabase'
 import { UpdateSettings } from '../../components/UpdateSettings'
 import { t } from '../../i18n'

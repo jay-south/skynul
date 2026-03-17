@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { IPC } from '../shared/ipc'
+import { IPC } from '@skynul/shared'
 import type {
   CapabilityId,
   ChatSendRequest,
@@ -13,7 +13,7 @@ import type {
   SetThemeRequest,
   ThemeMode,
   WriteTextFileRequest
-} from '../shared/policy'
+} from '@skynul/shared'
 import type {
   Task,
   TaskCapabilityId,
@@ -21,8 +21,8 @@ import type {
   TaskCreateResponse,
   TaskListResponse,
   TaskUpdateEvent
-} from '../shared/task'
-import type { RuntimeStats } from '../shared/runtime'
+} from '@skynul/shared'
+import type { RuntimeStats } from '@skynul/shared'
 
 const skynul = {
   ping: (): Promise<string> => ipcRenderer.invoke(IPC.ping),
@@ -133,14 +133,14 @@ const skynul = {
     ipcRenderer.invoke(IPC.setTaskAutoApprove, enabled),
 
   // ── Skills ──────────────────────────────────────────────────────────
-  skillList: (): Promise<import('../shared/skill').Skill[]> => ipcRenderer.invoke(IPC.skillList),
-  skillSave: (skill: Record<string, unknown>): Promise<import('../shared/skill').Skill[]> =>
+  skillList: (): Promise<import('@skynul/shared').Skill[]> => ipcRenderer.invoke(IPC.skillList),
+  skillSave: (skill: Record<string, unknown>): Promise<import('@skynul/shared').Skill[]> =>
     ipcRenderer.invoke(IPC.skillSave, skill),
-  skillDelete: (id: string): Promise<import('../shared/skill').Skill[]> =>
+  skillDelete: (id: string): Promise<import('@skynul/shared').Skill[]> =>
     ipcRenderer.invoke(IPC.skillDelete, id),
-  skillToggle: (id: string): Promise<import('../shared/skill').Skill[]> =>
+  skillToggle: (id: string): Promise<import('@skynul/shared').Skill[]> =>
     ipcRenderer.invoke(IPC.skillToggle, id),
-  skillImport: (filePath: string): Promise<import('../shared/skill').Skill[]> =>
+  skillImport: (filePath: string): Promise<import('@skynul/shared').Skill[]> =>
     ipcRenderer.invoke(IPC.skillImport, filePath),
 
   // ── User Facts ─────────────────────────────────────────────────────
@@ -151,45 +151,45 @@ const skynul = {
     ipcRenderer.invoke(IPC.factDelete, id),
 
   // ── Channels ────────────────────────────────────────────────────────
-  channelGetAll: (): Promise<import('../shared/channel').ChannelSettings[]> =>
+  channelGetAll: (): Promise<import('@skynul/shared').ChannelSettings[]> =>
     ipcRenderer.invoke(IPC.channelGetAll),
   channelGetSettings: (
-    channelId: import('../shared/channel').ChannelId
-  ): Promise<import('../shared/channel').ChannelSettings> =>
+    channelId: import('@skynul/shared').ChannelId
+  ): Promise<import('@skynul/shared').ChannelSettings> =>
     ipcRenderer.invoke(IPC.channelGetSettings, channelId),
   channelSetEnabled: (
-    channelId: import('../shared/channel').ChannelId,
+    channelId: import('@skynul/shared').ChannelId,
     enabled: boolean
-  ): Promise<import('../shared/channel').ChannelSettings> =>
+  ): Promise<import('@skynul/shared').ChannelSettings> =>
     ipcRenderer.invoke(IPC.channelSetEnabled, channelId, enabled),
   channelSetCredentials: (
-    channelId: import('../shared/channel').ChannelId,
+    channelId: import('@skynul/shared').ChannelId,
     creds: Record<string, string>
-  ): Promise<import('../shared/channel').ChannelSettings> =>
+  ): Promise<import('@skynul/shared').ChannelSettings> =>
     ipcRenderer.invoke(IPC.channelSetCredentials, channelId, creds),
-  channelGeneratePairing: (channelId: import('../shared/channel').ChannelId): Promise<string> =>
+  channelGeneratePairing: (channelId: import('@skynul/shared').ChannelId): Promise<string> =>
     ipcRenderer.invoke(IPC.channelGeneratePairing, channelId),
   channelUnpair: (
-    channelId: import('../shared/channel').ChannelId
-  ): Promise<import('../shared/channel').ChannelSettings> =>
+    channelId: import('@skynul/shared').ChannelId
+  ): Promise<import('@skynul/shared').ChannelSettings> =>
     ipcRenderer.invoke(IPC.channelUnpair, channelId),
-  channelGetGlobal: (): Promise<import('../shared/channel').ChannelGlobalSettings> =>
+  channelGetGlobal: (): Promise<import('@skynul/shared').ChannelGlobalSettings> =>
     ipcRenderer.invoke(IPC.channelGetGlobal),
   channelSetAutoApprove: (
     val: boolean
-  ): Promise<import('../shared/channel').ChannelGlobalSettings> =>
+  ): Promise<import('@skynul/shared').ChannelGlobalSettings> =>
     ipcRenderer.invoke(IPC.channelSetAutoApprove, val),
 
   // ── Schedules ────────────────────────────────────────────────────────
-  scheduleList: (): Promise<import('../shared/schedule').Schedule[]> =>
+  scheduleList: (): Promise<import('@skynul/shared').Schedule[]> =>
     ipcRenderer.invoke(IPC.scheduleList),
   scheduleSave: (
     sched: Record<string, unknown>
-  ): Promise<import('../shared/schedule').Schedule[]> =>
+  ): Promise<import('@skynul/shared').Schedule[]> =>
     ipcRenderer.invoke(IPC.scheduleSave, sched),
-  scheduleDelete: (id: string): Promise<import('../shared/schedule').Schedule[]> =>
+  scheduleDelete: (id: string): Promise<import('@skynul/shared').Schedule[]> =>
     ipcRenderer.invoke(IPC.scheduleDelete, id),
-  scheduleToggle: (id: string): Promise<import('../shared/schedule').Schedule[]> =>
+  scheduleToggle: (id: string): Promise<import('@skynul/shared').Schedule[]> =>
     ipcRenderer.invoke(IPC.scheduleToggle, id),
 
   // ── Audio Transcription ──────────────────────────────────────────────
@@ -197,11 +197,11 @@ const skynul = {
     ipcRenderer.invoke(IPC.transcribeAudio, audioBuffer),
 
   // ── Browser Snapshots ────────────────────────────────────────────────
-  browserSnapshotList: (): Promise<import('../main/browser-snapshots').BrowserSnapshot[]> =>
+  browserSnapshotList: (): Promise<import('@skynul/shared').BrowserSnapshot[]> =>
     ipcRenderer.invoke(IPC.browserSnapshotList),
   browserSnapshotSave: (
     name: string
-  ): Promise<import('../main/browser-snapshots').BrowserSnapshot> =>
+  ): Promise<import('@skynul/shared').BrowserSnapshot> =>
     ipcRenderer.invoke(IPC.browserSnapshotSave, name),
   browserSnapshotRestore: (id: string): Promise<{ success: boolean }> =>
     ipcRenderer.invoke(IPC.browserSnapshotRestore, id),
@@ -209,12 +209,12 @@ const skynul = {
     ipcRenderer.invoke(IPC.browserSnapshotDelete, id),
 
   // ── Projects ─────────────────────────────────────────────────────────
-  projectList: (): Promise<import('../shared/project').ProjectWithTasks[]> =>
+  projectList: (): Promise<import('@skynul/shared').ProjectWithTasks[]> =>
     ipcRenderer.invoke(IPC.projectList),
   projectCreate: (
     name: string,
     color?: string
-  ): Promise<import('../shared/project').ProjectWithTasks> =>
+  ): Promise<import('@skynul/shared').ProjectWithTasks> =>
     ipcRenderer.invoke(IPC.projectCreate, { name, color }),
   projectUpdate: (id: string, name: string, color: string): Promise<void> =>
     ipcRenderer.invoke(IPC.projectUpdate, { id, name, color }),

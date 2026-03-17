@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useMemo } from 'react'
-import type { Schedule } from '../../../shared/schedule'
-import type { Task } from '../../../shared/task'
+import type { Schedule } from '@skynul/shared'
+import type { Task } from '@skynul/shared'
 
 export function ScheduleDetailPage(): React.JSX.Element {
   const { scheduleId } = useParams()

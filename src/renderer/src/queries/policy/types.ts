@@ -4,7 +4,7 @@ import type {
   ThemeMode,
   CapabilityId,
   ProviderId
-} from '../../../../shared/policy'
+} from '@skynul/shared'
 
 export type PolicyResponse = PolicyState
 

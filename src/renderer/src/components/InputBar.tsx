@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
-import type { LanguageCode } from '../../../shared/policy'
-import type { TaskCapabilityId } from '../../../shared/task'
-import { ALL_TASK_CAPABILITIES } from '../../../shared/task'
+import type { LanguageCode } from '@skynul/shared'
+import type { TaskCapabilityId } from '@skynul/shared'
+import { ALL_TASK_CAPABILITIES } from '@skynul/shared'
 import { speechLocale } from '../i18n'
 
 export function InputBar(props: {

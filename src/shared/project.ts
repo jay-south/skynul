@@ -1,2 +1,0 @@
-// Re-export from shared package — single source of truth
-export type { Project, ProjectWithTasks } from '@skynul/shared'

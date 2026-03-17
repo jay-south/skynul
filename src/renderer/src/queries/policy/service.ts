@@ -1,4 +1,4 @@
-import type { PolicyState } from '../../../../shared/policy'
+import type { PolicyState } from '@skynul/shared'
 import type {
   SetLanguageRequest,
   SetThemeRequest,

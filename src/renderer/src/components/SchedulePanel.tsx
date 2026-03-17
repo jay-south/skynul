@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import type { Schedule, ScheduleFrequency } from '../../../shared/schedule'
+import type { Schedule, ScheduleFrequency } from '@skynul/shared'
 
 /* ── Helpers ───────────────────────────────────────────────────────── */
 
@@ -412,7 +412,7 @@ export function NewScheduleForm(props: {
 
 /* ── Schedule Detail (center panel) ────────────────────────────────── */
 
-import type { Task } from '../../../shared/task'
+import type { Task } from '@skynul/shared'
 
 function fmtDuration(startMs: number, endMs: number): string {
   const s = Math.round((endMs - startMs) / 1000)

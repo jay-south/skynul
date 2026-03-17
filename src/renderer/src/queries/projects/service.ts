@@ -1,4 +1,4 @@
-import type { ProjectWithTasks } from '../../../../shared/project'
+import type { ProjectWithTasks } from '@skynul/shared'
 
 const API_BASE = 'http://localhost:3141/api'
 
