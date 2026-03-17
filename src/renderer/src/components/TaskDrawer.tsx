@@ -87,7 +87,7 @@ export function TaskDrawer({
           zIndex: 1000,
           display: "flex",
           flexDirection: "column",
-          animation: "slideIn 0.15s cubic-bezier(0.16, 1, 0.3, 1)",
+          animation: "slideIn 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
           boxShadow: "4px 0 24px rgba(0, 0, 0, 0.15)",
         }}
       >
