@@ -1,3 +1,4 @@
+import { Section, SectionLabel } from '../../components/layout'
 import { t } from '../../i18n'
 import { usePickWorkspace, usePolicy, useSetCapability } from '../../queries'
 
@@ -27,8 +28,8 @@ export function DeveloperSettingsPage(): React.JSX.Element {
 
   return (
     <>
-      <div className="settingsSection">
-        <div className="settingsLabel">Shell Access</div>
+      <Section>
+        <SectionLabel>Shell Access</div>
         <button
           className={`cap ${policy?.capabilities['cmd.run'] ? 'on' : 'off'}`}
           onClick={handleToggleCmdRun}
@@ -44,8 +45,8 @@ export function DeveloperSettingsPage(): React.JSX.Element {
         </button>
       </div>
 
-      <div className="settingsSection">
-        <div className="settingsLabel">Workspace</div>
+      <Section>
+        <SectionLabel>Workspace</div>
         <div className="pathBox" title={workspaceLabel}>
           {workspaceLabel}
         </div>

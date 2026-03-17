@@ -1,4 +1,5 @@
 import type { CapabilityId } from '@skynul/shared'
+import { Section, SectionLabel } from '../../components/layout'
 import { t } from '../../i18n'
 import { usePolicy, useSetAutoApprove, useSetCapability, useSetTaskMemory } from '../../queries'
 
@@ -57,8 +58,8 @@ export function ComputerSettingsPage(): React.JSX.Element {
   return (
     <>
       {/* Task Memory */}
-      <div className="settingsSection">
-        <div className="settingsLabel">Task Memory</div>
+      <Section>
+        <SectionLabel>Task Memory</div>
         <button
           className={`cap ${policy?.taskMemoryEnabled ? 'on' : 'off'}`}
           onClick={handleToggleTaskMemory}
@@ -88,8 +89,8 @@ export function ComputerSettingsPage(): React.JSX.Element {
       </div>
 
       {/* Capabilities */}
-      <div className="settingsSection">
-        <div className="settingsLabel">{t(lang, 'settings_capabilities')}</div>
+      <Section>
+        <SectionLabel>{t(lang, 'settings_capabilities')}</div>
         <div className="capList">
           {CAPABILITIES.map((c) => (
             <button
@@ -112,8 +113,8 @@ export function ComputerSettingsPage(): React.JSX.Element {
       </div>
 
       {/* Trading Options */}
-      <div className="settingsSection">
-        <div className="settingsLabel">Trading Options</div>
+      <Section>
+        <SectionLabel>Trading Options</div>
         <div className="settingsField" style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
           <button className="btn" disabled>
             Polymarket
