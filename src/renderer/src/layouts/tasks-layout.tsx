@@ -1,185 +1,80 @@
-import { useMemo } from "react";
-import { Outlet, useNavigate, useParams } from "react-router-dom";
-import {
-  useCancelTask,
-  useCreateTask,
-  useDeleteTask,
-  useTasks,
-} from "../queries/tasks";
+import { useEffect, useState } from "react";
+import { Outlet, useLocation, useParams } from "react-router-dom";
+import { TaskDrawer } from "../components/TaskDrawer";
 
 export function TasksLayout(): React.JSX.Element {
-  const navigate = useNavigate();
+  const location = useLocation();
   const { taskId } = useParams();
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  // Queries
-  const { data: tasksResponse } = useTasks();
-  const tasks = tasksResponse?.tasks ?? [];
-
-  // Mutations
-  const createTaskMutation = useCreateTask();
-  const deleteTaskMutation = useDeleteTask();
-  const cancelTaskMutation = useCancelTask();
-
-  // Get root tasks only (no parent) - limit to last 20 for performance
-  const rootTasks = useMemo(() => {
-    return tasks
-      .filter((t) => !t.parentTaskId)
-      .sort((a, b) => b.createdAt - a.createdAt)
-      .slice(0, 20);
-  }, [tasks]);
-
-  // Get active root task ID
-  const activeRootId = useMemo(() => {
-    if (!taskId) return null;
-    const byId = new Map(tasks.map((t) => [t.id, t] as const));
-    let cur = byId.get(taskId);
-    let hops = 0;
-    while (cur?.parentTaskId && hops < 50) {
-      const next = byId.get(cur.parentTaskId);
-      if (!next) break;
-      cur = next;
-      hops++;
+  // Auto-open drawer when viewing a specific task, close when on index
+  useEffect(() => {
+    if (taskId) {
+      setIsDrawerOpen(true);
+    } else {
+      // On /tasks (index), drawer closed by default
+      setIsDrawerOpen(false);
     }
-    return cur?.id ?? taskId;
-  }, [tasks, taskId]);
-
-  // Create new task immediately and navigate to it
-  const handleNewTask = () => {
-    createTaskMutation.mutate(
-      {
-        prompt: "",
-        capabilities: ["browser.cdp"],
-        mode: "browser",
-      },
-      {
-        onSuccess: (response) => {
-          navigate(`/tasks/${response.task.id}`);
-        },
-      },
-    );
-  };
-
-  // Check if we're on the "new task" page (index)
-  const isNewTaskPage = !taskId;
+  }, [taskId, location.pathname]);
 
   return (
-    <div className="tasksLayout">
-      {/* Task sidebar - compact */}
-      <div className="tasksSidebar">
-        {/* New Task Button */}
-        <div className="sidebarToolbar">
+    <div style={{ display: "flex", height: "100%" }}>
+      {/* Main content - takes full width */}
+      <div style={{ flex: 1, position: "relative" }}>
+        {/* Floating button to open drawer */}
+        {!isDrawerOpen && (
           <button
-            className="sidebarToolbarBtn"
-            onClick={handleNewTask}
-            disabled={createTaskMutation.isPending}
+            onClick={() => setIsDrawerOpen(true)}
+            style={{
+              position: "absolute",
+              top: "16px",
+              left: "16px",
+              zIndex: 50,
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "10px 16px",
+              background: "var(--nb-panel)",
+              border: "1px solid var(--nb-border)",
+              borderRadius: "10px",
+              color: "var(--text-primary)",
+              fontSize: "14px",
+              fontWeight: 500,
+              cursor: "pointer",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+              transition: "all 0.2s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--nb-hover)";
+              e.currentTarget.style.transform = "translateY(-1px)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "var(--nb-panel)";
+              e.currentTarget.style.transform = "translateY(0)";
+            }}
           >
             <svg
-              viewBox="0 0 24 24"
               width="16"
               height="16"
+              viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
             >
-              <path d="M12 5v14M5 12h14" />
+              <path d="M4 6h16M4 12h16M4 18h16" />
             </svg>
-            New
+            Tasks
           </button>
-        </div>
+        )}
 
-        {/* Task List - compact */}
-        <div className="taskPanelWrap" style={{ flex: 1, overflow: "auto" }}>
-          {/* New Task Item (when on index page) */}
-          {isNewTaskPage && (
-            <div className="rbItem active" style={{ opacity: 0.7 }}>
-              <div className="rbItemContent">
-                <div className="rbItemTitle" style={{ fontStyle: "italic" }}>
-                  New task...
-                </div>
-                <div className="rbItemMeta">
-                  <span className="taskStatusBadge">Draft</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Existing Tasks */}
-          {rootTasks.map((t) => (
-            <div
-              key={t.id}
-              className={`rbItem ${t.id === activeRootId ? "active" : ""}`}
-              onClick={() => navigate(`/tasks/${t.id}`)}
-              style={{ cursor: "pointer" }}
-            >
-              <div className="rbItemContent">
-                <div className="rbItemTitle">
-                  {t.prompt?.slice(0, 35) || "Untitled task"}
-                  {t.prompt && t.prompt.length > 35 ? "..." : ""}
-                </div>
-                <div className="rbItemMeta">
-                  <span
-                    className="taskStatusBadge"
-                    style={{
-                      color:
-                        t.status === "failed"
-                          ? "var(--nb-danger)"
-                          : t.status === "running" || t.status === "completed"
-                            ? "var(--nb-accent-2)"
-                            : "var(--nb-muted)",
-                    }}
-                  >
-                    {t.status === "pending_approval"
-                      ? "Pending"
-                      : t.status === "approved"
-                        ? "Approved"
-                        : t.status === "running"
-                          ? "Running"
-                          : t.status === "completed"
-                            ? "Done"
-                            : t.status === "failed"
-                              ? "Failed"
-                              : t.status === "cancelled"
-                                ? "Cancelled"
-                                : t.status}
-                  </span>
-                </div>
-              </div>
-              <button
-                className="rbMenuBtn"
-                aria-label="Task options"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (t.status === "running") {
-                    cancelTaskMutation.mutate(t.id);
-                  } else {
-                    deleteTaskMutation.mutate(t.id);
-                  }
-                }}
-              >
-                {t.status === "running" ? "⏹" : "×"}
-              </button>
-            </div>
-          ))}
-
-          {rootTasks.length === 0 && !isNewTaskPage && (
-            <div
-              className="taskEmpty"
-              style={{
-                padding: "12px",
-                fontSize: "12px",
-                color: "var(--nb-muted)",
-              }}
-            >
-              No tasks yet
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Main content area */}
-      <div className="tasksMain">
         <Outlet />
       </div>
+
+      {/* Task Drawer */}
+      <TaskDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+      />
     </div>
   );
 }

@@ -81,12 +81,14 @@ export function TasksIndexPage(): React.JSX.Element {
       <div
         style={{
           color: "var(--nb-muted)",
-          fontSize: "14px",
-          marginBottom: "24px",
+          fontSize: "15px",
+          marginBottom: "32px",
           textAlign: "center",
+          maxWidth: "400px",
+          lineHeight: 1.5,
         }}
       >
-        Describe the task and I'll get it done for you.
+        Describe what you need and I'll handle it for you.
       </div>
       <InputBar
         lang="en"
@@ -95,40 +97,6 @@ export function TasksIndexPage(): React.JSX.Element {
         onSubmit={handleSubmit}
         onTextChange={setComposerPrompt}
       />
-
-      <div
-        style={{
-          marginTop: "32px",
-          padding: "16px 20px",
-          background: "var(--nb-panel)",
-          borderRadius: "12px",
-          border: "1px solid var(--nb-border)",
-          maxWidth: "480px",
-        }}
-      >
-        <div
-          style={{
-            fontSize: "12px",
-            fontWeight: 600,
-            marginBottom: "8px",
-            color: "var(--text-primary)",
-          }}
-        >
-          Examples:
-        </div>
-        <div
-          style={{
-            fontSize: "12px",
-            color: "var(--nb-muted)",
-            lineHeight: 1.6,
-          }}
-        >
-          • "Post on Twitter: 'Just shipped a new feature!'" <br />
-          • "Search for Python tutorials on YouTube" <br />
-          • "Check my Gmail for emails from John" <br />• "Create a Google Doc
-          with meeting notes"
-        </div>
-      </div>
     </div>
   );
 }

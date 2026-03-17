@@ -4518,22 +4518,21 @@ code {
   flex-shrink: 0;
 }
 
-/* Tasks Layout */
+/* Tasks Layout - Drawer based */
 .tasksLayout {
-  display: grid;
-  grid-template-columns: 200px 1fr;
+  display: flex;
   height: 100%;
+  width: 100%;
 }
 
 .tasksSidebar {
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid var(--nb-border);
-  background: var(--nb-panel);
+  display: none;
 }
 
 .tasksMain {
+  flex: 1;
   overflow: auto;
+  width: 100%;
 }
 
 /* Settings Layout */
