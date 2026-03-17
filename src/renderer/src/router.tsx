@@ -1,4 +1,5 @@
 import { createHashRouter, Navigate } from 'react-router-dom'
+import { PageLayout } from './layouts/page-layout'
 import { RootLayout } from './layouts/root-layout'
 import { SettingsLayout } from './layouts/settings-layout'
 import { TasksLayout } from './layouts/tasks-layout'
@@ -42,26 +43,46 @@ export const router = createHashRouter([
       },
       {
         path: 'dashboard',
-        element: <DashboardPage />
+        element: (
+          <PageLayout title="Dashboard">
+            <DashboardPage />
+          </PageLayout>
+        )
       },
       {
         path: 'projects',
-        element: <ProjectsPage />
+        element: (
+          <PageLayout title="Projects">
+            <ProjectsPage />
+          </PageLayout>
+        )
       },
       {
         path: 'schedules',
         children: [
           {
             index: true,
-            element: <ScheduledPage />
+            element: (
+              <PageLayout title="Scheduled">
+                <ScheduledPage />
+              </PageLayout>
+            )
           },
           {
             path: 'new',
-            element: <NewSchedulePage />
+            element: (
+              <PageLayout title="New Schedule">
+                <NewSchedulePage />
+              </PageLayout>
+            )
           },
           {
             path: ':scheduleId',
-            element: <ScheduleDetailPage />
+            element: (
+              <PageLayout title="Schedule Detail">
+                <ScheduleDetailPage />
+              </PageLayout>
+            )
           }
         ]
       },

@@ -4523,8 +4523,66 @@ code {
 
 /* Settings Layout */
 .settingsLayout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
   height: 100%;
-  overflow: auto;
+}
+
+/* Standard Page Layout - Used by Dashboard, Projects, Schedules */
+.pageLayout {
+  height: 100%;
+  overflow-y: auto;
+  padding: 32px 24px;
+}
+
+.pageLayoutInner {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-height: 400px;
+}
+
+.pageLayoutHeader {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.pageLayoutBackBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 14px 8px 8px;
+  border-radius: 10px;
+  border: none;
+  background: var(--nb-surface-2);
+  color: var(--nb-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+
+.pageLayoutBackBtn:hover {
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 85%);
+  color: var(--nb-text);
+}
+
+.pageLayoutTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--nb-text);
+  margin: 0;
+}
+
+.pageLayoutContent {
+  flex: 1;
 }
 
 /* Active navigation state */
