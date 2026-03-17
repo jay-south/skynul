@@ -59,8 +59,9 @@ export function ComputerSettingsPage(): React.JSX.Element {
     <>
       {/* Task Memory */}
       <Section>
-        <SectionLabel>Task Memory</div>
+        <SectionLabel>Task Memory</SectionLabel>
         <button
+          type="button"
           className={`cap ${policy?.taskMemoryEnabled ? 'on' : 'off'}`}
           onClick={handleToggleTaskMemory}
           disabled={!policy}
@@ -74,6 +75,7 @@ export function ComputerSettingsPage(): React.JSX.Element {
           </div>
         </button>
         <button
+          type="button"
           className={`cap ${policy?.taskAutoApprove ? 'on' : 'off'}`}
           onClick={handleToggleAutoApprove}
           disabled={!policy}
@@ -86,15 +88,16 @@ export function ComputerSettingsPage(): React.JSX.Element {
             <div className="capKnob" />
           </div>
         </button>
-      </div>
+      </Section>
 
       {/* Capabilities */}
       <Section>
-        <SectionLabel>{t(lang, 'settings_capabilities')}</div>
+        <SectionLabel>{t(lang, 'settings_capabilities')}</SectionLabel>
         <div className="capList">
           {CAPABILITIES.map((c) => (
             <button
               key={c.id}
+              type="button"
               className={`cap ${policy?.capabilities[c.id] ? 'on' : 'off'}`}
               onClick={() => handleToggleCapability(c.id)}
               disabled={!policy}
@@ -110,20 +113,20 @@ export function ComputerSettingsPage(): React.JSX.Element {
             </button>
           ))}
         </div>
-      </div>
+      </Section>
 
       {/* Trading Options */}
       <Section>
-        <SectionLabel>Trading Options</div>
+        <SectionLabel>Trading Options</SectionLabel>
         <div className="settingsField" style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-          <button className="btn" disabled>
+          <button type="button" className="btn" disabled>
             Polymarket
           </button>
-          <button className="btn" disabled>
+          <button type="button" className="btn" disabled>
             Binance
           </button>
         </div>
-      </div>
+      </Section>
     </>
   )
 }

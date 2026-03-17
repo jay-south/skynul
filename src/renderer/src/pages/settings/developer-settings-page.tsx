@@ -29,8 +29,9 @@ export function DeveloperSettingsPage(): React.JSX.Element {
   return (
     <>
       <Section>
-        <SectionLabel>Shell Access</div>
+        <SectionLabel>Shell Access</SectionLabel>
         <button
+          type="button"
           className={`cap ${policy?.capabilities['cmd.run'] ? 'on' : 'off'}`}
           onClick={handleToggleCmdRun}
           disabled={!policy}
@@ -43,18 +44,18 @@ export function DeveloperSettingsPage(): React.JSX.Element {
             <div className="capKnob" />
           </div>
         </button>
-      </div>
+      </Section>
 
       <Section>
-        <SectionLabel>Workspace</div>
+        <SectionLabel>Workspace</SectionLabel>
         <div className="pathBox" title={workspaceLabel}>
           {workspaceLabel}
         </div>
-        <button className="btn" onClick={handlePickWorkspace}>
+        <button type="button" className="btn" onClick={handlePickWorkspace}>
           {t(lang, 'settings_pick_workspace')}
         </button>
         <div className="settingsFieldHint">Working directory for shell commands</div>
-      </div>
+      </Section>
     </>
   )
 }

@@ -91,11 +91,12 @@ export function GeneralSettingsPage(): React.JSX.Element {
     <>
       {/* Language */}
       <Section>
-        <SectionLabel>{t(lang, 'settings_language')}</Section>
+        <SectionLabel>{t(lang, 'settings_language')}</SectionLabel>
         <div className="seg seg--2col">
           {(['en', 'es'] as const).map((l) => (
             <button
               key={l}
+              type="button"
               className={`segBtn ${lang === l ? 'active' : ''}`}
               onClick={() => handleSetLanguage(l)}
               aria-pressed={lang === l}
@@ -103,16 +104,17 @@ export function GeneralSettingsPage(): React.JSX.Element {
               {l === 'en' ? 'English' : 'Espanol'}
             </button>
           ))}
-        </Section>
+        </div>
       </Section>
 
       {/* Theme */}
       <Section>
-        <SectionLabel>{t(lang, 'settings_theme')}</Section>
+        <SectionLabel>{t(lang, 'settings_theme')}</SectionLabel>
         <div className="seg">
           {(['system', 'light', 'dark'] as const).map((m) => (
             <button
               key={m}
+              type="button"
               className={`segBtn ${policy?.themeMode === m ? 'active' : ''}`}
               onClick={() => handleSetTheme(m)}
               disabled={!policy}
@@ -121,23 +123,23 @@ export function GeneralSettingsPage(): React.JSX.Element {
               {t(lang, `theme_${m}` as 'theme_system' | 'theme_light' | 'theme_dark')}
             </button>
           ))}
-        </Section>
+        </div>
       </Section>
 
       {/* Workspace */}
       <Section>
-        <SectionLabel>{t(lang, 'settings_workspace')}</Section>
+        <SectionLabel>{t(lang, 'settings_workspace')}</SectionLabel>
         <div className="pathBox" title={workspaceLabel}>
           {workspaceLabel}
-        </Section>
-        <button className="btn" onClick={handlePickWorkspace}>
+        </div>
+        <button type="button" className="btn" onClick={handlePickWorkspace}>
           {t(lang, 'settings_pick_workspace')}
         </button>
       </Section>
 
       {/* Account */}
       <Section>
-        <SectionLabel>{t(lang, 'settings_account')}</Section>
+        <SectionLabel>{t(lang, 'settings_account')}</SectionLabel>
         <div className="settingsField">
           <div className="settingsFieldHint">
             {!SUPABASE_CONFIGURED
@@ -149,13 +151,19 @@ export function GeneralSettingsPage(): React.JSX.Element {
                     ? t(lang, 'account_connected_as', { email: accountEmail })
                     : t(lang, 'account_connected')
                   : t(lang, 'account_not_connected')}
-          </Section>
+          </div>
           {accountConnected ? (
-            <button className="btn" onClick={() => void signOut()} disabled={accountBusy}>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => void signOut()}
+              disabled={accountBusy}
+            >
               {t(lang, 'account_sign_out')}
             </button>
           ) : (
             <button
+              type="button"
               className="btn"
               onClick={openAuthModal}
               disabled={accountBusy || accountLoading}
@@ -163,7 +171,7 @@ export function GeneralSettingsPage(): React.JSX.Element {
               {t(lang, 'auth_login')}
             </button>
           )}
-        </Section>
+        </div>
       </Section>
 
       <UpdateSettings />
