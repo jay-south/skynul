@@ -1,6 +1,6 @@
 import type { LanguageCode, ThemeMode } from '@skynul/shared'
 import { useEffect, useState } from 'react'
-import { Section, SectionLabel } from '../../components/layout'
+import { Section, SectionLabel, SettingsShell } from '../../components/layout'
 import { UpdateSettings } from '../../components/UpdateSettings'
 import { t } from '../../i18n'
 import { usePickWorkspace, usePolicy, useSetLanguage, useSetTheme } from '../../queries'
@@ -88,7 +88,7 @@ export function GeneralSettingsPage(): React.JSX.Element {
   }
 
   return (
-    <>
+    <SettingsShell>
       {/* Language */}
       <Section>
         <SectionLabel>{t(lang, 'settings_language')}</SectionLabel>
@@ -175,6 +175,6 @@ export function GeneralSettingsPage(): React.JSX.Element {
       </Section>
 
       <UpdateSettings />
-    </>
+    </SettingsShell>
   )
 }

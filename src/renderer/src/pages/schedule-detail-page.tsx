@@ -1,6 +1,7 @@
 import type { Schedule, Task } from '@skynul/shared'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { PageContent } from '../components/layout'
 
 export function ScheduleDetailPage(): React.JSX.Element {
   const { scheduleId } = useParams()
@@ -66,7 +67,14 @@ export function ScheduleDetailPage(): React.JSX.Element {
   }
 
   if (!schedule) {
-    return <div className="settingsPanel">Schedule not found</div>
+    return (
+      <PageContent title="Schedule Detail" showBack backTo="/schedules">
+        <div className="settingsSection">
+          <div className="settingsLabel">Status</div>
+          <div className="pathBox">Schedule not found</div>
+        </div>
+      </PageContent>
+    )
   }
 
   const completedRuns = scheduleHistory.filter((t) => t.status === 'completed').length
@@ -76,24 +84,7 @@ export function ScheduleDetailPage(): React.JSX.Element {
   }, 0)
 
   return (
-    <div className="settingsPanel">
-      <div className="settingsPanelInner">
-        <div className="settingsBackBar">
-          <button
-            className="backBtn"
-            onClick={() => navigate('/schedules')}
-            aria-label="Back"
-            title="Back"
-          >
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-              <path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
-            </svg>
-            <span>Back</span>
-          </button>
-        </div>
-
-        <h2 className="settingsPanelTitle">Schedule Detail</h2>
-
+    <PageContent title="Schedule Detail" showBack backTo="/schedules">
         <div className="settingsSection">
           <div className="settingsLabel">Prompt</div>
           <div className="pathBox">{schedule.prompt}</div>
@@ -200,10 +191,11 @@ export function ScheduleDetailPage(): React.JSX.Element {
         </div>
 
         <div style={{ display: 'flex', gap: 8, marginTop: 24 }}>
-          <button className="btn" onClick={() => void handleToggle()}>
+          <button type="button" className="btn" onClick={() => void handleToggle()}>
             {schedule.enabled ? 'Pause' : 'Resume'}
           </button>
           <button
+            type="button"
             className="btn"
             style={{ color: 'var(--nb-danger)' }}
             onClick={() => void handleDelete()}
@@ -217,11 +209,12 @@ export function ScheduleDetailPage(): React.JSX.Element {
             <div className="settingsLabel">Run History</div>
             <div className="capList">
               {scheduleHistory.map((t) => (
-                <div
+                <button
+                  type="button"
                   key={t.id}
                   className="cap"
                   onClick={() => navigate(`/tasks/${t.id}`)}
-                  style={{ cursor: 'pointer' }}
+                  style={{ cursor: 'pointer', width: '100%', textAlign: 'left' }}
                 >
                   <div className="capLeft">
                     <div className="capTitle">{t.prompt.slice(0, 50)}...</div>
@@ -229,12 +222,11 @@ export function ScheduleDetailPage(): React.JSX.Element {
                       {t.status} · {t.steps.length} steps · {formatAgo(t.updatedAt)}
                     </div>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </PageContent>
   )
 }

@@ -1,4 +1,4 @@
-import { Section, SectionLabel } from '../../components/layout'
+import { Section, SectionLabel, SettingsShell } from '../../components/layout'
 import { t } from '../../i18n'
 import { usePickWorkspace, usePolicy, useSetCapability } from '../../queries'
 
@@ -27,7 +27,7 @@ export function DeveloperSettingsPage(): React.JSX.Element {
   const workspaceLabel = policy?.workspaceRoot ?? 'No workspace'
 
   return (
-    <>
+    <SettingsShell>
       <Section>
         <SectionLabel>Shell Access</SectionLabel>
         <button
@@ -56,6 +56,6 @@ export function DeveloperSettingsPage(): React.JSX.Element {
         </button>
         <div className="settingsFieldHint">Working directory for shell commands</div>
       </Section>
-    </>
+    </SettingsShell>
   )
 }

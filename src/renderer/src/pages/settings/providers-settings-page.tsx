@@ -9,7 +9,7 @@ import glmIcon from '../../assets/glm.svg'
 import kimiIcon from '../../assets/kimi.svg'
 import minimaxIcon from '../../assets/minimax.svg'
 import openrouterIcon from '../../assets/openrouter.svg'
-import { CardGrid, Section, SectionLabel } from '../../components/layout'
+import { CardGrid, Section, SectionLabel, SettingsShell } from '../../components/layout'
 import { t } from '../../i18n'
 import { usePolicy, useSetOpenAIModel, useSetProvider } from '../../queries'
 
@@ -101,7 +101,7 @@ export function ProvidersSettingsPage(): React.JSX.Element {
   }
 
   return (
-    <>
+    <SettingsShell>
       {/* AI Provider Selection */}
       <Section>
         <SectionLabel>{t(lang, 'settings_provider')}</SectionLabel>
@@ -228,6 +228,6 @@ export function ProvidersSettingsPage(): React.JSX.Element {
           </div>
         </div>
       )}
-    </>
+    </SettingsShell>
   )
 }

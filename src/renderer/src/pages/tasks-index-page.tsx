@@ -2,7 +2,7 @@ import type { TaskCapabilityId } from '@skynul/shared'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { InputBar } from '../components/InputBar'
-import { CenteredContent, PageHeader } from '../components/layout'
+import { CenteredContent, PageHeader, TasksShell } from '../components/layout'
 import { useCreateTask } from '../queries'
 
 export function TasksIndexPage(): React.JSX.Element {
@@ -69,18 +69,20 @@ export function TasksIndexPage(): React.JSX.Element {
   }
 
   return (
-    <CenteredContent>
-      <PageHeader
-        title="What do you want to automate?"
-        subtitle="Describe what you need and I'll handle it for you."
-      />
-      <InputBar
-        lang="en"
-        autoCaps={['browser.cdp']}
-        compact={false}
-        onSubmit={handleSubmit}
-        onTextChange={setComposerPrompt}
-      />
-    </CenteredContent>
+    <TasksShell>
+      <CenteredContent>
+        <PageHeader
+          title="What do you want to automate?"
+          subtitle="Describe what you need and I'll handle it for you."
+        />
+        <InputBar
+          lang="en"
+          autoCaps={['browser.cdp']}
+          compact={false}
+          onSubmit={handleSubmit}
+          onTextChange={setComposerPrompt}
+        />
+      </CenteredContent>
+    </TasksShell>
   )
 }

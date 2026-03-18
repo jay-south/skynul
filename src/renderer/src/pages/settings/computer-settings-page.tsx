@@ -1,5 +1,5 @@
 import type { CapabilityId } from '@skynul/shared'
-import { Section, SectionLabel } from '../../components/layout'
+import { Section, SectionLabel, SettingsShell } from '../../components/layout'
 import { t } from '../../i18n'
 import { usePolicy, useSetAutoApprove, useSetCapability, useSetTaskMemory } from '../../queries'
 
@@ -56,7 +56,7 @@ export function ComputerSettingsPage(): React.JSX.Element {
   }
 
   return (
-    <>
+    <SettingsShell>
       {/* Task Memory */}
       <Section>
         <SectionLabel>Task Memory</SectionLabel>
@@ -127,6 +127,6 @@ export function ComputerSettingsPage(): React.JSX.Element {
           </button>
         </div>
       </Section>
-    </>
+    </SettingsShell>
   )
 }

@@ -1,8 +1,5 @@
 import { createHashRouter, Navigate } from 'react-router-dom'
-import { PageLayout } from './layouts/page-layout'
 import { RootLayout } from './layouts/root-layout'
-import { SettingsLayout } from './layouts/settings-layout'
-import { TasksLayout } from './layouts/tasks-layout'
 import { DashboardPage } from './pages/dashboard-page'
 import { NewSchedulePage } from './pages/new-schedule-page'
 import { ProjectsPage } from './pages/projects-page'
@@ -29,96 +26,64 @@ export const router = createHashRouter([
       },
       {
         path: 'tasks',
-        element: <TasksLayout />,
-        children: [
-          {
-            index: true,
-            element: <TasksIndexPage />
-          },
-          {
-            path: ':taskId',
-            element: <TaskChatPage />
-          }
-        ]
+        element: <TasksIndexPage />
+      },
+      {
+        path: 'tasks/:taskId',
+        element: <TaskChatPage />
       },
       {
         path: 'dashboard',
-        element: (
-          <PageLayout title="Dashboard">
-            <DashboardPage />
-          </PageLayout>
-        )
+        element: <DashboardPage />
       },
       {
         path: 'projects',
-        element: (
-          <PageLayout title="Projects">
-            <ProjectsPage />
-          </PageLayout>
-        )
+        element: <ProjectsPage />
       },
       {
         path: 'schedules',
         children: [
           {
             index: true,
-            element: (
-              <PageLayout title="Scheduled">
-                <ScheduledPage />
-              </PageLayout>
-            )
+            element: <ScheduledPage />
           },
           {
             path: 'new',
-            element: (
-              <PageLayout title="New Schedule">
-                <NewSchedulePage />
-              </PageLayout>
-            )
+            element: <NewSchedulePage />
           },
           {
             path: ':scheduleId',
-            element: (
-              <PageLayout title="Schedule Detail">
-                <ScheduleDetailPage />
-              </PageLayout>
-            )
+            element: <ScheduleDetailPage />
           }
         ]
       },
       {
         path: 'settings',
-        element: <SettingsLayout />,
-        children: [
-          {
-            index: true,
-            element: <Navigate to="/settings/general" replace />
-          },
-          {
-            path: 'general',
-            element: <GeneralSettingsPage />
-          },
-          {
-            path: 'providers',
-            element: <ProvidersSettingsPage />
-          },
-          {
-            path: 'computer',
-            element: <ComputerSettingsPage />
-          },
-          {
-            path: 'channels',
-            element: <ChannelsSettingsPage />
-          },
-          {
-            path: 'skills',
-            element: <SkillsSettingsPage />
-          },
-          {
-            path: 'developer',
-            element: <DeveloperSettingsPage />
-          }
-        ]
+        element: <Navigate to="/settings/general" replace />
+      },
+      {
+        path: 'settings/general',
+        element: <GeneralSettingsPage />
+      },
+      {
+        path: 'settings/providers',
+        element: <ProvidersSettingsPage />
+      },
+      {
+        path: 'settings/computer',
+        element: <ComputerSettingsPage />
+      },
+      {
+        path: 'settings/channels',
+        element: <ChannelsSettingsPage />
+      },
+      {
+        path: 'settings/skills',
+        element: <SkillsSettingsPage />
+      },
+      {
+        path: 'settings/developer',
+        element: <DeveloperSettingsPage />
       }
     ]
   }

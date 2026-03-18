@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { PageContent } from '../components/layout'
 import { useDeleteSchedule, useSchedules, useToggleSchedule } from '../queries'
 
 export function ScheduledPage(): React.JSX.Element {
@@ -31,74 +32,68 @@ export function ScheduledPage(): React.JSX.Element {
   }
 
   return (
-    <div className="settingsPanel">
-      <div className="settingsPanelInner">
-        <div className="settingsBackBar">
-          <button
-            className="backBtn"
-            onClick={() => navigate('/tasks')}
-            aria-label="Back to tasks"
-            title="Back to tasks"
-          >
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-              <path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
-            </svg>
-            <span>Back</span>
-          </button>
-        </div>
-
-        <h2 className="settingsPanelTitle">Scheduled Tasks</h2>
-
-        <div style={{ marginBottom: 16 }}>
-          <button className="btn btnFilled" onClick={() => navigate('/schedules/new')}>
-            + New Schedule
-          </button>
-        </div>
-
-        {schedules.length === 0 ? (
-          <div style={{ color: 'var(--nb-muted)', padding: '20px 0' }}>No scheduled tasks yet.</div>
-        ) : (
-          <div className="capList">
-            {schedules.map((s) => (
-              <div
-                key={s.id}
-                className="cap"
-                onClick={() => navigate(`/schedules/${s.id}`)}
-                style={{ cursor: 'pointer' }}
-              >
-                <div className="capLeft">
-                  <div className="capTitle">{s.prompt.slice(0, 60)}</div>
-                  <div className="capDesc">
-                    {s.frequency} · Next: {formatNext(s.nextRunAt)}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <button
-                    className={`capToggle ${s.enabled ? '' : 'off'}`}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleToggle(s.id)
-                    }}
-                    aria-hidden="true"
-                  >
-                    <div className="capKnob" />
-                  </button>
-                  <button
-                    className="btn"
-                    style={{ fontSize: 11, padding: '2px 8px' }}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDelete(s.id)
-                    }}
-                  >
-                    ×
-                  </button>
+    <PageContent
+      title="Scheduled Tasks"
+      showBack
+      backTo="/tasks"
+      actions={
+        <button type="button" className="btn btnFilled" onClick={() => navigate('/schedules/new')}>
+          + New Schedule
+        </button>
+      }
+    >
+      {schedules.length === 0 ? (
+        <div style={{ color: 'var(--nb-muted)', padding: '20px 0' }}>No scheduled tasks yet.</div>
+      ) : (
+        <div className="capList">
+          {schedules.map((s) => (
+            <form
+              key={s.id}
+              className="cap"
+              onSubmit={(e) => {
+                e.preventDefault()
+              }}
+              onClick={() => navigate(`/schedules/${s.id}`)}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter' && e.key !== ' ') return
+                e.preventDefault()
+                navigate(`/schedules/${s.id}`)
+              }}
+              style={{ cursor: 'pointer' }}
+            >
+              <div className="capLeft">
+                <div className="capTitle">{s.prompt.slice(0, 60)}</div>
+                <div className="capDesc">
+                  {s.frequency} · Next: {formatNext(s.nextRunAt)}
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button
+                  type="button"
+                  className={`capToggle ${s.enabled ? '' : 'off'}`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleToggle(s.id)
+                  }}
+                >
+                  <div className="capKnob" />
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ fontSize: 11, padding: '2px 8px' }}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleDelete(s.id)
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            </form>
+          ))}
+        </div>
+      )}
+    </PageContent>
   )
 }

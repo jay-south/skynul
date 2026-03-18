@@ -1,3 +1,4 @@
+@import "tailwindcss";
 @import "./base.css";
 
 body {
@@ -1231,6 +1232,16 @@ code {
   padding-left: 280px;
 }
 
+.projectModalBackdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border: none;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
 .projectModalCard {
   background: var(--nb-bg);
   border: 1px solid var(--nb-border);
@@ -1241,6 +1252,8 @@ code {
   flex-direction: column;
   gap: 12px;
   box-shadow: var(--nb-shadow);
+  position: relative;
+  z-index: 1;
 }
 
 .projectModalTitle {
@@ -2533,61 +2546,6 @@ code {
   align-items: center;
   justify-content: center;
   padding: 40px 24px;
-}
-
-/* ── Settings panel (renders in main area) ───────────────────────────── */
-
-.settingsSidebarHint {
-  padding: 12px 16px;
-}
-
-.settingsPanel {
-  height: 100%;
-  overflow-y: auto;
-  padding: 32px 24px;
-}
-
-.settingsPanelInner {
-  width: 100%;
-  max-width: 640px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  min-height: 400px;
-}
-
-.settingsBackBar {
-  margin-bottom: 12px;
-}
-
-.backBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 14px 8px 8px;
-  border-radius: 10px;
-  border: none;
-  background: var(--nb-surface-2);
-  color: var(--nb-muted);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-  transition:
-    background 0.12s,
-    color 0.12s;
-}
-
-.backBtn:hover {
-  background: color-mix(in srgb, var(--nb-accent-2), transparent 85%);
-  color: var(--nb-text);
-}
-
-.settingsPanelTitle {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--nb-text);
-  margin: 0;
 }
 
 .settingsSection {
@@ -4521,42 +4479,46 @@ code {
   width: 100%;
 }
 
-/* Settings Layout */
-.settingsLayout {
-  display: grid;
-  grid-template-columns: 260px 1fr;
-  height: 100%;
-}
-
-/* Standard Page Layout - Used by Dashboard, Projects, Schedules */
-.pageLayout {
-  height: 100%;
-  overflow-y: auto;
-  padding: 32px 24px;
-}
-
-.pageLayoutInner {
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
+/* Page Header - Standard header for all pages */
+.pageHeader {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  min-height: 400px;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 24px;
 }
 
-.pageLayoutHeader {
+.pageHeaderTop {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 12px;
+  justify-content: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-.pageLayoutBackBtn {
+.pageHeaderText {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 auto;
+}
+
+.pageHeaderRow {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16px;
+  flex-wrap: nowrap;
+}
+
+.pageHeaderBack {
   display: inline-flex;
+  justify-content: flex-start;
   align-items: center;
   gap: 4px;
-  padding: 8px 14px 8px 8px;
+  padding: 8px 14px 8px 0px;
   border-radius: 10px;
   border: none;
   background: var(--nb-surface-2);
@@ -4567,22 +4529,37 @@ code {
   transition:
     background 0.12s,
     color 0.12s;
+  width: fit-content;
 }
 
-.pageLayoutBackBtn:hover {
+.pageHeaderBack svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.pageHeaderBack:hover {
   background: color-mix(in srgb, var(--nb-accent-2), transparent 85%);
   color: var(--nb-text);
 }
 
-.pageLayoutTitle {
+.pageHeaderTitle {
   font-size: 20px;
   font-weight: 700;
   color: var(--nb-text);
   margin: 0;
 }
 
-.pageLayoutContent {
-  flex: 1;
+.pageHeaderSubtitle {
+  margin: 0;
+  font-size: 13px;
+  color: var(--nb-muted);
+}
+
+.pageHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 /* Active navigation state */

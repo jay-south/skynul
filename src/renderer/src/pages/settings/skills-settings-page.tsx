@@ -1,6 +1,7 @@
 import type { Skill } from '@skynul/shared'
 import { useRef, useState } from 'react'
 import { SkillGraph } from '../../components/SkillGraph'
+import { SettingsShell } from '../../components/layout'
 import { useDeleteSkill, useSaveSkill, useSkills, useToggleSkill } from '../../queries'
 
 export function SkillsSettingsPage(): React.JSX.Element {
@@ -115,7 +116,7 @@ export function SkillsSettingsPage(): React.JSX.Element {
   }
 
   return (
-    <>
+    <SettingsShell>
       <input
         ref={fileInputRef}
         type="file"
@@ -263,6 +264,6 @@ export function SkillsSettingsPage(): React.JSX.Element {
           </div>
         </div>
       )}
-    </>
+    </SettingsShell>
   )
 }

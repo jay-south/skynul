@@ -5,6 +5,7 @@ import { ChatFeed } from '../components/ChatFeed'
 import { CollectiveChatFeed } from '../components/CollectiveChatFeed'
 import { InputBar } from '../components/InputBar'
 import { MultiAgentControlRoom } from '../components/MultiAgentControlRoom'
+import { TasksShell } from '../components/layout'
 import {
   useApproveTask,
   useCancelTask,
@@ -101,42 +102,48 @@ export function TaskChatPage(): React.JSX.Element {
   }
 
   if (!task) {
-    return <div className="chatFeedCentered">Task not found</div>
+    return (
+      <TasksShell>
+        <div className="chatFeedCentered">Task not found</div>
+      </TasksShell>
+    )
   }
 
   return (
-    <div className="chatFeedLayout">
-      {multiAgentPanelEnabled && rootTask && hasMultiAgents && (
-        <MultiAgentControlRoom
-          rootTask={rootTask}
-          tasks={tasks}
-          activeTaskId={task.id}
-          onSelectTask={(id) => {
-            // Navigate to selected task
-            window.location.hash = `#/tasks/${id}`
-          }}
-        />
-      )}
+    <TasksShell>
+      <div className="chatFeedLayout">
+        {multiAgentPanelEnabled && rootTask && hasMultiAgents && (
+          <MultiAgentControlRoom
+            rootTask={rootTask}
+            tasks={tasks}
+            activeTaskId={task.id}
+            onSelectTask={(id) => {
+              // Navigate to selected task
+              window.location.hash = `#/tasks/${id}`
+            }}
+          />
+        )}
 
-      {isCollectiveMode && controlTask ? (
-        <CollectiveChatFeed rootTask={controlTask} tasks={tasks} />
-      ) : (
-        <ChatFeed
-          task={task}
-          onApprove={() => taskId && approveMutation.mutate(taskId)}
-          onCancel={() => taskId && cancelMutation.mutate(taskId)}
-          onDontAskAgain={() => dontAskAgainMutation.mutate(true)}
-        />
-      )}
+        {isCollectiveMode && controlTask ? (
+          <CollectiveChatFeed rootTask={controlTask} tasks={tasks} />
+        ) : (
+          <ChatFeed
+            task={task}
+            onApprove={() => taskId && approveMutation.mutate(taskId)}
+            onCancel={() => taskId && cancelMutation.mutate(taskId)}
+            onDontAskAgain={() => dontAskAgainMutation.mutate(true)}
+          />
+        )}
 
-      <InputBar
-        lang={policy?.language ?? 'en'}
-        autoCaps={detectAutoCaps(composerPrompt)}
-        compact={true}
-        onSubmit={handleInputSubmit}
-        onStop={isRunning ? () => taskId && cancelMutation.mutate(taskId) : undefined}
-        onTextChange={setComposerPrompt}
-      />
-    </div>
+        <InputBar
+          lang={policy?.language ?? 'en'}
+          autoCaps={detectAutoCaps(composerPrompt)}
+          compact={true}
+          onSubmit={handleInputSubmit}
+          onStop={isRunning ? () => taskId && cancelMutation.mutate(taskId) : undefined}
+          onTextChange={setComposerPrompt}
+        />
+      </div>
+    </TasksShell>
   )
 }
