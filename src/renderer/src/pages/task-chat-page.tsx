@@ -1,11 +1,12 @@
 import type { Task, TaskCapabilityId } from '@skynul/shared'
 import { useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import chatStyles from '../components/Chat.module.css'
-import { ChatFeed } from '../components/ChatFeed'
-import { CollectiveChatFeed } from '../components/CollectiveChatFeed'
-import { InputBar } from '../components/InputBar'
-import { MultiAgentControlRoom } from '../components/MultiAgentControlRoom'
+import {
+  ChatFeed,
+  CollectiveChatFeed,
+  InputBar,
+  MultiAgentControlRoom
+} from '@/components/feature/chat'
 import {
   useApproveTask,
   useCancelTask,
@@ -14,33 +15,25 @@ import {
   useSetAutoApprove,
   useTask,
   useTasks
-} from '../queries'
+} from '@/queries'
 
 export function TaskChatPage(): React.JSX.Element {
   const { taskId } = useParams()
   const [composerPrompt, setComposerPrompt] = useState('')
 
-  // Default ON. Can be disabled via VITE_MULTI_AGENT_PANEL=0 if needed.
   const multiAgentPanelEnabled =
     (import.meta.env.VITE_MULTI_AGENT_PANEL as string | undefined) !== '0'
 
-  // Load task
   const { data: task } = useTask(taskId)
-
-  // Load all tasks for multi-agent
   const { data: tasksResponse } = useTasks()
   const tasks = tasksResponse?.tasks ?? []
-
-  // Load policy
   const { data: policy } = usePolicy()
 
-  // Mutations
   const approveMutation = useApproveTask()
   const cancelMutation = useCancelTask()
   const dontAskAgainMutation = useSetAutoApprove()
   const sendMessageMutation = useSendTaskMessage()
 
-  // Calculate root task for multi-agent
   const rootTask = useMemo(() => {
     if (!task) return null
     const byId = new Map(tasks.map((t) => [t.id, t] as const))
@@ -55,7 +48,6 @@ export function TaskChatPage(): React.JSX.Element {
     return cur ?? task
   }, [task, tasks])
 
-  // Check if has multi-agents
   const hasMultiAgents = useMemo(() => {
     if (!rootTask) return false
     return tasks.some((t) => {
@@ -86,7 +78,6 @@ export function TaskChatPage(): React.JSX.Element {
         }
       )
     }
-    // Note: Creating subtasks is not supported in this version
   }
 
   const detectAutoCaps = (prompt: string): TaskCapabilityId[] => {
@@ -102,18 +93,17 @@ export function TaskChatPage(): React.JSX.Element {
   }
 
   if (!task) {
-    return <div className={chatStyles.chatFeedCentered}>Task not found</div>
+    return <div>Task not found</div>
   }
 
   return (
-    <div className={chatStyles.chatFeedLayout}>
+    <div>
       {multiAgentPanelEnabled && rootTask && hasMultiAgents && (
         <MultiAgentControlRoom
           rootTask={rootTask}
           tasks={tasks}
           activeTaskId={task.id}
           onSelectTask={(id) => {
-            // Navigate to selected task
             window.location.hash = `#/tasks/${id}`
           }}
         />

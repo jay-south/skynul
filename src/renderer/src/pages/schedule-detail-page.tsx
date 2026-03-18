@@ -1,16 +1,16 @@
 import type { Schedule, Task } from '@skynul/shared'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { CapabilityList, CapabilityToggle } from '../components/CapabilityToggle'
 import {
   BackBar,
   BackButton,
   PanelTitle,
+  PathBox,
   Section,
   SectionLabel,
   SettingsPanel
-} from '../components/layout'
-import { PathBox } from '../components/PathBox'
+} from '@/components/common'
+import { CapabilityList, CapabilityToggle } from '@/components/feature/settings'
 
 export function ScheduleDetailPage(): React.JSX.Element {
   const { scheduleId } = useParams()
@@ -18,7 +18,6 @@ export function ScheduleDetailPage(): React.JSX.Element {
   const [schedule, setSchedule] = useState<Schedule | null>(null)
   const [tasks, setTasks] = useState<Task[]>([])
 
-  // Load schedule and tasks
   useEffect(() => {
     if (!scheduleId) return
 
@@ -44,7 +43,6 @@ export function ScheduleDetailPage(): React.JSX.Element {
     navigate('/schedules')
   }
 
-  // Tasks spawned by this schedule (match by prompt)
   const scheduleHistory = useMemo(() => {
     if (!schedule) return []
     return tasks
@@ -217,11 +215,7 @@ export function ScheduleDetailPage(): React.JSX.Element {
           <SectionLabel>Run History</SectionLabel>
           <CapabilityList>
             {scheduleHistory.map((t) => (
-              <div
-                key={t.id}
-                style={{ cursor: 'pointer' }}
-                onClick={() => navigate(`/tasks/${t.id}`)}
-              >
+              <div key={t.id} onClick={() => navigate(`/tasks/${t.id}`)}>
                 <CapabilityToggle
                   title={`${t.prompt.slice(0, 50)}...`}
                   description={`${t.status} · ${t.steps.length} steps · ${formatAgo(t.updatedAt)}`}

@@ -1,15 +1,13 @@
 import { useNavigate } from 'react-router-dom'
-import { CapabilityList, CapabilityToggle } from '../components/CapabilityToggle'
-import { BackBar, BackButton, PanelTitle, SettingsPanel } from '../components/layout'
-import { useDeleteSchedule, useSchedules, useToggleSchedule } from '../queries'
+import { BackBar, BackButton, PanelTitle, SettingsPanel } from '@/components/common'
+import { CapabilityList, CapabilityToggle } from '@/components/feature/settings'
+import { useDeleteSchedule, useSchedules, useToggleSchedule } from '@/queries'
 
 export function ScheduledPage(): React.JSX.Element {
   const navigate = useNavigate()
 
-  // Queries
   const { data: schedules = [] } = useSchedules()
 
-  // Mutations
   const toggleScheduleMutation = useToggleSchedule()
   const deleteScheduleMutation = useDeleteSchedule()
 

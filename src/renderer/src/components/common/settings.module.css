@@ -1,0 +1,100 @@
+.settingsPanel {
+  height: 100%;
+  overflow-y: auto;
+  padding: 32px 24px;
+}
+
+.settingsPanelInner {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-height: 400px;
+}
+
+.settingsBackBar {
+  margin-bottom: 12px;
+}
+
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 14px 8px 8px;
+  border-radius: 10px;
+  border: none;
+  background: var(--nb-surface-2);
+  color: var(--nb-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+
+.backBtn:hover {
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 85%);
+  color: var(--nb-text);
+}
+
+.settingsPanelTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--nb-text);
+  margin: 0;
+}
+
+.settingsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  min-height: 60px;
+}
+
+.settingsLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--nb-text);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.settingsField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settingsFieldHint {
+  font-size: 12px;
+  color: var(--nb-muted);
+}
+
+.settingsInput {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--nb-border);
+  border-radius: 8px;
+  background: var(--nb-surface-1);
+  color: var(--nb-text);
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.settingsInput:focus {
+  outline: none;
+  border-color: var(--nb-accent-1);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--nb-accent-1) 20%, transparent);
+}
+
+.settingsInput::placeholder {
+  color: var(--nb-muted);
+}

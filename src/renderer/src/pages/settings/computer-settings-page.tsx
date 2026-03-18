@@ -1,8 +1,8 @@
 import type { CapabilityId } from '@skynul/shared'
-import { CapabilityList, CapabilityToggle } from '../../components/CapabilityToggle'
-import { Section, SectionLabel } from '../../components/layout'
-import { t } from '../../i18n'
-import { usePolicy, useSetAutoApprove, useSetCapability, useSetTaskMemory } from '../../queries'
+import { Section, SectionLabel } from '@/components/common'
+import { CapabilityList, CapabilityToggle } from '@/components/feature/settings'
+import { t } from '@/i18n'
+import { usePolicy, useSetAutoApprove, useSetCapability, useSetTaskMemory } from '@/queries'
 
 const CAPABILITIES: Array<{ id: CapabilityId; title: string; desc: string }> = [
   {
@@ -28,10 +28,8 @@ const CAPABILITIES: Array<{ id: CapabilityId; title: string; desc: string }> = [
 ]
 
 export function ComputerSettingsPage(): React.JSX.Element {
-  // Queries
   const { data: policy } = usePolicy()
 
-  // Mutations
   const setCapabilityMutation = useSetCapability()
   const setTaskMemoryMutation = useSetTaskMemory()
   const setAutoApproveMutation = useSetAutoApprove()
@@ -58,7 +56,6 @@ export function ComputerSettingsPage(): React.JSX.Element {
 
   return (
     <>
-      {/* Task Memory */}
       <Section>
         <SectionLabel>Task Memory</SectionLabel>
         <CapabilityToggle
@@ -77,7 +74,6 @@ export function ComputerSettingsPage(): React.JSX.Element {
         />
       </Section>
 
-      {/* Capabilities */}
       <Section>
         <SectionLabel>{t(lang, 'settings_capabilities')}</SectionLabel>
         <CapabilityList>
@@ -94,10 +90,9 @@ export function ComputerSettingsPage(): React.JSX.Element {
         </CapabilityList>
       </Section>
 
-      {/* Trading Options */}
       <Section>
         <SectionLabel>Trading Options</SectionLabel>
-        <div className="settingsField" style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
           <button type="button" className="btn" disabled>
             Polymarket
           </button>

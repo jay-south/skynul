@@ -1,14 +1,11 @@
-import { CapabilityToggle } from '../../components/CapabilityToggle'
-import { Section, SectionLabel } from '../../components/layout'
-import { PathBox } from '../../components/PathBox'
-import { t } from '../../i18n'
-import { usePickWorkspace, usePolicy, useSetCapability } from '../../queries'
+import { PathBox, Section, SectionField, SectionLabel } from '@/components/common'
+import { CapabilityToggle } from '@/components/feature/settings'
+import { t } from '@/i18n'
+import { usePickWorkspace, usePolicy, useSetCapability } from '@/queries'
 
 export function DeveloperSettingsPage(): React.JSX.Element {
-  // Queries
   const { data: policy } = usePolicy()
 
-  // Mutations
   const setCapabilityMutation = useSetCapability()
   const pickWorkspaceMutation = usePickWorkspace()
 
@@ -47,7 +44,9 @@ export function DeveloperSettingsPage(): React.JSX.Element {
         <button type="button" className="btn" onClick={handlePickWorkspace}>
           {t(lang, 'settings_pick_workspace')}
         </button>
-        <div className="settingsFieldHint">Working directory for shell commands</div>
+        <SectionField>
+          <div>Working directory for shell commands</div>
+        </SectionField>
       </Section>
     </>
   )

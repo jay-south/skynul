@@ -1,6 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { BackBar, PanelTitle, SettingsPanel } from '../components/layout'
-import styles from './SettingsLayout.module.css'
+import { BackBar, PanelTitle, SettingsPanel } from '@/components/common'
+import styles from './settings-layout.module.css'
 
 export function SettingsLayout(): React.JSX.Element {
   return (

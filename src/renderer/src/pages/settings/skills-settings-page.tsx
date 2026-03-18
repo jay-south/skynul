@@ -1,9 +1,8 @@
 import type { Skill } from '@skynul/shared'
 import { useRef, useState } from 'react'
-import { CapabilityList, CapabilityToggle } from '../../components/CapabilityToggle'
-import { Section, SectionLabel } from '../../components/layout'
-import { SkillGraph } from '../../components/SkillGraph'
-import { useDeleteSkill, useSaveSkill, useSkills, useToggleSkill } from '../../queries'
+import { Section, SectionField, SectionLabel } from '@/components/common'
+import { CapabilityList, CapabilityToggle, SkillGraph } from '@/components/feature/settings'
+import { useDeleteSkill, useSaveSkill, useSkills, useToggleSkill } from '@/queries'
 
 export function SkillsSettingsPage(): React.JSX.Element {
   const [skillModal, setSkillModal] = useState<Skill | 'new' | null>(null)
@@ -16,10 +15,8 @@ export function SkillsSettingsPage(): React.JSX.Element {
   const [error, setError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Queries
   const { data: skills = [] } = useSkills()
 
-  // Mutations
   const saveSkillMutation = useSaveSkill()
   const toggleSkillMutation = useToggleSkill()
   const deleteSkillMutation = useDeleteSkill()
@@ -39,21 +36,17 @@ export function SkillsSettingsPage(): React.JSX.Element {
 
     try {
       for (const file of Array.from(files)) {
-        // Read file content
         const content = await file.text()
 
-        // Try to parse as JSON first
         let skillData: Partial<Skill>
         try {
           skillData = JSON.parse(content)
         } catch {
-          // If not JSON, try to parse as Markdown with YAML frontmatter
           const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/)
           if (frontmatterMatch) {
             const yamlContent = frontmatterMatch[1]
             const prompt = frontmatterMatch[2].trim()
 
-            // Simple YAML parser
             const lines = yamlContent.split('\n')
             skillData = { prompt }
             for (const line of lines) {
@@ -70,7 +63,6 @@ export function SkillsSettingsPage(): React.JSX.Element {
           }
         }
 
-        // Save the skill
         await saveSkillMutation.mutateAsync({
           ...skillData,
           enabled: true
@@ -80,7 +72,6 @@ export function SkillsSettingsPage(): React.JSX.Element {
       setError(`Import failed: ${e instanceof Error ? e.message : String(e)}`)
     }
 
-    // Reset file input
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -142,7 +133,9 @@ export function SkillsSettingsPage(): React.JSX.Element {
             Import Skill
           </button>
         </div>
-        <div className="settingsFieldHint">Supports .json and .md (with YAML frontmatter)</div>
+        <SectionField>
+          <div>Supports .json and .md (with YAML frontmatter)</div>
+        </SectionField>
 
         {error && <div style={{ color: '#ff6b6b', fontSize: 12, marginTop: 8 }}>{error}</div>}
 
@@ -182,7 +175,6 @@ export function SkillsSettingsPage(): React.JSX.Element {
         )}
       </Section>
 
-      {/* Skill Modal */}
       {skillModal && (
         <div className="modalBackdrop" onMouseDown={() => setSkillModal(null)}>
           <div className="modal" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 500 }}>

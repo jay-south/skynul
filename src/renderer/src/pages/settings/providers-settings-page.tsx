@@ -1,17 +1,16 @@
 import type { ProviderId } from '@skynul/shared'
 import { useEffect, useState } from 'react'
-// Provider icons
-import chatgptIcon from '../../assets/chatgpt.svg'
-import claudeIcon from '../../assets/claude-logo.svg'
-import deepseekIcon from '../../assets/deepseek.svg'
-import geminiIcon from '../../assets/gemini.svg'
-import glmIcon from '../../assets/glm.svg'
-import kimiIcon from '../../assets/kimi.svg'
-import minimaxIcon from '../../assets/minimax.svg'
-import openrouterIcon from '../../assets/openrouter.svg'
-import { CardGrid, Section, SectionLabel } from '../../components/layout'
-import { t } from '../../i18n'
-import { usePolicy, useSetOpenAIModel, useSetProvider } from '../../queries'
+import chatgptIcon from '@/assets/chatgpt.svg'
+import claudeIcon from '@/assets/claude-logo.svg'
+import deepseekIcon from '@/assets/deepseek.svg'
+import geminiIcon from '@/assets/gemini.svg'
+import glmIcon from '@/assets/glm.svg'
+import kimiIcon from '@/assets/kimi.svg'
+import minimaxIcon from '@/assets/minimax.svg'
+import openrouterIcon from '@/assets/openrouter.svg'
+import { CardGrid, Section, SectionLabel } from '@/components/common'
+import { t } from '@/i18n'
+import { usePolicy, useSetOpenAIModel, useSetProvider } from '@/queries'
 import styles from './providers-settings-page.module.css'
 
 const PROVIDERS: Array<{
@@ -74,19 +73,15 @@ export function ProvidersSettingsPage(): React.JSX.Element {
   const [apiKeyDraft, setApiKeyDraft] = useState('')
   const [chatgptConnected, setChatgptConnected] = useState(false)
 
-  // Queries
   const { data: policy } = usePolicy()
 
-  // Mutations
   const setProviderMutation = useSetProvider()
   const setOpenAIModelMutation = useSetOpenAIModel()
 
   const lang = policy?.language ?? 'en'
   const activeProvider = policy?.provider.active
 
-  // Check ChatGPT auth status on mount
   useEffect(() => {
-    // TODO: Implement chatgpt auth check via API
     setChatgptConnected(false)
   }, [])
 
@@ -96,14 +91,12 @@ export function ProvidersSettingsPage(): React.JSX.Element {
   }
 
   const handleSaveApiKey = () => {
-    // TODO: Implement API key save via API
     console.log('Save API key:', apiKeyDraft)
     setApiKeyDraft('')
   }
 
   return (
     <>
-      {/* AI Provider Selection */}
       <Section>
         <SectionLabel>{t(lang, 'settings_provider')}</SectionLabel>
 
@@ -131,17 +124,11 @@ export function ProvidersSettingsPage(): React.JSX.Element {
                 disabled={setProviderMutation.isPending}
               >
                 {isGLM ? (
-                  <div
-                    className={`${styles.providerTextLogo} ${styles.providerTextLogoBold}`}
-                    aria-label={p.label}
-                  >
+                  <div className={`${styles.providerTextLogo} ${styles.providerTextLogoBold}`}>
                     GLM
                   </div>
                 ) : isMiniMax ? (
-                  <div
-                    className={`${styles.providerTextLogo} ${styles.providerTextLogoRegular}`}
-                    aria-label={p.label}
-                  >
+                  <div className={`${styles.providerTextLogo} ${styles.providerTextLogoRegular}`}>
                     MiniMax M2.5
                   </div>
                 ) : (
@@ -155,9 +142,7 @@ export function ProvidersSettingsPage(): React.JSX.Element {
                 )}
                 {isActive && p.id === 'chatgpt' && chatgptConnected && (
                   <div className={styles.providerCardBadge}>
-                    <span className={styles.providerCardBadgeCheck} aria-hidden>
-                      ✓
-                    </span>
+                    <span className={styles.providerCardBadgeCheck}>✓</span>
                     {t(lang, 'provider_connected')}
                   </div>
                 )}
@@ -166,7 +151,6 @@ export function ProvidersSettingsPage(): React.JSX.Element {
           })}
         </CardGrid>
 
-        {/* Model selector for ChatGPT provider */}
         {activeProvider === 'chatgpt' && chatgptConnected && (
           <div
             style={{
@@ -208,7 +192,6 @@ export function ProvidersSettingsPage(): React.JSX.Element {
         )}
       </Section>
 
-      {/* API Key for other providers */}
       {activeProvider && activeProvider !== 'chatgpt' && activeProvider !== 'ollama' && (
         <div className={styles.settingsSection}>
           <div className={styles.settingsLabel}>
@@ -221,7 +204,6 @@ export function ProvidersSettingsPage(): React.JSX.Element {
               placeholder={t(lang, 'provider_api_key_placeholder')}
               value={apiKeyDraft}
               onChange={(e) => setApiKeyDraft(e.target.value)}
-              aria-label={t(lang, 'provider_api_key_placeholder')}
             />
             <button
               type="button"

@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
-import { TaskDashboard } from '../components/TaskDashboard'
-import { useSchedules, useTasks } from '../queries'
+import { BackBar, BackButton, PanelTitle, SettingsPanel } from '@/components/common'
+import { TaskDashboard } from '@/components/feature/dashboard'
+import { useSchedules, useTasks } from '@/queries'
 
 export function DashboardPage(): React.JSX.Element {
   const navigate = useNavigate()
@@ -19,31 +20,19 @@ export function DashboardPage(): React.JSX.Element {
   }
 
   return (
-    <div className="settingsPanel">
-      <div className="settingsPanelInner">
-        <div className="settingsBackBar">
-          <button
-            className="backBtn"
-            onClick={() => navigate('/tasks')}
-            aria-label="Back to tasks"
-            title="Back to tasks"
-          >
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-              <path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
-            </svg>
-            <span>Back</span>
-          </button>
-        </div>
+    <SettingsPanel>
+      <BackBar>
+        <BackButton onClick={() => navigate('/tasks')}>Back</BackButton>
+      </BackBar>
 
-        <h2 className="settingsPanelTitle">Dashboard</h2>
+      <PanelTitle>Dashboard</PanelTitle>
 
-        <TaskDashboard
-          tasks={tasks}
-          schedules={schedules}
-          onSelectTask={handleSelectTask}
-          onSelectSchedule={handleSelectSchedule}
-        />
-      </div>
-    </div>
+      <TaskDashboard
+        tasks={tasks}
+        schedules={schedules}
+        onSelectTask={handleSelectTask}
+        onSelectSchedule={handleSelectSchedule}
+      />
+    </SettingsPanel>
   )
 }

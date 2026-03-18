@@ -1,4 +1,5 @@
 import { Outlet } from 'react-router-dom'
+import styles from './page-layout.module.css'
 
 interface PageLayoutProps {
   children?: React.ReactNode
@@ -12,26 +13,32 @@ export function PageLayout({
   title
 }: PageLayoutProps): React.JSX.Element {
   return (
-    <div className="pageLayout">
-      <div className="pageLayoutInner">
+    <div className={styles.pageLayout}>
+      <div className={styles.pageLayoutInner}>
         {(showBackButton || title) && (
-          <div className="pageLayoutHeader">
+          <div className={styles.pageLayoutHeader}>
             {showBackButton && (
               <button
                 type="button"
-                className="pageLayoutBackBtn"
+                className={styles.pageLayoutBackBtn}
                 onClick={() => window.history.back()}
               >
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="22"
+                  height="22"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
                   <path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
                 </svg>
                 Back
               </button>
             )}
-            {title && <h2 className="pageLayoutTitle">{title}</h2>}
+            {title && <h2 className={styles.pageLayoutTitle}>{title}</h2>}
           </div>
         )}
-        <div className="pageLayoutContent">{children || <Outlet />}</div>
+        <div className={styles.pageLayoutContent}>{children || <Outlet />}</div>
       </div>
     </div>
   )

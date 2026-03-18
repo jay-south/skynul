@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import styles from './SettingsSection.module.css'
+import styles from './settings-section.module.css'
 
 interface SettingsSectionProps {
   children: ReactNode

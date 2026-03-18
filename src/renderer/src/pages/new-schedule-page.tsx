@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button } from '../components/ui/Button'
-import { useCreateSchedule } from '../queries'
+import { BackBar, BackButton, PanelTitle, Section, SettingsPanel } from '@/components/common'
+import { Button } from '@/components/ui/Button'
+import { useCreateSchedule } from '@/queries'
 
 export function NewSchedulePage(): React.JSX.Element {
   const navigate = useNavigate()
@@ -14,7 +15,6 @@ export function NewSchedulePage(): React.JSX.Element {
   const handleSave = () => {
     if (!prompt.trim()) return
 
-    // Build cron expression based on frequency
     let cronExpr = ''
     switch (frequency) {
       case 'hourly':
@@ -51,73 +51,59 @@ export function NewSchedulePage(): React.JSX.Element {
   }
 
   return (
-    <div className="settingsPanel">
-      <div className="settingsPanelInner">
-        <div className="settingsBackBar">
-          <Button
-            className="backBtn"
-            onClick={() => navigate('/schedules')}
-            aria-label="Back"
-            title="Back"
-          >
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
-              <path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
-            </svg>
-            <span>Back</span>
-          </Button>
-        </div>
+    <SettingsPanel>
+      <BackBar>
+        <BackButton onClick={() => navigate('/schedules')}>Back</BackButton>
+      </BackBar>
 
-        <h2 className="settingsPanelTitle">New Schedule</h2>
+      <PanelTitle>New Schedule</PanelTitle>
 
-        <div className="settingsSection">
-          <div className="settingsLabel">Prompt</div>
-          <textarea
-            className="settingsInput"
-            style={{ minHeight: 80, resize: 'vertical' }}
-            placeholder="What should the agent do?"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
+      <Section>
+        <label htmlFor="schedule-prompt">Prompt</label>
+        <textarea
+          id="schedule-prompt"
+          style={{ minHeight: 80 }}
+          placeholder="What should the agent do?"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+        />
+      </Section>
+
+      <Section>
+        <label htmlFor="schedule-frequency">Frequency</label>
+        <select
+          id="schedule-frequency"
+          value={frequency}
+          onChange={(e) => setFrequency(e.target.value)}
+        >
+          <option value="hourly">Every hour</option>
+          <option value="daily">Once a day</option>
+          <option value="weekly">Once a week</option>
+        </select>
+      </Section>
+
+      {(frequency === 'daily' || frequency === 'weekly') && (
+        <Section>
+          <label htmlFor="schedule-time">Time</label>
+          <input
+            id="schedule-time"
+            type="time"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
           />
-        </div>
+        </Section>
+      )}
 
-        <div className="settingsSection">
-          <div className="settingsLabel">Frequency</div>
-          <select
-            className="settingsInput"
-            value={frequency}
-            onChange={(e) => setFrequency(e.target.value)}
-          >
-            <option value="hourly">Every hour</option>
-            <option value="daily">Once a day</option>
-            <option value="weekly">Once a week</option>
-          </select>
-        </div>
-
-        {(frequency === 'daily' || frequency === 'weekly') && (
-          <div className="settingsSection">
-            <div className="settingsLabel">Time</div>
-            <input
-              type="time"
-              className="settingsInput"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-            />
-          </div>
-        )}
-
-        <div style={{ display: 'flex', gap: 8, marginTop: 24 }}>
-          <Button variant="filled" onClick={() => navigate('/schedules')}>
-            Cancel
-          </Button>
-          <Button
-            className="btn btnFilled"
-            disabled={!prompt.trim() || createScheduleMutation.isPending}
-            onClick={() => void handleSave()}
-          >
-            {createScheduleMutation.isPending ? 'Saving...' : 'Create Schedule'}
-          </Button>
-        </div>
+      <div style={{ display: 'flex', gap: 8, marginTop: 24 }}>
+        <Button onClick={() => navigate('/schedules')}>Cancel</Button>
+        <Button
+          variant="filled"
+          disabled={!prompt.trim() || createScheduleMutation.isPending}
+          onClick={() => void handleSave()}
+        >
+          {createScheduleMutation.isPending ? 'Saving...' : 'Create Schedule'}
+        </Button>
       </div>
-    </div>
+    </SettingsPanel>
   )
 }

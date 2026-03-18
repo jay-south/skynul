@@ -1,12 +1,11 @@
 import type { LanguageCode, ThemeMode } from '@skynul/shared'
 import { useEffect, useState } from 'react'
-import { Section, SectionLabel } from '../../components/layout'
-import { PathBox } from '../../components/PathBox'
-import { UpdateSettings } from '../../components/UpdateSettings'
-import { Button } from '../../components/ui/Button'
-import { t } from '../../i18n'
-import { usePickWorkspace, usePolicy, useSetLanguage, useSetTheme } from '../../queries'
-import { SUPABASE_CONFIGURED, supabase } from '../../supabase'
+import { PathBox, Section, SectionField, SectionLabel } from '@/components/common'
+import { UpdateSettings } from '@/components/feature/settings'
+import { Button } from '@/components/ui/Button'
+import { t } from '@/i18n'
+import { usePickWorkspace, usePolicy, useSetLanguage, useSetTheme } from '@/queries'
+import { SUPABASE_CONFIGURED, supabase } from '@/supabase'
 
 export function GeneralSettingsPage(): React.JSX.Element {
   const [accountEmail, setAccountEmail] = useState('')
@@ -14,15 +13,12 @@ export function GeneralSettingsPage(): React.JSX.Element {
   const [accountLoading, setAccountLoading] = useState(SUPABASE_CONFIGURED)
   const [accountBusy, setAccountBusy] = useState(false)
 
-  // Queries
   const { data: policy } = usePolicy()
 
-  // Mutations
   const setLanguageMutation = useSetLanguage()
   const setThemeMutation = useSetTheme()
   const pickWorkspaceMutation = usePickWorkspace()
 
-  // Load account
   useEffect(() => {
     if (!SUPABASE_CONFIGURED || !supabase) return
 
@@ -46,7 +42,7 @@ export function GeneralSettingsPage(): React.JSX.Element {
 
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!alive) return
-      const email = session?.user?.email ?? ''
+      const email = session?.user.email ?? ''
       setAccountConnected(Boolean(session))
       setAccountEmail(email)
       setAccountLoading(false)
@@ -59,7 +55,6 @@ export function GeneralSettingsPage(): React.JSX.Element {
   }, [])
 
   const lang: LanguageCode = policy?.language ?? 'en'
-
   const workspaceLabel = policy?.workspaceRoot ?? 'No workspace'
 
   const handleSetLanguage = (language: LanguageCode) => {
@@ -85,13 +80,11 @@ export function GeneralSettingsPage(): React.JSX.Element {
   }
 
   const openAuthModal = () => {
-    // TODO: Implement auth modal
     console.log('Open auth modal')
   }
 
   return (
     <>
-      {/* Language */}
       <Section>
         <SectionLabel>{t(lang, 'settings_language')}</SectionLabel>
         <div className="seg seg--2col">
@@ -109,7 +102,6 @@ export function GeneralSettingsPage(): React.JSX.Element {
         </div>
       </Section>
 
-      {/* Theme */}
       <Section>
         <SectionLabel>{t(lang, 'settings_theme')}</SectionLabel>
         <div className="seg">
@@ -128,18 +120,16 @@ export function GeneralSettingsPage(): React.JSX.Element {
         </div>
       </Section>
 
-      {/* Workspace */}
       <Section>
         <SectionLabel>{t(lang, 'settings_workspace')}</SectionLabel>
         <PathBox title={workspaceLabel}>{workspaceLabel}</PathBox>
         <Button onClick={handlePickWorkspace}>{t(lang, 'settings_pick_workspace')}</Button>
       </Section>
 
-      {/* Account */}
       <Section>
         <SectionLabel>{t(lang, 'settings_account')}</SectionLabel>
-        <div className="settingsField">
-          <div className="settingsFieldHint">
+        <SectionField>
+          <div>
             {!SUPABASE_CONFIGURED
               ? t(lang, 'account_supabase_not_configured')
               : accountLoading
@@ -159,7 +149,7 @@ export function GeneralSettingsPage(): React.JSX.Element {
               {t(lang, 'auth_login')}
             </Button>
           )}
-        </div>
+        </SectionField>
       </Section>
 
       <UpdateSettings />

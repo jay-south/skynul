@@ -1,9 +1,9 @@
 import type { TaskCapabilityId } from '@skynul/shared'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { InputBar } from '../components/InputBar'
-import { CenteredContent, PageHeader } from '../components/layout'
-import { useCreateTask } from '../queries'
+import { CenteredContent, PageHeader } from '@/components/common'
+import { InputBar } from '@/components/feature/chat'
+import { useCreateTask } from '@/queries'
 
 export function TasksIndexPage(): React.JSX.Element {
   const navigate = useNavigate()
@@ -14,7 +14,6 @@ export function TasksIndexPage(): React.JSX.Element {
     const lower = prompt.toLowerCase()
     const detected = new Set<TaskCapabilityId>()
 
-    // Browser keywords
     const browserWords = [
       'browser',
       'webpage',
@@ -27,11 +26,9 @@ export function TasksIndexPage(): React.JSX.Element {
     ]
     if (browserWords.some((w) => lower.includes(w))) detected.add('browser.cdp')
 
-    // App launch keywords
     const appWords = ['launch', 'whatsapp', 'telegram', 'discord', 'slack', 'spotify']
     if (appWords.some((w) => lower.includes(w))) detected.add('app.launch')
 
-    // Default
     if (detected.size === 0) detected.add('browser.cdp')
 
     return [...detected]
@@ -40,7 +37,6 @@ export function TasksIndexPage(): React.JSX.Element {
   const handleSubmit = (text: string, attachments?: string[]) => {
     const caps = detectAutoCaps(text)
 
-    // Detect mode
     let mode: 'browser' | 'code' = 'browser'
     const codeWords = [
       'command',

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import skynulLogo from '../assets/logo-skynul.svg'
 import { SUPABASE_CONFIGURED, supabase } from '../supabase'
-import styles from './RootLayout.module.css'
+import styles from './root-layout.module.css'
 
 export function RootLayout(): React.JSX.Element {
   const [isMaximized, setIsMaximized] = useState(false)
