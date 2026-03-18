@@ -1,6 +1,7 @@
 import type { LanguageCode } from '@skynul/shared'
 import { useEffect, useId, useRef } from 'react'
 import { t } from '../i18n'
+import styles from './Modal.module.css'
 
 export const AUTH_PROVIDER = {
   GOOGLE: 'google',
@@ -53,9 +54,9 @@ export function AuthModal(props: {
   }, [])
 
   return (
-    <div className="modalBackdrop authModalBackdrop" onClick={props.onClose}>
+    <div className={`${styles.modalBackdrop} ${styles.authModalBackdrop}`} onClick={props.onClose}>
       <div
-        className="modal authModal"
+        className={`${styles.modal} ${styles.authModal}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -64,19 +65,19 @@ export function AuthModal(props: {
         aria-busy={props.busy ? 'true' : undefined}
         data-busy={props.busy ? 'true' : undefined}
       >
-        <div className="modalHeader authModalHeader">
-          <div className="authModalHeaderText">
-            <div className="modalTitle authModalTitle" id={titleId}>
+        <div className={`${styles.modalHeader} ${styles.authModalHeader}`}>
+          <div className={styles.authModalHeaderText}>
+            <div className={`${styles.modalTitle} ${styles.authModalTitle}`} id={titleId}>
               {t(props.lang, 'auth_login')}
             </div>
-            <div className="authModalSubtitle" id={descId}>
+            <div className={styles.authModalSubtitle} id={descId}>
               {t(props.lang, 'auth_choose_provider')}
             </div>
           </div>
           <button
             ref={closeBtnRef}
             type="button"
-            className="modalClose authModalClose"
+            className={`${styles.modalClose} ${styles.authModalClose}`}
             onClick={props.onClose}
             aria-label={t(props.lang, 'common_close')}
           >
@@ -84,60 +85,60 @@ export function AuthModal(props: {
           </button>
         </div>
 
-        <div className="modalBody authModalBody">
+        <div className={`${styles.modalBody} ${styles.authModalBody}`}>
           {!props.supabaseConfigured ? (
-            <div className="authModalHint" role="note">
+            <div className={styles.authModalHint} role="note">
               {t(props.lang, 'auth_supabase_not_configured_hint')}
             </div>
           ) : null}
 
           {props.error ? (
-            <div className="modalError authModalError" role="alert">
+            <div className={`${styles.modalError} ${styles.authModalError}`} role="alert">
               {props.error}
             </div>
           ) : null}
 
           <div
-            className="authModalProviders"
+            className={styles.authModalProviders}
             role="group"
             aria-label={t(props.lang, 'auth_choose_provider')}
           >
             <button
               type="button"
-              className="authModalProviderBtn"
+              className={styles.authModalProviderBtn}
               disabled={providersDisabled}
               onClick={() => {
                 props.onClearError()
                 props.onSignIn(AUTH_PROVIDER.GOOGLE)
               }}
             >
-              <span className="authModalProviderIcon" aria-hidden="true">
+              <span className={styles.authModalProviderIcon} aria-hidden="true">
                 <GoogleIcon />
               </span>
-              <span className="authModalProviderLabel">
+              <span className={styles.authModalProviderLabel}>
                 {t(props.lang, 'account_sign_in_google')}
               </span>
             </button>
             <button
               type="button"
-              className="authModalProviderBtn"
+              className={styles.authModalProviderBtn}
               disabled={providersDisabled}
               onClick={() => {
                 props.onClearError()
                 props.onSignIn(AUTH_PROVIDER.GITHUB)
               }}
             >
-              <span className="authModalProviderIcon" aria-hidden="true">
+              <span className={styles.authModalProviderIcon} aria-hidden="true">
                 <GitHubIcon />
               </span>
-              <span className="authModalProviderLabel">
+              <span className={styles.authModalProviderLabel}>
                 {t(props.lang, 'account_sign_in_github')}
               </span>
             </button>
           </div>
         </div>
 
-        <div className="modalFooter authModalFooter">
+        <div className={`${styles.modalFooter} ${styles.authModalFooter}`}>
           <button type="button" className="btnSecondary authModalCancelBtn" onClick={props.onClose}>
             {t(props.lang, 'common_cancel')}
           </button>

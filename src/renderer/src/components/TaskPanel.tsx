@@ -1,6 +1,7 @@
 import type { Task } from '@skynul/shared'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import styles from './TaskPanel.module.css'
 
 const STATUS_LABELS: Record<string, string> = {
   pending_approval: 'Pending',
@@ -47,7 +48,7 @@ function TaskDropdown(props: {
   return createPortal(
     <div
       ref={ref}
-      className="rbDropdown"
+      className={styles.rbDropdown}
       style={{
         position: 'fixed',
         top: rect.bottom + 4,
@@ -57,7 +58,7 @@ function TaskDropdown(props: {
     >
       {props.isRunning && (
         <button
-          className="rbDropdownItem"
+          className={styles.rbDropdownItem}
           onClick={() => {
             props.onStop()
             props.onClose()
@@ -67,7 +68,7 @@ function TaskDropdown(props: {
         </button>
       )}
       <button
-        className="rbDropdownItem danger"
+        className={`${styles.rbDropdownItem} ${styles.rbDropdownItemDanger}`}
         onClick={() => {
           props.onDelete()
           props.onClose()
@@ -115,22 +116,22 @@ export function TaskPanel(props: {
   }, [])
 
   return (
-    <div className="taskPanelWrap">
-      <div className="rbTop">
-        <div className="rbTitle">Tasks</div>
-        <button className="rbNew" onClick={props.onNewTask}>
+    <div className={styles.taskPanelWrap}>
+      <div className={styles.rbTop}>
+        <div className={styles.rbTitle}>Tasks</div>
+        <button className={styles.rbNew} onClick={props.onNewTask}>
           New
         </button>
       </div>
 
-      <div className="rbList" role="tablist" aria-label="Tasks">
+      <div className={styles.rbList} role="tablist" aria-label="Tasks">
         {rootTasks.length === 0 && (
-          <div className="taskEmpty">No tasks yet. Click &quot;New&quot; to create one.</div>
+          <div className={styles.taskEmpty}>No tasks yet. Click "New" to create one.</div>
         )}
         {rootTasks.map((t) => (
           <div
             key={t.id}
-            className={`rbItem ${t.id === activeRootId ? 'active' : ''}`}
+            className={`${styles.rbItem} ${t.id === activeRootId ? styles.rbItemActive : ''}`}
             role="tab"
             aria-selected={t.id === activeRootId}
             draggable
@@ -139,10 +140,10 @@ export function TaskPanel(props: {
               e.dataTransfer.effectAllowed = 'move'
             }}
           >
-            <div className="rbItemContent" onClick={() => props.onSelectTask(t.id)}>
-              <div className="rbItemTitle">{t.prompt.slice(0, 40)}</div>
-              <div className="rbItemMeta">
-                <span className="taskStatusBadge" style={{ color: STATUS_COLORS[t.status] }}>
+            <div className={styles.rbItemContent} onClick={() => props.onSelectTask(t.id)}>
+              <div className={styles.rbItemTitle}>{t.prompt.slice(0, 40)}</div>
+              <div className={styles.rbItemMeta}>
+                <span className={styles.taskStatusBadge} style={{ color: STATUS_COLORS[t.status] }}>
                   {STATUS_LABELS[t.status] ?? t.status}
                 </span>
                 {' · '}
@@ -150,7 +151,7 @@ export function TaskPanel(props: {
               </div>
             </div>
             <button
-              className="rbMenuBtn"
+              className={styles.rbMenuBtn}
               aria-label="Task options"
               onClick={(e) => {
                 e.stopPropagation()

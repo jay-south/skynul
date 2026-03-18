@@ -1,6 +1,7 @@
 import type { Schedule, ScheduleFrequency } from '@skynul/shared'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import styles from './TaskPanel.module.css'
 
 /* ── Helpers ───────────────────────────────────────────────────────── */
 
@@ -300,15 +301,15 @@ export function NewScheduleForm(props: {
       </div>
 
       {/* ── schedule options card ────────────────────────────────── */}
-      <div className="schedCard">
-        <div className="schedCardRow">
-          <div className="schedCardLabel">Frequency</div>
-          <div className="schedRowBody">
-            <div className="schedPresets" role="list" aria-label="Frequency presets">
+      <div className={styles.schedCard}>
+        <div className={styles.schedCardRow}>
+          <div className={styles.schedCardLabel}>Frequency</div>
+          <div className={styles.schedRowBody}>
+            <div className={styles.schedPresets} role="list" aria-label="Frequency presets">
               {PRESETS.filter((p) => p.id !== 'custom').map((p) => (
                 <button
                   key={p.id}
-                  className={`schedPresetChip ${presetId === p.id ? 'active' : ''}`}
+                  className={`${styles.schedPresetChip} ${presetId === p.id ? styles.schedPresetChipOn : ''}`}
                   onClick={() => setPresetId(p.id)}
                   title={p.desc}
                   aria-pressed={presetId === p.id}
@@ -321,18 +322,18 @@ export function NewScheduleForm(props: {
         </div>
 
         {preset.needsTime && (
-          <div className="schedCardRow">
-            <div className="schedCardLabel">Time</div>
-            <div className="schedTimeRow">
+          <div className={styles.schedCardRow}>
+            <div className={styles.schedCardLabel}>Time</div>
+            <div className={styles.schedTimeRow}>
               <input
                 type="time"
-                className="schedTimeInput"
+                className={styles.schedTimeInput}
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
               />
               {preset.needsDow && (
                 <select
-                  className="schedDowSelect"
+                  className={styles.schedDowSelect}
                   value={dow}
                   onChange={(e) => setDow(Number(e.target.value))}
                 >
@@ -349,13 +350,13 @@ export function NewScheduleForm(props: {
 
         {preset.needsCustomCron && (
           <>
-            <div className="schedCardRow">
-              <div className="schedCardLabel">Days</div>
-              <div className="schedDayPicker">
+            <div className={styles.schedCardRow}>
+              <div className={styles.schedCardLabel}>Days</div>
+              <div className={styles.schedDayPicker}>
                 {DAYS.map((d, i) => (
                   <button
                     key={i}
-                    className={`schedDayBtn ${customDays.includes(i) ? 'active' : ''}`}
+                    className={`${styles.schedDayBtn} ${customDays.includes(i) ? styles.schedDayBtnOn : ''}`}
                     onClick={() =>
                       setCustomDays((prev) =>
                         prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i]
@@ -367,12 +368,12 @@ export function NewScheduleForm(props: {
                 ))}
               </div>
             </div>
-            <div className="schedCardRow">
-              <div className="schedCardLabel">Time</div>
-              <div className="schedTimeRow">
+            <div className={styles.schedCardRow}>
+              <div className={styles.schedCardLabel}>Time</div>
+              <div className={styles.schedTimeRow}>
                 <input
                   type="time"
-                  className="schedTimeInput"
+                  className={styles.schedTimeInput}
                   value={customTime}
                   onChange={(e) => setCustomTime(e.target.value)}
                 />
@@ -381,21 +382,21 @@ export function NewScheduleForm(props: {
           </>
         )}
 
-        <div className="schedCardFooter">
-          <div className="schedPreview">
-            <span className="schedPreviewDesc">{preset.desc}</span>
+        <div className={styles.schedCardFooter}>
+          <div className={styles.schedPreview}>
+            <span className={styles.schedPreviewDesc}>{preset.desc}</span>
             {nextRunAtPreview > 0 && (
-              <span className="schedPreviewNext">Next run {fmtNext(nextRunAtPreview)}</span>
+              <span className={styles.schedPreviewNext}>Next run {fmtNext(nextRunAtPreview)}</span>
             )}
           </div>
-          <button className="schedCancelLink" onClick={props.onCancel}>
+          <button className={styles.schedCancelLink} onClick={props.onCancel}>
             Cancel
           </button>
         </div>
       </div>
 
       {presetId !== 'custom' && (
-        <button className="schedCustomToggle" onClick={() => setPresetId('custom')}>
+        <button className={styles.schedCustomToggle} onClick={() => setPresetId('custom')}>
           <svg
             viewBox="0 0 24 24"
             width="14"
@@ -451,32 +452,34 @@ export function ScheduleDetail(props: {
     .sort((a, b) => b.createdAt - a.createdAt)
 
   return (
-    <div className="schedDetail">
-      <div className="schedDetailHeader">
-        <button className="schedDetailBack" onClick={props.onBack}>
+    <div className={styles.schedDetail}>
+      <div className={styles.schedDetailHeader}>
+        <button className={styles.schedDetailBack} onClick={props.onBack}>
           <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
             <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z" />
           </svg>
           Back
         </button>
 
-        <span className={`schedDetailStatus ${s.enabled ? 'on' : 'off'}`}>
+        <span
+          className={`${styles.schedDetailStatus} ${s.enabled ? styles.schedDetailStatusOn : ''}`}
+        >
           {s.enabled ? 'Active' : 'Paused'}
         </span>
       </div>
 
-      <div className="schedDetailPrompt">{s.prompt}</div>
+      <div className={styles.schedDetailPrompt}>{s.prompt}</div>
 
-      <div className="schedDetailCard">
-        <div className="schedDetailGrid">
-          <div className="schedDetailLabel">Frequency</div>
-          <div className="schedDetailValue">{s.frequency}</div>
+      <div className={styles.schedDetailCard}>
+        <div className={styles.schedDetailGrid}>
+          <div className={styles.schedDetailLabel}>Frequency</div>
+          <div className={styles.schedDetailValue}>{s.frequency}</div>
 
-          <div className="schedDetailLabel">Cron</div>
-          <div className="schedDetailCronRow">
-            <code className="schedDetailCode">{s.cronExpr}</code>
+          <div className={styles.schedDetailLabel}>Cron</div>
+          <div className={styles.schedDetailCronRow}>
+            <code className={styles.schedDetailCode}>{s.cronExpr}</code>
             <button
-              className="schedDetailCopy"
+              className={styles.schedDetailCopy}
               type="button"
               title="Copy cron"
               onClick={() => {
@@ -491,15 +494,18 @@ export function ScheduleDetail(props: {
             </button>
           </div>
 
-          <div className="schedDetailLabel">Next run</div>
-          <div className="schedDetailValue" title={new Date(s.nextRunAt).toLocaleString()}>
+          <div className={styles.schedDetailLabel}>Next run</div>
+          <div className={styles.schedDetailValue} title={new Date(s.nextRunAt).toLocaleString()}>
             {fmtNext(s.nextRunAt)}
           </div>
 
           {s.lastRunAt && (
             <>
-              <div className="schedDetailLabel">Last run</div>
-              <div className="schedDetailValue" title={new Date(s.lastRunAt).toLocaleString()}>
+              <div className={styles.schedDetailLabel}>Last run</div>
+              <div
+                className={styles.schedDetailValue}
+                title={new Date(s.lastRunAt).toLocaleString()}
+              >
                 {new Date(s.lastRunAt).toLocaleString()}
               </div>
             </>
@@ -507,23 +513,30 @@ export function ScheduleDetail(props: {
         </div>
       </div>
 
-      <div className="schedDetailActions">
-        <button className="btn schedDetailBtn" onClick={props.onToggle}>
+      <div className={styles.schedDetailActions}>
+        <button className={`btn ${styles.schedDetailBtn}`} onClick={props.onToggle}>
           {s.enabled ? 'Pause' : 'Enable'}
         </button>
-        <button className="btn schedDetailBtn danger" onClick={props.onDelete}>
+        <button
+          className={`btn ${styles.schedDetailBtn} ${styles.schedDetailBtnDanger}`}
+          onClick={props.onDelete}
+        >
           Delete
         </button>
       </div>
 
       {/* ── Run history ─────────────────────────────────────────── */}
-      <div className="schedRunHistory">
-        <div className="schedRunHistoryTitle">Run history</div>
-        {runs.length === 0 && <div className="schedRunEmpty">No runs yet.</div>}
+      <div className={styles.schedRunHistory}>
+        <div className={styles.schedRunHistoryTitle}>Run history</div>
+        {runs.length === 0 && <div className={styles.schedRunEmpty}>No runs yet.</div>}
         {runs.map((t) => (
-          <button key={t.id} className="schedRunItem" onClick={() => props.onViewProcess(t.id)}>
-            <span className="schedRunDot">{statusDot(t.status)}</span>
-            <span className="schedRunDate">
+          <button
+            key={t.id}
+            className={styles.schedRunItem}
+            onClick={() => props.onViewProcess(t.id)}
+          >
+            <span className={styles.schedRunDot}>{statusDot(t.status)}</span>
+            <span className={styles.schedRunDate}>
               {new Date(t.createdAt).toLocaleString(undefined, {
                 month: 'short',
                 day: 'numeric',
@@ -531,16 +544,16 @@ export function ScheduleDetail(props: {
                 minute: '2-digit'
               })}
             </span>
-            <span className="schedRunDuration">
+            <span className={styles.schedRunDuration}>
               {t.updatedAt > t.createdAt ? fmtDuration(t.createdAt, t.updatedAt) : '—'}
             </span>
             {t.usage && (
-              <span className="schedRunTokens">
+              <span className={styles.schedRunTokens}>
                 {((t.usage.inputTokens + t.usage.outputTokens) / 1000).toFixed(1)}k tok
               </span>
             )}
             <svg
-              className="schedRunArrow"
+              className={styles.schedRunArrow}
               viewBox="0 0 24 24"
               width="14"
               height="14"
@@ -575,11 +588,11 @@ export function SchedulePanel(props: {
 
   return (
     <div className="taskPanelWrap">
-      <button className="schedNewBtn" onClick={props.onNewSchedule}>
+      <button className={styles.schedNewBtn} onClick={props.onNewSchedule}>
         + New Schedule
       </button>
 
-      <div className="rbList" role="list" aria-label="Schedules">
+      <div className={styles.rbList} role="list" aria-label="Schedules">
         {props.schedules.length === 0 && <div className="taskEmpty">No scheduled tasks yet.</div>}
         {props.schedules.map((s) => (
           <div
@@ -589,24 +602,26 @@ export function SchedulePanel(props: {
             aria-selected={props.activeScheduleId === s.id}
           >
             <div
-              className="rbItemContent"
+              className={styles.rbItemContent}
               style={{ opacity: s.enabled ? 1 : 0.5 }}
               onClick={() => props.onSelect(s.id)}
             >
-              <div className="rbItemTitle" title={s.prompt}>
+              <div className={styles.rbItemTitle} title={s.prompt}>
                 {s.prompt.slice(0, 40)}
               </div>
-              <div className="schedItemMeta">
-                <span className={`schedPill ${s.enabled ? 'on' : 'off'}`}>
+              <div className={styles.schedItemMeta}>
+                <span
+                  className={`${styles.schedPill} ${s.enabled ? styles.schedPillOn : styles.schedPillOff}`}
+                >
                   {s.enabled ? 'Active' : 'Paused'}
                 </span>
-                <span className="schedPill">{s.frequency}</span>
+                <span className={styles.schedPill}>{s.frequency}</span>
                 <span
-                  className="schedPill schedPillNext"
+                  className={`${styles.schedPill} ${styles.schedPillNext}`}
                   title={new Date(s.nextRunAt).toLocaleString()}
                 >
                   Next {fmtNext(s.nextRunAt)}
-                  <span className="schedPillTime">
+                  <span className={styles.schedPillTime}>
                     {new Date(s.nextRunAt).toLocaleTimeString(undefined, {
                       hour: '2-digit',
                       minute: '2-digit'
@@ -615,9 +630,9 @@ export function SchedulePanel(props: {
                 </span>
               </div>
             </div>
-            <div className="rbItemActions">
+            <div className={styles.rbItemActions}>
               <button
-                className={`scheduleToggleBtn ${s.enabled ? 'on' : 'off'}`}
+                className={`${styles.scheduleToggleBtn} ${s.enabled ? styles.scheduleToggleBtnOn : styles.scheduleToggleBtnOff}`}
                 onClick={(e) => {
                   e.stopPropagation()
                   props.onToggle(s.id)
@@ -648,7 +663,7 @@ export function SchedulePanel(props: {
                 )}
               </button>
               <button
-                className="rbMenuBtn"
+                className={styles.rbMenuBtn}
                 aria-label="Schedule options"
                 onClick={(e) => {
                   e.stopPropagation()

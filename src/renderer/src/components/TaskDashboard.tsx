@@ -1,5 +1,6 @@
 import type { RuntimeStats, Schedule, Task } from '@skynul/shared'
 import { useEffect, useMemo, useState } from 'react'
+import styles from './TaskDashboard.module.css'
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -28,12 +29,15 @@ function StatCard(props: {
   sub?: string
 }): React.JSX.Element {
   return (
-    <div className="dashStatCard">
-      <div className="dashStatValue" style={props.color ? { color: props.color } : undefined}>
+    <div className={styles.dashStatCard}>
+      <div
+        className={styles.dashStatValue}
+        style={props.color ? { color: props.color } : undefined}
+      >
         {props.value}
       </div>
-      <div className="dashStatLabel">{props.label}</div>
-      {props.sub && <div className="dashStatSub">{props.sub}</div>}
+      <div className={styles.dashStatLabel}>{props.label}</div>
+      {props.sub && <div className={styles.dashStatSub}>{props.sub}</div>}
     </div>
   )
 }
@@ -43,17 +47,17 @@ function RecentTask(props: { task: Task; onClick: () => void }): React.JSX.Eleme
   const ago = formatAgo(task.updatedAt)
 
   return (
-    <button className="dashRecentItem" onClick={props.onClick}>
+    <button type="button" className={styles.dashRecentItem} onClick={props.onClick}>
       <div
-        className="dashRecentDot"
+        className={styles.dashRecentDot}
         style={{ background: STATUS_COLOR[task.status] ?? 'var(--nb-muted)' }}
       />
-      <div className="dashRecentContent">
-        <div className="dashRecentTitle">
+      <div className={styles.dashRecentContent}>
+        <div className={styles.dashRecentTitle}>
           {task.prompt.slice(0, 50)}
           {task.prompt.length > 50 ? '…' : ''}
         </div>
-        <div className="dashRecentMeta">
+        <div className={styles.dashRecentMeta}>
           <span style={{ color: STATUS_COLOR[task.status] }}>
             {STATUS_LABEL[task.status] ?? task.status}
           </span>
@@ -76,15 +80,15 @@ function AgentCard(props: {
   const tokens = task.usage ? task.usage.inputTokens + task.usage.outputTokens : null
 
   return (
-    <div className="agentCard">
-      <div className="agentCardTop">
-        <div className="agentCardTitle">
+    <div className={styles.agentCard}>
+      <div className={styles.agentCardTop}>
+        <div className={styles.agentCardTitle}>
           {task.prompt.slice(0, 72)}
           {task.prompt.length > 72 ? '…' : ''}
         </div>
-        <div className="agentCardMeta">
+        <div className={styles.agentCardMeta}>
           <span
-            className="agentStatusDot"
+            className={styles.agentStatusDot}
             style={{ background: STATUS_COLOR[task.status] ?? 'var(--nb-muted)' }}
           />
           <span style={{ color: STATUS_COLOR[task.status] ?? 'var(--nb-muted)' }}>
@@ -98,16 +102,16 @@ function AgentCard(props: {
         </div>
       </div>
 
-      <div className="agentCardBottom">
-        <div className="agentCardPills">
-          <span className="agentPill">Tokens: {tokens ?? '—'}</span>
-          <span className="agentPill">Updated: {formatAgo(task.updatedAt)}</span>
+      <div className={styles.agentCardBottom}>
+        <div className={styles.agentCardPills}>
+          <span className={styles.agentPill}>Tokens: {tokens ?? '—'}</span>
+          <span className={styles.agentPill}>Updated: {formatAgo(task.updatedAt)}</span>
         </div>
-        <div className="agentCardActions">
-          <button className="btnSecondary" onClick={props.onDetails}>
+        <div className={styles.agentCardActions}>
+          <button type="button" className="btnSecondary" onClick={props.onDetails}>
             Details
           </button>
-          <button className="btn" onClick={props.onOpen}>
+          <button type="button" className="btn" onClick={props.onOpen}>
             Open
           </button>
         </div>
@@ -141,14 +145,14 @@ function ScheduleCard(props: { schedule: Schedule; onClick: () => void }): React
       </div>
       <div className="agentCardBottom">
         <div className="agentCardPills">
-          <span className="agentPill">
+          <span className={styles.agentPill}>
             Next: {fmtNext(s.nextRunAt)}{' '}
             {new Date(s.nextRunAt).toLocaleTimeString(undefined, {
               hour: '2-digit',
               minute: '2-digit'
             })}
           </span>
-          {s.lastRunAt && <span className="agentPill">Last: {formatAgo(s.lastRunAt)}</span>}
+          {s.lastRunAt && <span className={styles.agentPill}>Last: {formatAgo(s.lastRunAt)}</span>}
         </div>
       </div>
     </div>
@@ -304,7 +308,7 @@ export function TaskDashboard(props: {
       : []
 
     return (
-      <div className="dashWrap">
+      <div className={styles.dashWrap}>
         <button
           className="schedDetailBack"
           onClick={() => setScheduleDetailsId(null)}
@@ -320,7 +324,7 @@ export function TaskDashboard(props: {
           {selectedSchedule.prompt}
         </div>
 
-        <div className="dashStats" style={{ marginBottom: 20 }}>
+        <div className={styles.dashStats} style={{ marginBottom: 20 }}>
           <StatCard label="Frequency" value={selectedSchedule.frequency} />
           <StatCard
             label="Next run"
@@ -352,22 +356,22 @@ export function TaskDashboard(props: {
         </div>
 
         {schedRunning && schedSubAgents.length > 0 && (
-          <div className="dashSection">
-            <div className="dashSectionTitle">Subagents</div>
-            <div className="agentSubList">
+          <div className={styles.dashSection}>
+            <div className={styles.dashSectionTitle}>Subagents</div>
+            <div className={styles.agentSubList}>
               {schedSubAgents
                 .sort((a, b) => b.updatedAt - a.updatedAt)
                 .map((t) => (
                   <button
                     key={t.id}
-                    className="agentSubItem"
+                    className={styles.agentSubItem}
                     onClick={() => props.onSelectTask(t.id)}
                   >
-                    <div className="agentSubTitle">
+                    <div className={styles.agentSubTitle}>
                       {t.prompt.slice(0, 80)}
                       {t.prompt.length > 80 ? '…' : ''}
                     </div>
-                    <div className="agentSubMeta">
+                    <div className={styles.agentSubMeta}>
                       {t.status} · {t.mode} · {t.steps.length} steps · {formatAgo(t.updatedAt)}
                     </div>
                   </button>
@@ -376,27 +380,27 @@ export function TaskDashboard(props: {
           </div>
         )}
 
-        <div className="dashSection">
-          <div className="dashSectionTitle">System</div>
-          <div className="agentDetailsMeta">
-            <span className="agentPill">
+        <div className={styles.dashSection}>
+          <div className={styles.dashSectionTitle}>System</div>
+          <div className={styles.agentDetailsMeta}>
+            <span className={styles.agentPill}>
               CPU: {runtime ? `${runtime.app.cpuPercent.toFixed(1)}%` : '—'}
             </span>
-            <span className="agentPill">
+            <span className={styles.agentPill}>
               RAM: {runtime ? `${runtime.app.memoryMB.toFixed(0)} MB` : '—'}
             </span>
-            <span className="agentPill">
+            <span className={styles.agentPill}>
               System free: {runtime ? `${runtime.system.freeMemMB.toFixed(0)} MB` : '—'}
             </span>
           </div>
         </div>
 
-        <div className="dashSection">
-          <div className="dashSectionTitle">Run history</div>
+        <div className={styles.dashSection}>
+          <div className={styles.dashSectionTitle}>Run history</div>
           {scheduleHistory.length === 0 ? (
-            <div className="dashEmpty">No runs yet.</div>
+            <div className={styles.dashEmpty}>No runs yet.</div>
           ) : (
-            <div className="dashRecentList">
+            <div className={styles.dashRecentList}>
               {scheduleHistory.map((t) => (
                 <RecentTask key={t.id} task={t} onClick={() => props.onSelectTask(t.id)} />
               ))}
@@ -410,7 +414,7 @@ export function TaskDashboard(props: {
   // ── Agent detail screen ─────────────────────────────────────────
   if (selectedAgent) {
     return (
-      <div className="dashWrap">
+      <div className={styles.dashWrap}>
         <button
           className="schedDetailBack"
           onClick={() => setAgentDetailsId(null)}
@@ -426,7 +430,7 @@ export function TaskDashboard(props: {
           {selectedAgent.prompt}
         </div>
 
-        <div className="dashStats" style={{ marginBottom: 20 }}>
+        <div className={styles.dashStats} style={{ marginBottom: 20 }}>
           <StatCard
             label="Status"
             value={STATUS_LABEL[selectedAgent.status] ?? selectedAgent.status}
@@ -449,22 +453,22 @@ export function TaskDashboard(props: {
         </div>
 
         {selectedSubAgents.length > 0 && (
-          <div className="dashSection">
-            <div className="dashSectionTitle">Subagents</div>
-            <div className="agentSubList">
+          <div className={styles.dashSection}>
+            <div className={styles.dashSectionTitle}>Subagents</div>
+            <div className={styles.agentSubList}>
               {selectedSubAgents
                 .sort((a, b) => b.updatedAt - a.updatedAt)
                 .map((t) => (
                   <button
                     key={t.id}
-                    className="agentSubItem"
+                    className={styles.agentSubItem}
                     onClick={() => props.onSelectTask(t.id)}
                   >
-                    <div className="agentSubTitle">
+                    <div className={styles.agentSubTitle}>
                       {t.prompt.slice(0, 80)}
                       {t.prompt.length > 80 ? '…' : ''}
                     </div>
-                    <div className="agentSubMeta">
+                    <div className={styles.agentSubMeta}>
                       {t.status} · {t.mode} · {t.steps.length} steps · {formatAgo(t.updatedAt)}
                     </div>
                   </button>
@@ -473,16 +477,16 @@ export function TaskDashboard(props: {
           </div>
         )}
 
-        <div className="dashSection">
-          <div className="dashSectionTitle">System</div>
-          <div className="agentDetailsMeta">
-            <span className="agentPill">
+        <div className={styles.dashSection}>
+          <div className={styles.dashSectionTitle}>System</div>
+          <div className={styles.agentDetailsMeta}>
+            <span className={styles.agentPill}>
               CPU: {runtime ? `${runtime.app.cpuPercent.toFixed(1)}%` : '—'}
             </span>
-            <span className="agentPill">
+            <span className={styles.agentPill}>
               RAM: {runtime ? `${runtime.app.memoryMB.toFixed(0)} MB` : '—'}
             </span>
-            <span className="agentPill">
+            <span className={styles.agentPill}>
               System free: {runtime ? `${runtime.system.freeMemMB.toFixed(0)} MB` : '—'}
             </span>
           </div>
@@ -498,10 +502,10 @@ export function TaskDashboard(props: {
   }
 
   return (
-    <div className="dashWrap">
+    <div className={styles.dashWrap}>
       {hasTasks && (
         <>
-          <div className="dashStats">
+          <div className={styles.dashStats}>
             <StatCard
               label="Running"
               value={stats.running}
@@ -530,12 +534,12 @@ export function TaskDashboard(props: {
             />
           </div>
 
-          <div className="dashSection">
-            <div className="dashSectionTitle">Agents</div>
+          <div className={styles.dashSection}>
+            <div className={styles.dashSectionTitle}>Agents</div>
             {activeRoots.length === 0 && schedules.filter((s) => s.enabled).length === 0 ? (
-              <div className="dashEmpty">No active agents right now.</div>
+              <div className={styles.dashEmpty}>No active agents right now.</div>
             ) : (
-              <div className="agentGrid">
+              <div className={styles.agentGrid}>
                 {schedules
                   .filter((s) => s.enabled)
                   .map((s) => (
@@ -560,9 +564,9 @@ export function TaskDashboard(props: {
             )}
           </div>
 
-          <div className="dashSection">
-            <div className="dashSectionTitle">Recent tasks</div>
-            <div className="dashRecentList">
+          <div className={styles.dashSection}>
+            <div className={styles.dashSectionTitle}>Recent tasks</div>
+            <div className={styles.dashRecentList}>
               {recentTasks.map((t) => (
                 <RecentTask key={t.id} task={t} onClick={() => props.onSelectTask(t.id)} />
               ))}
@@ -572,7 +576,7 @@ export function TaskDashboard(props: {
       )}
 
       {!hasTasks && (
-        <div className="dashEmpty" style={{ textAlign: 'center', padding: '40px 0' }}>
+        <div className={styles.dashEmpty} style={{ textAlign: 'center', padding: '40px 0' }}>
           No tasks yet. Create one from the main view.
         </div>
       )}

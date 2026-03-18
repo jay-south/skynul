@@ -1,5 +1,5 @@
 import type { CapabilityId } from '@skynul/shared'
-import { Button } from "../.../components/ui/Button"
+import { CapabilityList, CapabilityToggle } from '../../components/CapabilityToggle'
 import { Section, SectionLabel } from '../../components/layout'
 import { t } from '../../i18n'
 import { usePolicy, useSetAutoApprove, useSetCapability, useSetTaskMemory } from '../../queries'
@@ -61,71 +61,49 @@ export function ComputerSettingsPage(): React.JSX.Element {
       {/* Task Memory */}
       <Section>
         <SectionLabel>Task Memory</SectionLabel>
-        003cButton
-          type="button"
-          className={`cap ${policy?.taskMemoryEnabled ? 'on' : 'off'}`}
-          onClick={handleToggleTaskMemory}
+        <CapabilityToggle
+          title="Learn from Tasks"
+          description="Remember past results to improve future tasks"
+          enabled={!!policy?.taskMemoryEnabled}
+          onToggle={handleToggleTaskMemory}
           disabled={!policy}
-        >
-          <div className="capLeft">
-            <div className="capTitle">Learn from Tasks</div>
-            <div className="capDesc">Remember past results to improve future tasks</div>
-          </div>
-          <div className="capToggle" aria-hidden="true">
-            <div className="capKnob" />
-          </div>
-        003c/Button>
-        003cButton
-          type="button"
-          className={`cap ${policy?.taskAutoApprove ? 'on' : 'off'}`}
-          onClick={handleToggleAutoApprove}
+        />
+        <CapabilityToggle
+          title="Auto-Approve Tasks"
+          description="Skip capability confirmation and run immediately"
+          enabled={!!policy?.taskAutoApprove}
+          onToggle={handleToggleAutoApprove}
           disabled={!policy}
-        >
-          <div className="capLeft">
-            <div className="capTitle">Auto-Approve Tasks</div>
-            <div className="capDesc">Skip capability confirmation and run immediately</div>
-          </div>
-          <div className="capToggle" aria-hidden="true">
-            <div className="capKnob" />
-          </div>
-        003c/Button>
+        />
       </Section>
 
       {/* Capabilities */}
       <Section>
         <SectionLabel>{t(lang, 'settings_capabilities')}</SectionLabel>
-        <div className="capList">
+        <CapabilityList>
           {CAPABILITIES.map((c) => (
-            003cButton
+            <CapabilityToggle
               key={c.id}
-              type="button"
-              className={`cap ${policy?.capabilities[c.id] ? 'on' : 'off'}`}
-              onClick={() => handleToggleCapability(c.id)}
+              title={c.title}
+              description={c.id}
+              enabled={!!policy?.capabilities[c.id]}
+              onToggle={() => handleToggleCapability(c.id)}
               disabled={!policy}
-              title={c.desc}
-            >
-              <div className="capLeft">
-                <div className="capTitle">{c.title}</div>
-                <div className="capDesc">{c.id}</div>
-              </div>
-              <div className="capToggle" aria-hidden="true">
-                <div className="capKnob" />
-              </div>
-            003c/Button>
+            />
           ))}
-        </div>
+        </CapabilityList>
       </Section>
 
       {/* Trading Options */}
       <Section>
         <SectionLabel>Trading Options</SectionLabel>
         <div className="settingsField" style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-          003cButton type="button" variant="filled" disabled>
+          <button type="button" className="btn" disabled>
             Polymarket
-          003c/Button>
-          003cButton type="button" variant="filled" disabled>
+          </button>
+          <button type="button" className="btn" disabled>
             Binance
-          003c/Button>
+          </button>
         </div>
       </Section>
     </>

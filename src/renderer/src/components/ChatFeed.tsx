@@ -1,6 +1,7 @@
 import type { Task, TaskCapabilityId, TaskStep } from '@skynul/shared'
 import { ALL_TASK_CAPABILITIES } from '@skynul/shared'
 import { useEffect, useRef, useState } from 'react'
+import styles from './Chat.module.css'
 
 /** Convert URLs in text to clickable <a> tags, preserving the rest as text */
 function renderLinked(text: string): (string | React.ReactElement)[] {
@@ -74,27 +75,39 @@ function CapsApproval(props: {
 }): React.JSX.Element {
   const isPending = props.status === 'pending_approval'
   return (
-    <div className="feedBubble feedBubbleBot">
-      <div className="feedBubbleContent">
-        <span className="feedCapsLabel">{isPending ? 'Capabilities:' : 'Approved:'}</span>
+    <div className={`${styles.feedBubble} ${styles.feedBubbleBot}`}>
+      <div className={styles.feedBubbleContent}>
+        <span className={styles.feedCapsLabel}>{isPending ? 'Capabilities:' : 'Approved:'}</span>
         {props.caps.map((capId) => {
           const cap = ALL_TASK_CAPABILITIES.find((c) => c.id === capId)
           return (
-            <span key={capId} className={`feedCapChip ${isPending ? '' : 'confirmed'}`}>
+            <span
+              key={capId}
+              className={`${styles.feedCapChip}${isPending ? '' : ` ${styles.confirmed}`}`}
+            >
               {cap?.title ?? capId}
             </span>
           )
         })}
         {isPending && (
-          <div className="feedCapsActions">
-            <button className="btn feedBtnAllow" onClick={props.onApprove}>
+          <div className={styles.feedCapsActions}>
+            <button
+              type="button"
+              className={`btn ${styles.feedBtnAllow}`}
+              onClick={props.onApprove}
+            >
               Allow & Run
             </button>
-            <button className="btn feedBtnCancel" onClick={props.onCancel}>
+            <button
+              type="button"
+              className={`btn ${styles.feedBtnCancel}`}
+              onClick={props.onCancel}
+            >
               Cancel
             </button>
             <button
-              className="feedDontAsk"
+              type="button"
+              className={styles.feedDontAsk}
               onClick={() => {
                 props.onDontAskAgain()
                 props.onApprove()
@@ -118,11 +131,11 @@ function ResultBlock(props: { text: string }): React.JSX.Element {
 
   return (
     <div
-      className={`feedStepResult ${isLong ? 'clickable' : ''}`}
+      className={`${styles.feedStepResult}${isLong ? ` ${styles.clickable}` : ''}`}
       onClick={isLong ? () => setExpanded(!expanded) : undefined}
     >
       {display}
-      {isLong && <span className="feedResultToggle">{expanded ? ' ▲' : ' ▼'}</span>}
+      {isLong && <span className={styles.feedResultToggle}>{expanded ? ' ▲' : ' ▼'}</span>}
     </div>
   )
 }
@@ -136,12 +149,12 @@ function StepLine(props: { step: TaskStep }): React.JSX.Element {
   })
 
   return (
-    <div className={`feedStep ${hasError ? 'feedStepError' : ''}`}>
-      <span className="feedStepTime">{time}</span>
-      {step.thought && <div className="feedStepThought">{step.thought}</div>}
-      {formatAction(step) && <div className="feedStepAction">{formatAction(step)}</div>}
+    <div className={`${styles.feedStep}${hasError ? ` ${styles.feedStepError}` : ''}`}>
+      <span className={styles.feedStepTime}>{time}</span>
+      {step.thought && <div className={styles.feedStepThought}>{step.thought}</div>}
+      {formatAction(step) && <div className={styles.feedStepAction}>{formatAction(step)}</div>}
       {step.result && <ResultBlock text={step.result} />}
-      {step.error && <div className="feedStepErr">{step.error}</div>}
+      {step.error && <div className={styles.feedStepErr}>{step.error}</div>}
     </div>
   )
 }
@@ -164,9 +177,9 @@ export function ChatFeed(props: {
     task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled'
 
   return (
-    <div className="chatFeed" ref={scrollRef}>
+    <div className={styles.chatFeed} ref={scrollRef}>
       {/* User prompt */}
-      <div className="feedBubble feedBubbleUser">{task.prompt}</div>
+      <div className={`${styles.feedBubble} ${styles.feedBubbleUser}`}>{task.prompt}</div>
 
       {/* Caps */}
       <CapsApproval
@@ -179,7 +192,9 @@ export function ChatFeed(props: {
 
       {/* Thinking */}
       {task.status === 'running' && task.steps.length === 0 && (
-        <div className="feedBubble feedBubbleBot feedThinking">{task.summary || 'Thinking...'}</div>
+        <div className={`${styles.feedBubble} ${styles.feedBubbleBot} ${styles.feedThinking}`}>
+          {task.summary || 'Thinking...'}
+        </div>
       )}
 
       {/* Steps — user messages as user bubbles, agent steps grouped in bot blocks */}
@@ -192,7 +207,10 @@ export function ChatFeed(props: {
           const flushBatch = (key: string): void => {
             if (agentBatch.length > 0) {
               elements.push(
-                <div key={key} className="feedBubble feedBubbleBot feedStepsBlock">
+                <div
+                  key={key}
+                  className={`${styles.feedBubble} ${styles.feedBubbleBot} ${styles.feedStepsBlock}`}
+                >
                   {agentBatch.map((s) => (
                     <StepLine key={s.index} step={s} />
                   ))}
@@ -212,7 +230,7 @@ export function ChatFeed(props: {
             if (dateStr !== lastDateStr) {
               flushBatch(`bot-before-date-${key}`)
               elements.push(
-                <div key={`date-sep-${key}`} className="feedDateSep">
+                <div key={`date-sep-${key}`} className={styles.feedDateSep}>
                   <span>{dateStr}</span>
                 </div>
               )
@@ -226,7 +244,10 @@ export function ChatFeed(props: {
             if (a.type === 'user_message') {
               flushBatch(`bot-before-${step.index}`)
               elements.push(
-                <div key={`user-${step.index}`} className="feedBubble feedBubbleUser">
+                <div
+                  key={`user-${step.index}`}
+                  className={`${styles.feedBubble} ${styles.feedBubbleUser}`}
+                >
                   {String(a.text)}
                 </div>
               )
@@ -240,8 +261,10 @@ export function ChatFeed(props: {
 
       {/* Typing indicator while model is thinking between steps */}
       {task.status === 'running' && task.steps.length > 0 && (
-        <div className="feedBubble feedBubbleBot feedThinking feedTyping">
-          <span className="typingDots">
+        <div
+          className={`${styles.feedBubble} ${styles.feedBubbleBot} ${styles.feedThinking} ${styles.feedTyping}`}
+        >
+          <span className={styles.typingDots}>
             <span />
             <span />
             <span />
@@ -251,7 +274,10 @@ export function ChatFeed(props: {
 
       {/* Terminal */}
       {isTerminal && (
-        <div className={`feedStatus ${task.status}`} style={{ whiteSpace: 'pre-wrap' }}>
+        <div
+          className={`${styles.feedStatus} ${styles[task.status]}`}
+          style={{ whiteSpace: 'pre-wrap' }}
+        >
           {task.status === 'completed' && renderLinked(task.summary || 'Tarea completada')}
           {task.status === 'failed' && renderLinked(task.error || 'Tarea fallida')}
           {task.status === 'cancelled' && 'Tarea cancelada'}

@@ -1,0 +1,164 @@
+.channelGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.channelCard {
+  border: 1px solid var(--nb-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--nb-panel);
+}
+
+.channelCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--nb-text);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.channelCardHeader:hover {
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 92%);
+}
+
+.channelIcon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.channelIconImg {
+  width: 18px;
+  height: 18px;
+  display: block;
+  object-fit: contain;
+  filter: brightness(0);
+}
+
+[data-theme="dark"] .channelIconImg {
+  filter: brightness(0) invert(1);
+}
+
+.channelName {
+  flex: 1;
+}
+
+.channelStatusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.channelCardBody {
+  padding: 0 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.channelCredRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.channelCredRow .apiKeyInput {
+  flex: 1;
+}
+
+.channelSavedCred {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.credMask {
+  font-family: monospace;
+  color: var(--nb-muted);
+  letter-spacing: 2px;
+}
+
+.btnSmall {
+  font-size: 11px;
+  padding: 3px 10px;
+}
+
+.channelPairing,
+.channelPaired {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settingsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settingsLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--nb-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.composerError {
+  font-size: 12px;
+  color: var(--nb-danger);
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--nb-danger), transparent 90%);
+  border: 1px solid color-mix(in srgb, var(--nb-danger), transparent 70%);
+}
+
+.settingsFieldHint {
+  font-size: 11px;
+  font-weight: 520;
+  color: var(--nb-muted);
+}
+
+.apiKeyInput {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--nb-border);
+  background: var(--nb-panel-2);
+  font-size: 13px;
+  font-weight: 480;
+  color: var(--nb-text);
+  outline: none;
+  font-family: ui-monospace, monospace;
+}
+
+.apiKeyInput:focus {
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 50%);
+}
+
+.settingsBadge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #fff;
+  background: var(--nb-accent-2);
+  padding: 3px 8px;
+  border-radius: 999px;
+  vertical-align: middle;
+}

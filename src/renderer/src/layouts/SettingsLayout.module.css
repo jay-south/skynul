@@ -1,0 +1,76 @@
+.settingsLayout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  height: 100%;
+}
+
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 14px 8px 8px;
+  border-radius: 10px;
+  border: none;
+  background: var(--nb-surface-2);
+  color: var(--nb-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+
+.backBtn:hover {
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 85%);
+  color: var(--nb-text);
+}
+
+.seg {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--nb-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--nb-panel);
+}
+
+.segBtn {
+  cursor: pointer;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--nb-muted);
+  font-size: 12px;
+  font-weight: 550;
+  padding: 10px 8px;
+  text-decoration: none;
+  text-align: center;
+  transition:
+    background 100ms ease,
+    color 100ms ease;
+}
+
+.segBtn:hover {
+  background: color-mix(in srgb, var(--nb-text), transparent 94%);
+  color: var(--nb-text);
+}
+
+.segBtn.active {
+  background: var(--nb-panel-2);
+  color: var(--nb-text);
+}
+
+.segBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 860px) {
+  .settingsLayout {
+    grid-template-columns: 1fr;
+  }
+}

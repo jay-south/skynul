@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import styles from './UpdateToast.module.css'
 
 type UpdateState = 'idle' | 'available' | 'downloading' | 'ready'
 
@@ -51,9 +52,9 @@ export function UpdateToast(): React.ReactNode {
   if (state === 'idle' || dismissed) return null
 
   return (
-    <div className="updateToast">
-      <div className="updateToastIcon">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+    <div className={styles.updateToast}>
+      <div className={styles.updateToastIcon}>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <path
             d="M8 1v10M4 7l4 4 4-4"
             stroke="currentColor"
@@ -65,8 +66,8 @@ export function UpdateToast(): React.ReactNode {
         </svg>
       </div>
 
-      <div className="updateToastBody">
-        <span className="updateToastTitle">
+      <div className={styles.updateToastBody}>
+        <span className={styles.updateToastTitle}>
           {state === 'ready'
             ? 'Update ready to install'
             : state === 'downloading'
@@ -75,17 +76,25 @@ export function UpdateToast(): React.ReactNode {
         </span>
       </div>
 
-      <div className="updateToastActions">
+      <div className={styles.updateToastActions}>
         {state === 'downloading' ? (
-          <div className="updateProgressBar">
-            <div className="updateProgressFill" style={{ width: `${progress}%` }} />
+          <div className={styles.updateProgressBar}>
+            <div className={styles.updateProgressFill} style={{ width: `${progress}%` }} />
           </div>
         ) : (
           <>
-            <button className="updateToastBtn secondary" onClick={handleDismiss}>
+            <button
+              type="button"
+              className={`${styles.updateToastBtn} ${styles.secondary}`}
+              onClick={handleDismiss}
+            >
               Later
             </button>
-            <button className="updateToastBtn primary" onClick={handleUpdate}>
+            <button
+              type="button"
+              className={`${styles.updateToastBtn} ${styles.primary}`}
+              onClick={handleUpdate}
+            >
               {state === 'ready' ? 'Restart' : 'Update'}
             </button>
           </>

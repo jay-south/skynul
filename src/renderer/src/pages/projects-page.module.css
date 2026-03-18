@@ -1,0 +1,282 @@
+.settingsPanel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.settingsPanelInner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  padding: 16px 20px;
+  gap: 16px;
+}
+
+.settingsBackBar {
+  flex-shrink: 0;
+}
+
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--nb-muted);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 100ms ease;
+}
+
+.backBtn:hover {
+  background: var(--nb-surface-2);
+  color: var(--nb-text);
+}
+
+.settingsPanelTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--nb-text);
+  margin: 0;
+}
+
+.chatFeedCentered {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-y: auto;
+  padding: 20px 0;
+}
+
+.projectsPlaceholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.projectsPlaceholderIcon {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.3);
+  margin-bottom: 4px;
+}
+
+.projectsPlaceholderTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.projectsPlaceholderSub {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.4);
+  max-width: 240px;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.projectsCreateBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  padding: 10px 20px;
+  margin-top: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.projectsCreateBtn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.projectsCreateBtn.small {
+  padding: 6px 14px;
+  font-size: 12px;
+  margin-top: 0;
+}
+
+.projectsListPanel {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.projectsListHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.projectsListTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.projectCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 12px 14px;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.projectCard:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.projectCardColor {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.projectCardBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.projectCardName {
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+}
+
+.projectCardMeta {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.projectCardDelete {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 2px 6px;
+  line-height: 1;
+}
+
+.projectCardDelete:hover {
+  color: var(--nb-danger, #ef4444);
+}
+
+.projectModalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-left: 280px;
+}
+
+.projectModalCard {
+  background: var(--nb-bg);
+  border: 1px solid var(--nb-border);
+  border-radius: 14px;
+  padding: 24px;
+  width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--nb-shadow);
+}
+
+.projectModalTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--nb-text);
+}
+
+.projectModalSub {
+  font-size: 12px;
+  color: var(--nb-muted);
+}
+
+.projectModalInput {
+  appearance: none;
+  background: var(--nb-code-bg);
+  border: 1px solid var(--nb-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--nb-text);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+}
+
+.projectModalInput:focus {
+  border-color: var(--nb-accent-2);
+}
+
+.projectModalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.projectModalCancel {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--nb-border);
+  border-radius: 8px;
+  color: var(--nb-muted);
+  padding: 8px 16px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.projectModalSave {
+  appearance: none;
+  background: var(--nb-accent-2);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.projectModalSave:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

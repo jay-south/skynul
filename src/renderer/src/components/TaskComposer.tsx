@@ -9,6 +9,7 @@ import {
   type SavedPrompt,
   savePromptText
 } from '../task-prompts'
+import styles from './TaskComposer.module.css'
 import type { TaskTemplateId } from './TaskTemplates'
 
 function templateTitleKey(template: TaskTemplateId): Parameters<typeof t>[1] {
@@ -260,28 +261,29 @@ export function TaskComposer(props: {
   }
 
   return (
-    <div className="taskComposerWrap">
-      <div className="taskComposerHeader">
-        <div className="taskComposerTitle">{title}</div>
-        <div className="taskComposerActions">
-          <button className="btnSecondary" onClick={props.onCancel}>
+    <div className={styles.taskComposerWrap}>
+      <div className={styles.taskComposerHeader}>
+        <div className={styles.taskComposerTitle}>{title}</div>
+        <div className={styles.taskComposerActions}>
+          <button type="button" className={styles.btnSecondary} onClick={props.onCancel}>
             {t(lang, 'common_cancel')}
           </button>
-          <button className="btn" onClick={submit} disabled={!prompt.trim()}>
+          <button type="button" className="btn" onClick={submit} disabled={!prompt.trim()}>
             {t(lang, 'tasks_new_from_template')}
           </button>
         </div>
       </div>
 
-      <div className="taskComposerBody">
+      <div className={styles.taskComposerBody}>
         {savedPrompts.length > 0 && (
-          <div className="taskComposerSection">
-            <div className="taskComposerLabel">{t(lang, 'task_composer_saved_label')}</div>
-            <div className="savedPromptsList">
+          <div className={styles.taskComposerSection}>
+            <div className={styles.taskComposerLabel}>{t(lang, 'task_composer_saved_label')}</div>
+            <div className={styles.savedPromptsList}>
               {savedPrompts.map((sp) => (
-                <div key={sp.id} className="savedPromptItem">
+                <div key={sp.id} className={styles.savedPromptItem}>
                   <button
-                    className="savedPromptText"
+                    type="button"
+                    className={styles.savedPromptText}
                     title={sp.text}
                     onClick={() => setPrompt(sp.text)}
                   >
@@ -289,7 +291,8 @@ export function TaskComposer(props: {
                     {sp.text.length > 72 ? '...' : ''}
                   </button>
                   <button
-                    className="savedPromptDel"
+                    type="button"
+                    className={styles.savedPromptDel}
                     aria-label={t(lang, 'tasks_remove_saved_prompt_aria')}
                     onClick={() => removeSaved(sp.id)}
                   >
@@ -301,12 +304,12 @@ export function TaskComposer(props: {
           </div>
         )}
 
-        <div className="taskComposerSection">
-          <div className="taskComposerLabel">{t(lang, 'task_composer_prompt_label')}</div>
-          <div className="taskComposerPromptWrap">
+        <div className={styles.taskComposerSection}>
+          <div className={styles.taskComposerLabel}>{t(lang, 'task_composer_prompt_label')}</div>
+          <div className={styles.taskComposerPromptWrap}>
             <textarea
               ref={promptRef}
-              className="taskNewPrompt taskComposerPrompt"
+              className={`${styles.taskNewPrompt} ${styles.taskComposerPrompt}`}
               placeholder={t(lang, 'tasks_prompt_placeholder')}
               value={prompt}
               onChange={(e) => {
@@ -323,9 +326,10 @@ export function TaskComposer(props: {
                 }
               }}
             />
-            <div className="taskComposerPromptActionsInner">
+            <div className={styles.taskComposerPromptActionsInner}>
               <button
-                className={`micBtn${isRecording ? ' recording' : ''}`}
+                type="button"
+                className={`${styles.micBtn}${isRecording ? ` ${styles.recording}` : ''}`}
                 onClick={toggleMic}
                 aria-label={isRecording ? 'Stop recording' : 'Voice input'}
                 title={isRecording ? 'Stop recording' : 'Voice input'}
@@ -343,9 +347,10 @@ export function TaskComposer(props: {
             </div>
           </div>
 
-          <div className="taskComposerPromptActions">
+          <div className={styles.taskComposerPromptActions}>
             <button
-              className="btnSecondary"
+              type="button"
+              className={styles.btnSecondary}
               onClick={saveCurrentPrompt}
               disabled={!prompt.trim()}
               title={t(lang, 'tasks_save_prompt')}
@@ -355,13 +360,14 @@ export function TaskComposer(props: {
           </div>
         </div>
 
-        <div className="taskComposerSection">
-          <div className="taskComposerLabel">{t(lang, 'task_composer_caps_label')}</div>
-          <div className="taskCapList">
+        <div className={styles.taskComposerSection}>
+          <div className={styles.taskComposerLabel}>{t(lang, 'task_composer_caps_label')}</div>
+          <div className={styles.taskCapList}>
             {ALL_TASK_CAPABILITIES.map((c) => (
               <button
+                type="button"
                 key={c.id}
-                className={`taskCapChip ${selectedCaps.has(c.id) ? 'on' : ''}`}
+                className={`${styles.taskCapChip}${selectedCaps.has(c.id) ? ` ${styles.on}` : ''}`}
                 onClick={() => toggleCap(c.id)}
                 title={c.desc}
               >
@@ -373,16 +379,18 @@ export function TaskComposer(props: {
 
         {/* ── Run mode: once vs schedule ──────────────────────────── */}
         {props.onSchedule && (
-          <div className="taskComposerSection">
-            <div className="taskComposerLabel">Run mode</div>
+          <div className={styles.taskComposerSection}>
+            <div className={styles.taskComposerLabel}>Run mode</div>
             <div className="seg seg--2col" style={{ marginBottom: 8 }}>
               <button
+                type="button"
                 className={`segBtn ${runMode === 'once' ? 'active' : ''}`}
                 onClick={() => setRunMode('once')}
               >
                 Run once
               </button>
               <button
+                type="button"
                 className={`segBtn ${runMode === 'schedule' ? 'active' : ''}`}
                 onClick={() => setRunMode('schedule')}
               >
@@ -392,11 +400,12 @@ export function TaskComposer(props: {
 
             {runMode === 'schedule' && (
               <>
-                <div className="taskCapList" style={{ marginBottom: 8 }}>
+                <div className={styles.taskCapList} style={{ marginBottom: 8 }}>
                   {SCHED_PRESETS.map((p) => (
                     <button
+                      type="button"
                       key={p.id}
-                      className={`taskCapChip ${schedPresetId === p.id ? 'on' : ''}`}
+                      className={`${styles.taskCapChip}${schedPresetId === p.id ? ` ${styles.on}` : ''}`}
                       onClick={() => setSchedPresetId(p.id)}
                       title={p.desc}
                     >

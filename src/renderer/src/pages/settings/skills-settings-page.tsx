@@ -1,5 +1,7 @@
 import type { Skill } from '@skynul/shared'
 import { useRef, useState } from 'react'
+import { CapabilityList, CapabilityToggle } from '../../components/CapabilityToggle'
+import { Section, SectionLabel } from '../../components/layout'
 import { SkillGraph } from '../../components/SkillGraph'
 import { useDeleteSkill, useSaveSkill, useSkills, useToggleSkill } from '../../queries'
 
@@ -125,73 +127,60 @@ export function SkillsSettingsPage(): React.JSX.Element {
         onChange={handleFileSelect}
       />
 
-      <div className="settingsSection">
-        <div className="settingsLabel">Skill Graph</div>
+      <Section>
+        <SectionLabel>Skill Graph</SectionLabel>
         <SkillGraph skills={skills} />
-      </div>
+      </Section>
 
-      <div className="settingsSection">
-        <div className="settingsLabel">Manage Skills</div>
+      <Section>
+        <SectionLabel>Manage Skills</SectionLabel>
         <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
-          003cButton className="btn btnFilled" onClick={handleCreateSkill}>
+          <button type="button" className="btn" onClick={handleCreateSkill}>
             Create Skill
-          003c/Button>
-          003cButton className="btn btnFilled" onClick={handleImportClick}>
+          </button>
+          <button type="button" className="btn" onClick={handleImportClick}>
             Import Skill
-          003c/Button>
+          </button>
         </div>
         <div className="settingsFieldHint">Supports .json and .md (with YAML frontmatter)</div>
 
         {error && <div style={{ color: '#ff6b6b', fontSize: 12, marginTop: 8 }}>{error}</div>}
 
         {skills.length > 0 && (
-          <div className="capList">
+          <CapabilityList>
             {skills.map((s) => (
-              003cButton
+              <div
                 key={s.id}
-                className={`cap ${s.enabled ? 'on' : 'off'}`}
-                onClick={() => handleToggleSkill(s.id)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '8px 0'
+                }}
               >
-                <div className="capLeft">
-                  <div className="capTitle">{s.name}</div>
-                  <div className="capDesc">{s.tag}</div>
+                <div style={{ flex: 1 }}>
+                  <CapabilityToggle
+                    title={s.name}
+                    description={s.tag}
+                    enabled={s.enabled}
+                    onToggle={() => handleToggleSkill(s.id)}
+                  />
                 </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <span
-                    style={{
-                      fontSize: 12,
-                      cursor: 'pointer',
-                      color: 'var(--nb-muted)'
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleEditSkill(s)
-                    }}
-                  >
-                    Edit
-                  </span>
-                  <span
-                    style={{
-                      fontSize: 12,
-                      cursor: 'pointer',
-                      color: 'var(--nb-muted)'
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDeleteSkill(s.id)
-                    }}
-                  >
-                    Del
-                  </span>
-                  <div className="capToggle" aria-hidden="true">
-                    <div className="capKnob" />
-                  </div>
-                </div>
-              003c/Button>
+                <button type="button" className="btnSecondary" onClick={() => handleEditSkill(s)}>
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  className="btnSecondary"
+                  onClick={() => handleDeleteSkill(s.id)}
+                >
+                  Del
+                </button>
+              </div>
             ))}
-          </div>
+          </CapabilityList>
         )}
-      </div>
+      </Section>
 
       {/* Skill Modal */}
       {skillModal && (
@@ -199,9 +188,14 @@ export function SkillsSettingsPage(): React.JSX.Element {
           <div className="modal" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 500 }}>
             <div className="modalHeader">
               <div className="modalTitle">{skillModal === 'new' ? 'New Skill' : 'Edit Skill'}</div>
-              003cButton className="modalClose" onClick={() => setSkillModal(null)} aria-label="Close">
+              <button
+                type="button"
+                className="modalClose"
+                onClick={() => setSkillModal(null)}
+                aria-label="Close"
+              >
                 ×
-              003c/Button>
+              </button>
             </div>
             <div className="modalBody" style={{ gridTemplateColumns: '1fr' }}>
               <div className="modalSection">
@@ -252,13 +246,14 @@ export function SkillsSettingsPage(): React.JSX.Element {
               </div>
             </div>
             <div className="modalFooter">
-              003cButton
-                variant="filled"
+              <button
+                type="button"
+                className="btn"
                 disabled={!skillDraft.name.trim() || !skillDraft.prompt.trim()}
                 onClick={() => void handleSaveSkill()}
               >
                 {skillModal === 'new' ? 'Create' : 'Save'}
-              003c/Button>
+              </button>
             </div>
           </div>
         </div>

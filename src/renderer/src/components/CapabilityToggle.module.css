@@ -1,0 +1,73 @@
+.capList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cap {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--nb-border);
+  background: var(--nb-panel);
+  cursor: pointer;
+  text-align: left;
+}
+
+.cap:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.capOn {
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 60%);
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 92%);
+}
+
+.capTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--nb-text), transparent 10%);
+}
+
+.capDesc {
+  font-size: 12px;
+  font-weight: 520;
+  color: var(--nb-muted);
+}
+
+.capToggle {
+  width: 44px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid var(--nb-border);
+  background: color-mix(in srgb, var(--nb-text), transparent 92%);
+  padding: 3px;
+  display: flex;
+  align-items: center;
+}
+
+.capOn .capToggle {
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 78%);
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 60%);
+}
+
+.capKnob {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--nb-panel-2);
+  border: 1px solid var(--nb-border);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.08);
+  transform: translateX(0);
+  transition: transform 140ms ease;
+}
+
+.capOn .capKnob {
+  transform: translateX(18px);
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 65%);
+}

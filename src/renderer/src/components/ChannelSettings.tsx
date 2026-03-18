@@ -1,11 +1,12 @@
 import type { ChannelId, ChannelSettings as ChannelSettingsType } from '@skynul/shared'
 import { useCallback, useEffect, useState } from 'react'
-
 import discordIcon from '../assets/discord.svg'
 import signalIcon from '../assets/signal.svg'
 import slackIcon from '../assets/slack.svg'
 import telegramIcon from '../assets/telegram.svg'
 import whatsappIcon from '../assets/whatsapp.svg'
+import { CapabilityToggle } from './CapabilityToggle'
+import styles from './ChannelSettings.module.css'
 
 const CHANNEL_INFO: Record<
   ChannelId,
@@ -169,66 +170,63 @@ export function ChannelSettings(): React.JSX.Element {
   }
 
   return (
-    <div className="settingsSection">
-      <div className="settingsLabel">Messaging Channels</div>
-      {error && <div className="composerError">{error}</div>}
+    <div className={styles.settingsSection}>
+      <div className={styles.settingsLabel}>Messaging Channels</div>
+      {error && <div className={styles.composerError}>{error}</div>}
 
-      <button
-        className={`cap ${autoApprove ? 'on' : 'off'}`}
-        onClick={() => void handleAutoApproveToggle()}
-        style={{ marginBottom: 12 }}
-      >
-        <div className="capLeft">
-          <div className="capTitle">Aprobar tareas automáticamente</div>
-          <div className="capDesc">
-            {autoApprove
-              ? 'Las tareas de canales se ejecutan sin confirmación'
-              : 'Las tareas quedan pendientes hasta que las apruebes'}
-          </div>
-        </div>
-        <div className="capToggle" aria-hidden="true">
-          <div className="capKnob" />
-        </div>
-      </button>
+      <CapabilityToggle
+        title="Aprobar tareas automáticamente"
+        description={
+          autoApprove
+            ? 'Las tareas de canales se ejecutan sin confirmación'
+            : 'Las tareas quedan pendientes hasta que las apruebes'
+        }
+        enabled={autoApprove}
+        onToggle={() => void handleAutoApproveToggle()}
+      />
 
-      <div className="channelGrid">
+      <div className={styles.channelGrid}>
         {channels.map((ch) => {
           const info = CHANNEL_INFO[ch.id]
           const isExpanded = expandedId === ch.id
           const isBusy = busy === ch.id
 
           return (
-            <div key={ch.id} className="channelCard">
+            <div key={ch.id} className={styles.channelCard}>
               <button
                 type="button"
-                className="channelCardHeader"
+                className={styles.channelCardHeader}
                 onClick={() => setExpandedId(isExpanded ? null : ch.id)}
               >
-                <span className="channelIcon" aria-hidden="true">
-                  <img className="channelIconImg" src={info.iconSrc} alt="" />
+                <span className={styles.channelIcon} aria-hidden="true">
+                  <img className={styles.channelIconImg} src={info.iconSrc} alt="" />
                 </span>
-                <span className="channelName">{info.label}</span>
+                <span className={styles.channelName}>{info.label}</span>
                 <span
-                  className="channelStatusDot"
+                  className={styles.channelStatusDot}
                   style={{ backgroundColor: STATUS_COLORS[ch.status] ?? '#666' }}
                   title={ch.status}
                 />
-                {ch.paired && <span className="settingsBadge">Paired</span>}
+                {ch.paired && <span className={styles.settingsBadge}>Paired</span>}
               </button>
 
               {isExpanded && (
-                <div className="channelCardBody">
-                  <div className="settingsFieldHint">{info.desc}</div>
+                <div className={styles.channelCardBody}>
+                  <div className={styles.settingsFieldHint}>{info.desc}</div>
 
                   {/* Credentials input */}
                   {info.credentialField && (
-                    <div className="channelCredRow" style={{ flexDirection: 'column', gap: 6 }}>
+                    <div
+                      className={styles.channelCredRow}
+                      style={{ flexDirection: 'column', gap: 6 }}
+                    >
                       {ch.hasCredentials && !credDraft && (
-                        <div className="channelSavedCred">
-                          <span className="credMask">••••••••••••••••</span>
+                        <div className={styles.channelSavedCred}>
+                          <span className={styles.credMask}>••••••••••••••••</span>
                           <button
                             type="button"
-                            className="btn btnSmall"
+                            className="btn"
+                            style={{ fontSize: '11px', padding: '3px 10px' }}
                             onClick={() => setCredDraft(' ')}
                           >
                             Change
@@ -239,7 +237,7 @@ export function ChannelSettings(): React.JSX.Element {
                         <>
                           <input
                             type="password"
-                            className="apiKeyInput"
+                            className={styles.apiKeyInput}
                             placeholder={info.credentialPlaceholder}
                             value={credDraft}
                             onChange={(e) => setCredDraft(e.target.value)}
@@ -248,7 +246,7 @@ export function ChannelSettings(): React.JSX.Element {
                           {info.credentialField2 && (
                             <input
                               type="password"
-                              className="apiKeyInput"
+                              className={styles.apiKeyInput}
                               placeholder={info.credentialPlaceholder2}
                               value={credDraft2}
                               onChange={(e) => setCredDraft2(e.target.value)}
@@ -269,27 +267,19 @@ export function ChannelSettings(): React.JSX.Element {
                   )}
 
                   {/* Enable toggle */}
-                  <button
-                    className={`cap ${ch.enabled ? 'on' : 'off'}`}
-                    onClick={() => void handleToggle(ch.id, ch.enabled)}
+                  <CapabilityToggle
+                    title="Active"
+                    description={ch.enabled ? `Status: ${ch.status}` : 'Channel is off'}
+                    enabled={ch.enabled}
+                    onToggle={() => void handleToggle(ch.id, ch.enabled)}
                     disabled={isBusy}
-                  >
-                    <div className="capLeft">
-                      <div className="capTitle">Active</div>
-                      <div className="capDesc">
-                        {ch.enabled ? `Status: ${ch.status}` : 'Channel is off'}
-                      </div>
-                    </div>
-                    <div className="capToggle" aria-hidden="true">
-                      <div className="capKnob" />
-                    </div>
-                  </button>
+                  />
 
                   {/* Pairing flow */}
                   {ch.enabled && !ch.paired && (
-                    <div className="channelPairing">
+                    <div className={styles.channelPairing}>
                       {ch.pairingCode ? (
-                        <div className="settingsFieldHint">
+                        <div className={styles.settingsFieldHint}>
                           {ch.id === 'telegram' && (
                             <>
                               Send <code>/pair {ch.pairingCode}</code> to your bot in Telegram
@@ -310,6 +300,7 @@ export function ChannelSettings(): React.JSX.Element {
                         </div>
                       ) : (
                         <button
+                          type="button"
                           className="btn"
                           onClick={() => void handleGeneratePairing(ch.id)}
                           disabled={isBusy}
@@ -322,8 +313,8 @@ export function ChannelSettings(): React.JSX.Element {
 
                   {/* Paired info */}
                   {ch.enabled && ch.paired && (
-                    <div className="channelPaired">
-                      <div className="settingsFieldHint">
+                    <div className={styles.channelPaired}>
+                      <div className={styles.settingsFieldHint}>
                         {ch.id === 'telegram' && <>Paired to chat {String(ch.meta.pairedChatId)}</>}
                         {ch.id === 'discord' && (
                           <>Paired to channel {String(ch.meta.pairedChannelId)}</>
@@ -335,6 +326,7 @@ export function ChannelSettings(): React.JSX.Element {
                         {ch.id === 'signal' && <>Paired to {String(ch.meta.phoneNumber)}</>}
                       </div>
                       <button
+                        type="button"
                         className="btn"
                         onClick={() => void handleUnpair(ch.id)}
                         disabled={isBusy}
@@ -344,7 +336,7 @@ export function ChannelSettings(): React.JSX.Element {
                     </div>
                   )}
 
-                  {ch.error && <div className="composerError">{ch.error}</div>}
+                  {ch.error && <div className={styles.composerError}>{ch.error}</div>}
                 </div>
               )}
             </div>

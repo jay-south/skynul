@@ -1,0 +1,884 @@
+/* Task panel header */
+.rbTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.rbTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--nb-muted);
+}
+
+.rbNew {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 8px 10px;
+  border: 1px solid var(--nb-border);
+  background: var(--nb-panel);
+  color: var(--nb-text);
+}
+
+.rbList {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 4px;
+  max-height: calc(11 * 62px);
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.rbList:hover {
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+.rbList::-webkit-scrollbar {
+  width: 4px;
+}
+
+.rbList::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.rbList::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 2px;
+}
+
+.rbList:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.rbItem {
+  cursor: pointer;
+  text-align: left;
+  border: 1px solid var(--nb-border);
+  background: var(--nb-panel);
+  border-radius: 14px;
+  color: var(--nb-text);
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.rbItemContent {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 10px;
+}
+
+.rbItemActions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 6px;
+}
+
+.rbMenuBtn {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--nb-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  opacity: 0;
+  margin-right: 6px;
+  transition:
+    opacity 100ms ease,
+    background 100ms ease;
+}
+
+.rbItem:hover .rbMenuBtn {
+  opacity: 1;
+}
+
+.rbMenuBtn:hover {
+  background: color-mix(in srgb, var(--nb-text), transparent 88%);
+  color: var(--nb-text);
+}
+
+.rbItemActive {
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 60%);
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 92%);
+}
+
+.rbItemTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--nb-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rbItemMeta {
+  font-size: 11px;
+  font-weight: 520;
+  color: var(--nb-muted);
+  margin-top: 2px;
+}
+
+/* Schedule items */
+.schedItem .rbItemContent {
+  padding: 10px 12px;
+}
+
+.schedItem .rbItemActions .rbMenuBtn {
+  margin-right: 0;
+  opacity: 0.65;
+}
+
+.schedItem:hover .rbItemActions .rbMenuBtn,
+.schedItem .rbItemActions .rbMenuBtn:focus-visible {
+  opacity: 1;
+}
+
+.schedItemMeta {
+  margin-top: 5px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 520;
+  color: var(--nb-muted);
+}
+
+.schedPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--nb-border);
+  background: var(--nb-panel-2);
+  color: var(--nb-text-muted, var(--nb-muted));
+  line-height: 1.6;
+}
+
+.schedPillOn {
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 55%);
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 88%);
+  color: var(--nb-text);
+}
+
+.schedPillOff {
+  color: var(--nb-muted);
+}
+
+.schedPillNext {
+  color: var(--nb-text);
+}
+
+.schedPillTime {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10.5px;
+  color: var(--nb-muted);
+  padding-left: 6px;
+  border-left: 1px solid color-mix(in srgb, var(--nb-border), transparent 40%);
+}
+
+.scheduleToggleBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--nb-border);
+  background: var(--nb-surface-2);
+  color: var(--nb-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease,
+    transform 120ms ease;
+}
+
+.scheduleToggleBtn:hover {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--nb-text), transparent 92%);
+}
+
+.scheduleToggleBtnOn {
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 40%);
+  background: var(--nb-accent-2);
+  color: #fff;
+}
+
+.scheduleToggleBtnOff {
+  background: var(--nb-surface-2);
+  color: var(--nb-muted);
+}
+
+/* Dropdown */
+.rbDropdown {
+  position: absolute;
+  right: 6px;
+  top: calc(100% + 4px);
+  z-index: 100;
+  border: 1px solid var(--nb-border);
+  background: var(--nb-panel-2);
+  border-radius: 10px;
+  box-shadow: var(--nb-shadow);
+  overflow: hidden;
+  min-width: 120px;
+}
+
+.rbDropdownItem {
+  width: 100%;
+  padding: 9px 14px;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--nb-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rbDropdownItem:hover {
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 90%);
+}
+
+.rbDropdownItemDanger {
+  color: var(--nb-danger);
+}
+
+.rbDropdownItemDanger:hover {
+  background: color-mix(in srgb, var(--nb-danger), transparent 90%);
+}
+
+/* Task panel */
+.taskPanelWrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.taskNewForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--nb-border);
+  border-radius: 14px;
+  background: var(--nb-panel);
+}
+
+.taskNewPrompt {
+  width: 100%;
+  min-height: 140px;
+  resize: none;
+  border-radius: 10px;
+  border: 1px solid var(--nb-border);
+  background: var(--nb-panel-2);
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 480;
+  line-height: 18px;
+  color: var(--nb-text);
+  outline: none;
+}
+
+.taskNewPrompt:focus {
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 65%);
+}
+
+.taskCapList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.taskCapChip {
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--nb-border);
+  background: var(--nb-panel);
+  color: var(--nb-muted);
+  transition: all 120ms ease;
+}
+
+.taskCapChipOn {
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 60%);
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 88%);
+  color: var(--nb-text);
+}
+
+.taskStatusBadge {
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.taskEmpty {
+  font-size: 12px;
+  color: var(--nb-muted);
+  text-align: center;
+  padding: 20px 10px;
+}
+
+.taskNewFormActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* Step log */
+.stepLog {
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stepLogEmpty {
+  font-size: 12px;
+  color: var(--nb-muted);
+  text-align: center;
+  padding: 20px;
+}
+
+.stepItem {
+  border: 1px solid var(--nb-border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: var(--nb-panel);
+  font-size: 12px;
+}
+
+.stepItemError {
+  border-color: color-mix(in srgb, var(--nb-danger), transparent 70%);
+}
+
+.stepHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.stepIndex {
+  font-weight: 700;
+  color: var(--nb-muted);
+  font-size: 11px;
+}
+
+.stepAction {
+  font-weight: 600;
+  color: var(--nb-text);
+}
+
+.stepTime {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--nb-muted);
+}
+
+.stepDetail {
+  color: var(--nb-text);
+  font-weight: 480;
+}
+
+.stepThought {
+  margin-top: 4px;
+  color: var(--nb-muted);
+  font-style: italic;
+  font-size: 11px;
+}
+
+.stepError {
+  margin-top: 4px;
+  color: var(--nb-danger);
+  font-weight: 520;
+}
+
+/* Schedule form styles */
+.schedCard {
+  max-width: calc(720px - 48px);
+  width: 100%;
+  padding: 16px 20px;
+  box-sizing: border-box;
+  border: 1px solid var(--nb-border);
+  border-radius: 14px;
+  background: var(--nb-panel);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.schedCardRow {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  align-items: start;
+  gap: 8px 14px;
+}
+
+@media (max-width: 560px) {
+  .schedCardRow {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
+.schedCardLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--nb-muted);
+}
+
+.schedPresets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.schedRowBody {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.schedPreviewDesc {
+  font-size: 12px;
+  color: var(--nb-muted);
+  line-height: 1.35;
+}
+
+.schedPresetChip {
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--nb-border);
+  background: none;
+  color: var(--nb-muted);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.schedPresetChip:hover {
+  color: var(--nb-text);
+  border-color: var(--nb-text-dim, var(--nb-muted));
+}
+
+.schedPresetChip:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--nb-accent-2), transparent 55%);
+  outline-offset: 2px;
+}
+
+.schedPresetChipOn {
+  border-color: var(--nb-accent-2);
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 88%);
+  color: var(--nb-text);
+}
+
+.schedCustomToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--nb-accent-2);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 0;
+  margin-top: 2px;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.15s;
+}
+
+.schedCustomToggle:hover {
+  opacity: 1;
+}
+
+.schedTimeRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.schedTimeInput,
+.schedDowSelect {
+  background: var(--nb-panel-2);
+  border: 1px solid var(--nb-border);
+  border-radius: 10px;
+  color: var(--nb-text);
+  font-size: 13px;
+  padding: 8px 12px;
+}
+
+.schedDayPicker {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.schedDayBtn {
+  appearance: none;
+  border: 1px solid var(--nb-border);
+  border-radius: 10px;
+  background: var(--nb-panel-2);
+  color: var(--nb-muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.schedDayBtn:hover {
+  background: color-mix(in srgb, var(--nb-text), transparent 90%);
+  color: var(--nb-text);
+}
+
+.schedDayBtnOn {
+  background: var(--nb-accent-2);
+  border-color: var(--nb-accent-2);
+  color: #fff;
+}
+
+.schedCardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+  border-top: 1px solid var(--nb-border);
+}
+
+.schedPreview {
+  font-size: 12px;
+  color: var(--nb-muted);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.schedCancelLink {
+  background: none;
+  border: none;
+  color: var(--nb-muted);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.schedCancelLink:hover {
+  color: var(--nb-text);
+}
+
+/* Schedule detail styles */
+.schedDetail {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.schedDetailHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.schedDetailBack {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--nb-muted);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  align-self: flex-start;
+}
+
+.schedDetailBack:hover {
+  color: var(--nb-text);
+}
+
+.schedDetailStatus {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--nb-border);
+  background: var(--nb-panel);
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--nb-muted);
+}
+
+.schedDetailStatusOn {
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 55%);
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 90%);
+  color: var(--nb-text);
+}
+
+.schedDetailPrompt {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--nb-text);
+  line-height: 1.4;
+}
+
+.schedDetailCard {
+  border: 1px solid var(--nb-border);
+  background: var(--nb-panel);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.schedDetailGrid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  font-size: 13px;
+  color: var(--nb-text);
+  align-items: center;
+}
+
+.schedDetailValue {
+  min-width: 0;
+}
+
+.schedDetailCronRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.schedDetailCopy {
+  flex-shrink: 0;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--nb-border);
+  background: var(--nb-panel-2);
+  color: var(--nb-muted);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.schedDetailCopy:hover {
+  color: var(--nb-text);
+  border-color: color-mix(in srgb, var(--nb-text), transparent 70%);
+}
+
+.schedDetailLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--nb-muted);
+}
+
+.schedDetailCode {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: var(--nb-panel-2);
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.schedDetailActions {
+  display: flex;
+  gap: 8px;
+}
+
+.schedDetailBtn {
+  font-size: 12px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--nb-border);
+  background: var(--nb-surface-2);
+  color: var(--nb-text);
+  cursor: pointer;
+}
+
+.schedDetailBtn:hover {
+  background: var(--nb-panel-2);
+}
+
+.schedDetailBtnDanger {
+  color: var(--nb-danger, #e55);
+}
+
+.schedDetailBtnDanger:hover {
+  background: color-mix(in srgb, var(--nb-danger, #e55), transparent 90%);
+}
+
+/* Run history */
+.schedRunHistory {
+  margin-top: 18px;
+}
+
+.schedRunHistoryTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--nb-text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+.schedRunEmpty {
+  font-size: 12px;
+  color: var(--nb-text-3);
+}
+
+.schedRunItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: var(--nb-text);
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 8px;
+  text-align: left;
+}
+
+.schedRunItem:hover {
+  background: var(--nb-surface-2);
+}
+
+.schedRunDot {
+  flex-shrink: 0;
+}
+
+.schedRunDate {
+  flex: 1;
+}
+
+.schedRunDuration {
+  color: var(--nb-text-3);
+  font-size: 11px;
+}
+
+.schedRunTokens {
+  color: var(--nb-text-3);
+  font-size: 11px;
+}
+
+.schedRunArrow {
+  flex-shrink: 0;
+  opacity: 0.3;
+}
+
+/* Process back bar */
+.schedProcessBackBar {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--nb-border);
+  flex-shrink: 0;
+}
+
+.schedProcessBackBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--nb-text-2);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.schedProcessBackBtn:hover {
+  background: var(--nb-surface-2);
+  color: var(--nb-text);
+}
+
+/* New schedule button */
+.schedNewBtn {
+  width: 100%;
+  padding: 8px;
+  border: 1px dashed var(--nb-border);
+  border-radius: 8px;
+  background: none;
+  color: var(--nb-muted);
+  font-size: 13px;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+
+.schedNewBtn:hover {
+  color: var(--nb-text);
+  border-color: var(--nb-text);
+}
+
+.pathBox {
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    SF Mono,
+    Menlo,
+    Consolas,
+    Liberation Mono,
+    monospace;
+  font-size: 12px;
+  color: color-mix(in srgb, var(--nb-text), transparent 16%);
+  border: 1px solid var(--nb-border);
+  background: var(--nb-panel);
+  padding: 10px 12px;
+  border-radius: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 10px;
+}

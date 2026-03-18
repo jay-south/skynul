@@ -1,6 +1,7 @@
 import type { Task, TaskCapabilityId } from '@skynul/shared'
 import { useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import chatStyles from '../components/Chat.module.css'
 import { ChatFeed } from '../components/ChatFeed'
 import { CollectiveChatFeed } from '../components/CollectiveChatFeed'
 import { InputBar } from '../components/InputBar'
@@ -101,11 +102,11 @@ export function TaskChatPage(): React.JSX.Element {
   }
 
   if (!task) {
-    return <div className="chatFeedCentered">Task not found</div>
+    return <div className={chatStyles.chatFeedCentered}>Task not found</div>
   }
 
   return (
-    <div className="chatFeedLayout">
+    <div className={chatStyles.chatFeedLayout}>
       {multiAgentPanelEnabled && rootTask && hasMultiAgents && (
         <MultiAgentControlRoom
           rootTask={rootTask}

@@ -1,6 +1,7 @@
 import type { LanguageCode, ThemeMode } from '@skynul/shared'
 import { useEffect, useState } from 'react'
 import { Section, SectionLabel } from '../../components/layout'
+import { PathBox } from '../../components/PathBox'
 import { UpdateSettings } from '../../components/UpdateSettings'
 import { Button } from '../../components/ui/Button'
 import { t } from '../../i18n'
@@ -130,9 +131,7 @@ export function GeneralSettingsPage(): React.JSX.Element {
       {/* Workspace */}
       <Section>
         <SectionLabel>{t(lang, 'settings_workspace')}</SectionLabel>
-        <div className="pathBox" title={workspaceLabel}>
-          {workspaceLabel}
-        </div>
+        <PathBox title={workspaceLabel}>{workspaceLabel}</PathBox>
         <Button onClick={handlePickWorkspace}>{t(lang, 'settings_pick_workspace')}</Button>
       </Section>
 

@@ -1,0 +1,217 @@
+.inputBarWrap {
+  flex-shrink: 0;
+  border-top: 1px solid var(--nb-border);
+}
+
+.inputBar {
+  padding: 10px 24px 12px;
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.inputBarCapsHint {
+  font-size: 11px;
+  color: var(--nb-muted);
+  margin-bottom: 6px;
+  padding-left: 2px;
+}
+
+.inputBarInner {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  background: var(--nb-surface-2);
+  border: 1px solid var(--nb-border);
+  border-radius: 14px;
+  padding: 8px 12px;
+}
+
+.inputBarTextarea {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--nb-text);
+  font-size: 14px;
+  font-family: inherit;
+  resize: none;
+  outline: none;
+  line-height: 1.5;
+  min-height: 21px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.inputBarTextarea::placeholder {
+  color: var(--nb-muted);
+}
+
+.inputBarActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.inputBarAttachBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--nb-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition:
+    color 0.12s,
+    background 0.12s;
+}
+
+.inputBarAttachBtn:hover {
+  color: var(--nb-text);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.inputBarAttachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  padding-left: 2px;
+}
+
+.inputBarAttachment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--nb-border);
+  background: var(--nb-surface-2);
+  color: var(--nb-text);
+  font-size: 12px;
+}
+
+.inputBarAttachmentName {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inputBarAttachmentRemove {
+  border: none;
+  background: none;
+  color: var(--nb-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.inputBarAttachmentRemove:hover {
+  color: var(--nb-text);
+}
+
+.inputBarAttachmentImg {
+  padding: 4px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.inputBarAttachmentThumb {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 6px;
+  display: block;
+}
+
+.inputBarAttachmentMore {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px dashed var(--nb-border);
+  color: var(--nb-muted);
+  font-size: 12px;
+}
+
+.inputBarMicBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: none;
+  color: var(--nb-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.12s;
+}
+
+.inputBarMicBtn:hover {
+  color: var(--nb-text);
+}
+
+.inputBarMicBtn.recording {
+  color: var(--nb-danger);
+  animation: micPulse 1s infinite;
+}
+
+@keyframes micPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.inputBarSendBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--nb-accent-2);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.12s;
+}
+
+.inputBarSendBtn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.inputBarSendBtn:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.inputBarStopBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: none;
+  color: var(--nb-danger);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+  transition: opacity 0.12s;
+}
+
+.inputBarStopBtn:hover {
+  opacity: 1;
+}

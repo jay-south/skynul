@@ -1,0 +1,77 @@
+.taskTemplatesWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 640px;
+  width: 100%;
+}
+
+.taskTemplatesHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: center;
+}
+
+.taskTemplatesTitle {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--nb-text);
+}
+
+.taskTemplatesSubtitle {
+  font-size: 14px;
+  color: var(--nb-muted);
+}
+
+.taskTemplatesGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.taskTemplateCard {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+  border-radius: 14px;
+  border: 1.5px solid var(--nb-border);
+  background: var(--nb-panel);
+  text-align: left;
+  transition: all 150ms ease;
+}
+
+.taskTemplateCard:hover {
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 50%);
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 92%);
+}
+
+.taskTemplateCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.taskTemplateIcon {
+  color: var(--nb-accent-2);
+}
+
+.taskTemplateCardTitle {
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--nb-text);
+}
+
+.taskTemplateCardDesc {
+  font-size: 13px;
+  color: var(--nb-muted);
+  line-height: 1.45;
+}
+
+.settingsFieldHint {
+  font-size: 11px;
+  font-weight: 520;
+  color: var(--nb-muted);
+}

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCreateProject, useDeleteProject, useProjects } from '../queries'
 import { addTaskToProject } from '../queries/projects/service'
+import styles from './projects-page.module.css'
 
 export function ProjectsPage(): React.JSX.Element {
   const navigate = useNavigate()
@@ -40,11 +41,12 @@ export function ProjectsPage(): React.JSX.Element {
   }
 
   return (
-    <div className="settingsPanel">
-      <div className="settingsPanelInner">
-        <div className="settingsBackBar">
+    <div className={styles.settingsPanel}>
+      <div className={styles.settingsPanelInner}>
+        <div className={styles.settingsBackBar}>
           <button
-            className="backBtn"
+            type="button"
+            className={styles.backBtn}
             onClick={() => navigate('/tasks')}
             aria-label="Back to tasks"
             title="Back to tasks"
@@ -56,12 +58,12 @@ export function ProjectsPage(): React.JSX.Element {
           </button>
         </div>
 
-        <h2 className="settingsPanelTitle">Projects</h2>
+        <h2 className={styles.settingsPanelTitle}>Projects</h2>
 
-        <div className="chatFeedCentered">
+        <div className={styles.chatFeedCentered}>
           {projects.length === 0 ? (
-            <div className="projectsPlaceholder">
-              <div className="projectsPlaceholderIcon">
+            <div className={styles.projectsPlaceholder}>
+              <div className={styles.projectsPlaceholderIcon}>
                 <svg
                   viewBox="0 0 24 24"
                   width="40"
@@ -75,12 +77,13 @@ export function ProjectsPage(): React.JSX.Element {
                   <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
                 </svg>
               </div>
-              <span className="projectsPlaceholderTitle">No projects yet</span>
-              <span className="projectsPlaceholderSub">
+              <span className={styles.projectsPlaceholderTitle}>No projects yet</span>
+              <span className={styles.projectsPlaceholderSub}>
                 Group and manage your tasks. Drag a task onto the Projects button to get started.
               </span>
               <button
-                className="projectsCreateBtn"
+                type="button"
+                className={styles.projectsCreateBtn}
                 onClick={() => {
                   setPendingProjectTaskId(null)
                   setShowCreateProject(true)
@@ -103,11 +106,12 @@ export function ProjectsPage(): React.JSX.Element {
               </button>
             </div>
           ) : (
-            <div className="projectsListPanel">
-              <div className="projectsListHeader">
-                <span className="projectsListTitle">Projects</span>
+            <div className={styles.projectsListPanel}>
+              <div className={styles.projectsListHeader}>
+                <span className={styles.projectsListTitle}>Projects</span>
                 <button
-                  className="projectsCreateBtn small"
+                  type="button"
+                  className={`${styles.projectsCreateBtn} ${styles.small}`}
                   onClick={() => {
                     setPendingProjectTaskId(null)
                     setShowCreateProject(true)
@@ -119,7 +123,7 @@ export function ProjectsPage(): React.JSX.Element {
               {projects.map((proj) => (
                 <div
                   key={proj.id}
-                  className="projectCard"
+                  className={styles.projectCard}
                   onDragOver={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
@@ -127,15 +131,16 @@ export function ProjectsPage(): React.JSX.Element {
                   }}
                   onDrop={(e) => handleDropTask(e, proj.id)}
                 >
-                  <div className="projectCardColor" style={{ background: proj.color }} />
-                  <div className="projectCardBody">
-                    <div className="projectCardName">{proj.name}</div>
-                    <div className="projectCardMeta">
+                  <div className={styles.projectCardColor} style={{ background: proj.color }} />
+                  <div className={styles.projectCardBody}>
+                    <div className={styles.projectCardName}>{proj.name}</div>
+                    <div className={styles.projectCardMeta}>
                       {proj.taskIds.length} task{proj.taskIds.length !== 1 ? 's' : ''}
                     </div>
                   </div>
                   <button
-                    className="projectCardDelete"
+                    type="button"
+                    className={styles.projectCardDelete}
                     onClick={() => handleDeleteProject(proj.id)}
                   >
                     ×
@@ -147,20 +152,20 @@ export function ProjectsPage(): React.JSX.Element {
 
           {showCreateProject && (
             <div
-              className="projectModalOverlay"
+              className={styles.projectModalOverlay}
               onClick={() => {
                 setShowCreateProject(false)
                 setPendingProjectTaskId(null)
                 setCreateProjectName('')
               }}
             >
-              <div className="projectModalCard" onClick={(e) => e.stopPropagation()}>
-                <div className="projectModalTitle">New Project</div>
+              <div className={styles.projectModalCard} onClick={(e) => e.stopPropagation()}>
+                <div className={styles.projectModalTitle}>New Project</div>
                 {pendingProjectTaskId && (
-                  <div className="projectModalSub">Task will be added to this project</div>
+                  <div className={styles.projectModalSub}>Task will be added to this project</div>
                 )}
                 <input
-                  className="projectModalInput"
+                  className={styles.projectModalInput}
                   placeholder="Project name…"
                   value={createProjectName}
                   onChange={(e) => setCreateProjectName(e.target.value)}
@@ -170,9 +175,10 @@ export function ProjectsPage(): React.JSX.Element {
                   }}
                   autoFocus
                 />
-                <div className="projectModalActions">
+                <div className={styles.projectModalActions}>
                   <button
-                    className="projectModalCancel"
+                    type="button"
+                    className={styles.projectModalCancel}
                     onClick={() => {
                       setShowCreateProject(false)
                       setPendingProjectTaskId(null)
@@ -182,7 +188,8 @@ export function ProjectsPage(): React.JSX.Element {
                     Cancel
                   </button>
                   <button
-                    className="projectModalSave"
+                    type="button"
+                    className={styles.projectModalSave}
                     disabled={!createProjectName.trim()}
                     onClick={() =>
                       void handleCreateProject(createProjectName.trim(), pendingProjectTaskId)

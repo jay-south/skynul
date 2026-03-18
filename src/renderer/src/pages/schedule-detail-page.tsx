@@ -1,6 +1,16 @@
 import type { Schedule, Task } from '@skynul/shared'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { CapabilityList, CapabilityToggle } from '../components/CapabilityToggle'
+import {
+  BackBar,
+  BackButton,
+  PanelTitle,
+  Section,
+  SectionLabel,
+  SettingsPanel
+} from '../components/layout'
+import { PathBox } from '../components/PathBox'
 
 export function ScheduleDetailPage(): React.JSX.Element {
   const { scheduleId } = useParams()
@@ -66,7 +76,11 @@ export function ScheduleDetailPage(): React.JSX.Element {
   }
 
   if (!schedule) {
-    return <div className="settingsPanel">Schedule not found</div>
+    return (
+      <SettingsPanel>
+        <PanelTitle>Schedule not found</PanelTitle>
+      </SettingsPanel>
+    )
   }
 
   const completedRuns = scheduleHistory.filter((t) => t.status === 'completed').length
@@ -76,165 +90,149 @@ export function ScheduleDetailPage(): React.JSX.Element {
   }, 0)
 
   return (
-    <div className="settingsPanel">
-      <div className="settingsPanelInner">
-        <div className="settingsBackBar">
-          003cButton
-            className="backBtn"
-            onClick={() => navigate('/schedules')}
-            aria-label="Back"
-            title="Back"
+    <SettingsPanel>
+      <BackBar>
+        <BackButton onClick={() => navigate('/schedules')}>Back</BackButton>
+      </BackBar>
+
+      <PanelTitle>Schedule Detail</PanelTitle>
+
+      <Section>
+        <SectionLabel>Prompt</SectionLabel>
+        <PathBox>{schedule.prompt}</PathBox>
+      </Section>
+
+      <Section>
+        <SectionLabel>Configuration</SectionLabel>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          <div
+            style={{
+              padding: 12,
+              background: 'var(--nb-panel)',
+              borderRadius: 8,
+              textAlign: 'center'
+            }}
           >
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-              <path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
-            </svg>
-            <span>Back</span>
-          003c/Button>
-        </div>
-
-        <h2 className="settingsPanelTitle">Schedule Detail</h2>
-
-        <div className="settingsSection">
-          <div className="settingsLabel">Prompt</div>
-          <div className="pathBox">{schedule.prompt}</div>
-        </div>
-
-        <div className="settingsSection">
-          <div className="settingsLabel">Configuration</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-            <div
-              style={{
-                padding: 12,
-                background: 'var(--nb-panel)',
-                borderRadius: 8,
-                textAlign: 'center'
-              }}
-            >
-              <div style={{ fontSize: 11, color: 'var(--nb-muted)', marginBottom: 4 }}>
-                Frequency
-              </div>
-              <div style={{ fontWeight: 600 }}>{schedule.frequency}</div>
-            </div>
-            <div
-              style={{
-                padding: 12,
-                background: 'var(--nb-panel)',
-                borderRadius: 8,
-                textAlign: 'center'
-              }}
-            >
-              <div style={{ fontSize: 11, color: 'var(--nb-muted)', marginBottom: 4 }}>
-                Next Run
-              </div>
-              <div style={{ fontWeight: 600 }}>{formatNext(schedule.nextRunAt)}</div>
-            </div>
-            <div
-              style={{
-                padding: 12,
-                background: 'var(--nb-panel)',
-                borderRadius: 8,
-                textAlign: 'center'
-              }}
-            >
-              <div style={{ fontSize: 11, color: 'var(--nb-muted)', marginBottom: 4 }}>Status</div>
-              <div style={{ fontWeight: 600 }}>
-                {schedule.enabled ? (
-                  <span style={{ color: 'var(--green, #4ade80)' }}>Active</span>
-                ) : (
-                  <span style={{ color: 'var(--nb-muted)' }}>Paused</span>
-                )}
-              </div>
-            </div>
+            <div style={{ fontSize: 11, color: 'var(--nb-muted)', marginBottom: 4 }}>Frequency</div>
+            <div style={{ fontWeight: 600 }}>{schedule.frequency}</div>
           </div>
-        </div>
-
-        <div className="settingsSection">
-          <div className="settingsLabel">Stats</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-            <div
-              style={{
-                padding: 12,
-                background: 'var(--nb-panel)',
-                borderRadius: 8,
-                textAlign: 'center'
-              }}
-            >
-              <div style={{ fontSize: 11, color: 'var(--nb-muted)', marginBottom: 4 }}>
-                Total Runs
-              </div>
-              <div style={{ fontWeight: 600 }}>{completedRuns + failedRuns}</div>
-            </div>
-            <div
-              style={{
-                padding: 12,
-                background: 'var(--nb-panel)',
-                borderRadius: 8,
-                textAlign: 'center'
-              }}
-            >
-              <div style={{ fontSize: 11, color: 'var(--nb-muted)', marginBottom: 4 }}>
-                Success Rate
-              </div>
-              <div style={{ fontWeight: 600 }}>
-                {completedRuns + failedRuns > 0
-                  ? `${Math.round((completedRuns / (completedRuns + failedRuns)) * 100)}%`
-                  : '—'}
-              </div>
-            </div>
-            <div
-              style={{
-                padding: 12,
-                background: 'var(--nb-panel)',
-                borderRadius: 8,
-                textAlign: 'center'
-              }}
-            >
-              <div style={{ fontSize: 11, color: 'var(--nb-muted)', marginBottom: 4 }}>
-                Total Tokens
-              </div>
-              <div style={{ fontWeight: 600 }}>
-                {totalTokens > 0 ? totalTokens.toLocaleString() : '—'}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: 8, marginTop: 24 }}>
-          003cButton variant="filled" onClick={() => void handleToggle()}>
-            {schedule.enabled ? 'Pause' : 'Resume'}
-          003c/Button>
-          003cButton
-            variant="filled"
-            style={{ color: 'var(--nb-danger)' }}
-            onClick={() => void handleDelete()}
+          <div
+            style={{
+              padding: 12,
+              background: 'var(--nb-panel)',
+              borderRadius: 8,
+              textAlign: 'center'
+            }}
           >
-            Delete
-          003c/Button>
-        </div>
-
-        {scheduleHistory.length > 0 && (
-          <div className="settingsSection" style={{ marginTop: 32 }}>
-            <div className="settingsLabel">Run History</div>
-            <div className="capList">
-              {scheduleHistory.map((t) => (
-                <div
-                  key={t.id}
-                  className="cap"
-                  onClick={() => navigate(`/tasks/${t.id}`)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <div className="capLeft">
-                    <div className="capTitle">{t.prompt.slice(0, 50)}...</div>
-                    <div className="capDesc">
-                      {t.status} · {t.steps.length} steps · {formatAgo(t.updatedAt)}
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div style={{ fontSize: 11, color: 'var(--nb-muted)', marginBottom: 4 }}>Next Run</div>
+            <div style={{ fontWeight: 600 }}>{formatNext(schedule.nextRunAt)}</div>
+          </div>
+          <div
+            style={{
+              padding: 12,
+              background: 'var(--nb-panel)',
+              borderRadius: 8,
+              textAlign: 'center'
+            }}
+          >
+            <div style={{ fontSize: 11, color: 'var(--nb-muted)', marginBottom: 4 }}>Status</div>
+            <div style={{ fontWeight: 600 }}>
+              {schedule.enabled ? (
+                <span style={{ color: 'var(--green, #4ade80)' }}>Active</span>
+              ) : (
+                <span style={{ color: 'var(--nb-muted)' }}>Paused</span>
+              )}
             </div>
           </div>
-        )}
+        </div>
+      </Section>
+
+      <Section>
+        <SectionLabel>Stats</SectionLabel>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          <div
+            style={{
+              padding: 12,
+              background: 'var(--nb-panel)',
+              borderRadius: 8,
+              textAlign: 'center'
+            }}
+          >
+            <div style={{ fontSize: 11, color: 'var(--nb-muted)', marginBottom: 4 }}>
+              Total Runs
+            </div>
+            <div style={{ fontWeight: 600 }}>{completedRuns + failedRuns}</div>
+          </div>
+          <div
+            style={{
+              padding: 12,
+              background: 'var(--nb-panel)',
+              borderRadius: 8,
+              textAlign: 'center'
+            }}
+          >
+            <div style={{ fontSize: 11, color: 'var(--nb-muted)', marginBottom: 4 }}>
+              Success Rate
+            </div>
+            <div style={{ fontWeight: 600 }}>
+              {completedRuns + failedRuns > 0
+                ? `${Math.round((completedRuns / (completedRuns + failedRuns)) * 100)}%`
+                : '—'}
+            </div>
+          </div>
+          <div
+            style={{
+              padding: 12,
+              background: 'var(--nb-panel)',
+              borderRadius: 8,
+              textAlign: 'center'
+            }}
+          >
+            <div style={{ fontSize: 11, color: 'var(--nb-muted)', marginBottom: 4 }}>
+              Total Tokens
+            </div>
+            <div style={{ fontWeight: 600 }}>
+              {totalTokens > 0 ? totalTokens.toLocaleString() : '—'}
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      <div style={{ display: 'flex', gap: 8, marginTop: 24 }}>
+        <button type="button" className="btn" onClick={() => void handleToggle()}>
+          {schedule.enabled ? 'Pause' : 'Resume'}
+        </button>
+        <button
+          type="button"
+          className="btn"
+          style={{ color: 'var(--nb-danger)' }}
+          onClick={() => void handleDelete()}
+        >
+          Delete
+        </button>
       </div>
-    </div>
+
+      {scheduleHistory.length > 0 && (
+        <Section>
+          <SectionLabel>Run History</SectionLabel>
+          <CapabilityList>
+            {scheduleHistory.map((t) => (
+              <div
+                key={t.id}
+                style={{ cursor: 'pointer' }}
+                onClick={() => navigate(`/tasks/${t.id}`)}
+              >
+                <CapabilityToggle
+                  title={`${t.prompt.slice(0, 50)}...`}
+                  description={`${t.status} · ${t.steps.length} steps · ${formatAgo(t.updatedAt)}`}
+                  enabled={t.status === 'completed'}
+                  onToggle={() => navigate(`/tasks/${t.id}`)}
+                />
+              </div>
+            ))}
+          </CapabilityList>
+        </Section>
+      )}
+    </SettingsPanel>
   )
 }

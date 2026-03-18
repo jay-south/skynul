@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Button } from '../components/ui/Button'
 import { useCreateSchedule } from '../queries'
 
 export function NewSchedulePage(): React.JSX.Element {
@@ -53,17 +54,17 @@ export function NewSchedulePage(): React.JSX.Element {
     <div className="settingsPanel">
       <div className="settingsPanelInner">
         <div className="settingsBackBar">
-          003cButton
+          <Button
             className="backBtn"
             onClick={() => navigate('/schedules')}
             aria-label="Back"
             title="Back"
           >
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
               <path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
             </svg>
             <span>Back</span>
-          003c/Button>
+          </Button>
         </div>
 
         <h2 className="settingsPanelTitle">New Schedule</h2>
@@ -105,16 +106,16 @@ export function NewSchedulePage(): React.JSX.Element {
         )}
 
         <div style={{ display: 'flex', gap: 8, marginTop: 24 }}>
-          003cButton variant="filled" onClick={() => navigate('/schedules')}>
+          <Button variant="filled" onClick={() => navigate('/schedules')}>
             Cancel
-          003c/Button>
-          003cButton
+          </Button>
+          <Button
             className="btn btnFilled"
             disabled={!prompt.trim() || createScheduleMutation.isPending}
             onClick={() => void handleSave()}
           >
             {createScheduleMutation.isPending ? 'Saving...' : 'Create Schedule'}
-          003c/Button>
+          </Button>
         </div>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import styles from './Settings.module.css'
 
 interface SectionProps {
   children: ReactNode
@@ -10,7 +11,7 @@ interface SectionProps {
  * Usado en: settings pages, forms
  */
 export function Section({ children, className }: SectionProps): React.JSX.Element {
-  return <div className={`settingsSection ${className || ''}`}>{children}</div>
+  return <div className={`${styles.settingsSection} ${className || ''}`}>{children}</div>
 }
 
 interface SectionLabelProps {
@@ -21,7 +22,7 @@ interface SectionLabelProps {
  * Label de sección (settingsLabel)
  */
 export function SectionLabel({ children }: SectionLabelProps): React.JSX.Element {
-  return <div className="settingsLabel">{children}</div>
+  return <div className={styles.settingsLabel}>{children}</div>
 }
 
 interface SectionFieldProps {
@@ -34,8 +35,8 @@ interface SectionFieldProps {
  */
 export function SectionField({ children, hint }: SectionFieldProps): React.JSX.Element {
   return (
-    <div className="settingsField">
-      {hint && <div className="settingsFieldHint">{hint}</div>}
+    <div className={styles.settingsField}>
+      {hint && <div className={styles.settingsFieldHint}>{hint}</div>}
       {children}
     </div>
   )

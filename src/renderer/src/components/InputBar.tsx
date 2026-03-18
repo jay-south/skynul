@@ -2,6 +2,7 @@ import type { LanguageCode, TaskCapabilityId } from '@skynul/shared'
 import { ALL_TASK_CAPABILITIES } from '@skynul/shared'
 import { useRef, useState } from 'react'
 import { speechLocale } from '../i18n'
+import styles from './InputBar.module.css'
 
 export function InputBar(props: {
   lang: LanguageCode
@@ -131,7 +132,8 @@ export function InputBar(props: {
 
   const micButton = (
     <button
-      className={`inputBarMicBtn ${isRecording ? 'recording' : ''}`}
+      type="button"
+      className={`${styles.inputBarMicBtn}${isRecording ? ` ${styles.recording}` : ''}`}
       onClick={toggleMic}
       title={isRecording ? 'Stop recording' : 'Voice input'}
     >
@@ -148,7 +150,12 @@ export function InputBar(props: {
   )
 
   const attachButton = (
-    <button className="inputBarAttachBtn" onClick={() => void pickFiles()} title="Attach files">
+    <button
+      type="button"
+      className={styles.inputBarAttachBtn}
+      onClick={() => void pickFiles()}
+      title="Attach files"
+    >
       <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
         <path d="M19 11h-6V5h-2v6H5v2h6v6h2v-6h6z" />
       </svg>
@@ -157,7 +164,7 @@ export function InputBar(props: {
 
   const attachmentsRow =
     attachments.length > 0 ? (
-      <div className="inputBarAttachments" aria-label="Attachments">
+      <div className={styles.inputBarAttachments} aria-label="Attachments">
         {attachments.slice(0, 8).map((p) => {
           const isDataUrl = p.startsWith('data:image/')
           const name = isDataUrl ? 'imagen' : p.split(/[\\/]/).pop() || p
@@ -165,16 +172,17 @@ export function InputBar(props: {
           return (
             <div
               key={p}
-              className={`inputBarAttachment${isImage ? ' inputBarAttachmentImg' : ''}`}
+              className={`${styles.inputBarAttachment}${isImage ? ` ${styles.inputBarAttachmentImg}` : ''}`}
               title={p}
             >
               {isImage ? (
-                <img src={p} className="inputBarAttachmentThumb" alt={name} />
+                <img src={p} className={styles.inputBarAttachmentThumb} alt={name} />
               ) : (
-                <span className="inputBarAttachmentName">{name}</span>
+                <span className={styles.inputBarAttachmentName}>{name}</span>
               )}
               <button
-                className="inputBarAttachmentRemove"
+                type="button"
+                className={styles.inputBarAttachmentRemove}
                 onClick={() => setAttachments((prev) => prev.filter((x) => x !== p))}
                 title="Remove"
               >
@@ -186,14 +194,15 @@ export function InputBar(props: {
           )
         })}
         {attachments.length > 8 ? (
-          <div className="inputBarAttachmentMore">+{attachments.length - 8}</div>
+          <div className={styles.inputBarAttachmentMore}>+{attachments.length - 8}</div>
         ) : null}
       </div>
     ) : null
 
   const sendButton = (
     <button
-      className="inputBarSendBtn"
+      type="button"
+      className={styles.inputBarSendBtn}
       onClick={submit}
       disabled={!text.trim()}
       title={props.compact ? 'Send message' : 'Create task'}
@@ -207,22 +216,27 @@ export function InputBar(props: {
   // ── Compact: inside feed, full-width border ────
   if (props.compact) {
     return (
-      <div className="inputBarWrap">
-        <div className="inputBar">
-          <div className="inputBarInner">
+      <div className={styles.inputBarWrap}>
+        <div className={styles.inputBar}>
+          <div className={styles.inputBarInner}>
             {attachButton}
             <textarea
               ref={textareaRef}
-              className="inputBarTextarea"
+              className={styles.inputBarTextarea}
               placeholder="Send a message to the agent..."
               value={text}
               onChange={handleInput}
               onKeyDown={handleKeyDown}
               rows={1}
             />
-            <div className="inputBarActions">
+            <div className={styles.inputBarActions}>
               {props.onStop && (
-                <button className="inputBarStopBtn" onClick={props.onStop} title="Stop task">
+                <button
+                  type="button"
+                  className={styles.inputBarStopBtn}
+                  onClick={props.onStop}
+                  title="Stop task"
+                >
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                     <rect x="6" y="6" width="12" height="12" rx="2" />
                   </svg>
@@ -240,20 +254,20 @@ export function InputBar(props: {
 
   // ── Full: centered ─────────────
   return (
-    <div className="inputBar">
-      {capsHint && <div className="inputBarCapsHint">{capsHint}</div>}
-      <div className="inputBarInner">
+    <div className={styles.inputBar}>
+      {capsHint && <div className={styles.inputBarCapsHint}>{capsHint}</div>}
+      <div className={styles.inputBarInner}>
         {attachButton}
         <textarea
           ref={textareaRef}
-          className="inputBarTextarea"
+          className={styles.inputBarTextarea}
           placeholder="What should the agent do?"
           value={text}
           onChange={handleInput}
           onKeyDown={handleKeyDown}
           rows={1}
         />
-        <div className="inputBarActions">
+        <div className={styles.inputBarActions}>
           {micButton}
           {sendButton}
         </div>

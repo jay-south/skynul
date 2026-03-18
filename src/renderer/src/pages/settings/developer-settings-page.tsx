@@ -1,5 +1,6 @@
-import { Button } from "../.../components/ui/Button"
+import { CapabilityToggle } from '../../components/CapabilityToggle'
 import { Section, SectionLabel } from '../../components/layout'
+import { PathBox } from '../../components/PathBox'
 import { t } from '../../i18n'
 import { usePickWorkspace, usePolicy, useSetCapability } from '../../queries'
 
@@ -31,30 +32,21 @@ export function DeveloperSettingsPage(): React.JSX.Element {
     <>
       <Section>
         <SectionLabel>Shell Access</SectionLabel>
-        003cButton
-          type="button"
-          className={`cap ${policy?.capabilities['cmd.run'] ? 'on' : 'off'}`}
-          onClick={handleToggleCmdRun}
+        <CapabilityToggle
+          title="Run Commands"
+          description="Allow the agent to execute shell commands"
+          enabled={!!policy?.capabilities['cmd.run']}
+          onToggle={handleToggleCmdRun}
           disabled={!policy}
-        >
-          <div className="capLeft">
-            <div className="capTitle">Run Commands</div>
-            <div className="capDesc">Allow the agent to execute shell commands</div>
-          </div>
-          <div className="capToggle" aria-hidden="true">
-            <div className="capKnob" />
-          </div>
-        003c/Button>
+        />
       </Section>
 
       <Section>
         <SectionLabel>Workspace</SectionLabel>
-        <div className="pathBox" title={workspaceLabel}>
-          {workspaceLabel}
-        </div>
-        003cButton type="button" variant="filled" onClick={handlePickWorkspace}>
+        <PathBox title={workspaceLabel}>{workspaceLabel}</PathBox>
+        <button type="button" className="btn" onClick={handlePickWorkspace}>
           {t(lang, 'settings_pick_workspace')}
-        003c/Button>
+        </button>
         <div className="settingsFieldHint">Working directory for shell commands</div>
       </Section>
     </>

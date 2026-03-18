@@ -1,5 +1,6 @@
 import type { Task } from '@skynul/shared'
 import { useMemo } from 'react'
+import styles from './MultiAgentControlRoom.module.css'
 
 type AgentLabel = { name?: string; role?: string; strippedPrompt: string }
 
@@ -114,18 +115,18 @@ export function MultiAgentControlRoom(props: {
   }, [props.tasks, rootTask.id])
 
   return (
-    <div className="maPanel" role="region" aria-label="Multi-agent control room">
-      <div className="maTop">
-        <div className="maTitle">Multi-Agent Control Room</div>
-        <div className="maMeta">
-          <span className="maMetaPill" title={rootTask.id}>
+    <div className={styles.panel} role="region" aria-label="Multi-agent control room">
+      <div className={styles.top}>
+        <div className={styles.title}>Multi-Agent Control Room</div>
+        <div className={styles.meta}>
+          <span className={styles.metaPill} title={rootTask.id}>
             Root: {rootPrompt || rootTask.id}
           </span>
-          <span className="maMetaPill">Agents: {Math.max(1, grouped.length)}</span>
+          <span className={styles.metaPill}>Agents: {Math.max(1, grouped.length)}</span>
         </div>
       </div>
 
-      <div className="maRow" role="list">
+      <div className={styles.row} role="list">
         {grouped.map((t, idx) => {
           const parsed = parseAgentLabel(t.prompt)
           const role = inferRole(t, parsed)
@@ -135,28 +136,31 @@ export function MultiAgentControlRoom(props: {
           const status = STATUS_LABEL[t.status] ?? t.status
           const isTransmitting = t.status === 'running' && t.steps.length > 0
           return (
-            <div key={t.id} className="maCardWrapper" style={{ animationDelay: `${idx * 120}ms` }}>
-              {/* Cable connector between cards */}
+            <div
+              key={t.id}
+              className={styles.cardWrapper}
+              style={{ animationDelay: `${idx * 120}ms` }}
+            >
               {idx > 0 && (
-                <div className={`maCable ${isTransmitting ? 'transmitting' : ''}`}>
-                  <div className="maCableLine" />
-                  {isTransmitting && <div className="maCablePulse" />}
+                <div className={isTransmitting ? styles.cableTransmitting : styles.cable}>
+                  <div className={styles.cableLine} />
+                  {isTransmitting && <div className={styles.cablePulse} />}
                 </div>
               )}
               <button
-                className={`maCard ${isActive ? 'active' : ''}`}
+                className={`${styles.card}${isActive ? ` ${styles.cardActive}` : ''}`}
                 onClick={() => props.onSelectTask(t.id)}
                 role="listitem"
                 title={parsed.strippedPrompt}
               >
-                <div className="maCardTop">
-                  <div className="maName">@{name}</div>
-                  <div className="maRole">{role}</div>
+                <div className={styles.cardTop}>
+                  <div className={styles.name}>@{name}</div>
+                  <div className={styles.role}>{role}</div>
                 </div>
-                <div className="maCardBottom">
-                  <span className={`maStatus ${t.status}`}>{status}</span>
-                  <span className="maTiny">{t.steps.length} steps</span>
-                  <span className="maTiny">{fmtAgo(t.updatedAt)}</span>
+                <div className={styles.cardBottom}>
+                  <span className={styles.status}>{status}</span>
+                  <span className={styles.tiny}>{t.steps.length} steps</span>
+                  <span className={styles.tiny}>{fmtAgo(t.updatedAt)}</span>
                 </div>
               </button>
             </div>

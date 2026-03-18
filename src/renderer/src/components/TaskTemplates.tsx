@@ -1,5 +1,6 @@
 import type { LanguageCode } from '@skynul/shared'
 import { t } from '../i18n'
+import styles from './TaskTemplates.module.css'
 
 export type TaskTemplateId = 'daily' | 'trading' | 'chat' | 'custom'
 
@@ -88,46 +89,49 @@ export function TaskTemplates(props: {
   ]
 
   return (
-    <div className="taskTemplatesWrap">
-      <div className="taskTemplatesHeader">
-        <div className="taskTemplatesTitle">{t(lang, 'tasks_templates_title')}</div>
-        <div className="taskTemplatesSubtitle">{t(lang, 'tasks_templates_subtitle')}</div>
+    <div className={styles.taskTemplatesWrap}>
+      <div className={styles.taskTemplatesHeader}>
+        <div className={styles.taskTemplatesTitle}>{t(lang, 'tasks_templates_title')}</div>
+        <div className={styles.taskTemplatesSubtitle}>{t(lang, 'tasks_templates_subtitle')}</div>
       </div>
 
       <div className="seg seg--2col" style={{ marginBottom: 4 }}>
         <button
+          type="button"
           className={`segBtn ${mode === 'screen' ? 'active' : ''}`}
           onClick={() => onModeChange('screen')}
         >
           Screen Mode
         </button>
         <button
+          type="button"
           className={`segBtn ${mode === 'code' ? 'active' : ''}`}
           onClick={() => onModeChange('code')}
         >
           Headless Mode
         </button>
       </div>
-      <div className="settingsFieldHint" style={{ textAlign: 'center', marginBottom: 8 }}>
+      <div className={styles.settingsFieldHint} style={{ textAlign: 'center', marginBottom: 8 }}>
         {mode === 'screen'
           ? 'The agent sees your screen via screenshots and interacts visually'
           : 'The agent works in the background — commands only, no screen needed'}
       </div>
 
-      <div className="taskTemplatesGrid">
+      <div className={styles.taskTemplatesGrid}>
         {templates.map((tpl) => (
           <button
+            type="button"
             key={tpl.id}
-            className={`taskTemplateCard tpl-${tpl.id}`}
+            className={styles.taskTemplateCard}
             onClick={() => props.onPick(tpl.id)}
           >
-            <div className="taskTemplateCardHeader">
-              <div className="taskTemplateIcon" aria-hidden="true">
+            <div className={styles.taskTemplateCardHeader}>
+              <div className={styles.taskTemplateIcon} aria-hidden="true">
                 <TemplateIcon id={tpl.id} />
               </div>
-              <div className="taskTemplateCardTitle">{t(lang, tpl.titleKey)}</div>
+              <div className={styles.taskTemplateCardTitle}>{t(lang, tpl.titleKey)}</div>
             </div>
-            <div className="taskTemplateCardDesc">{t(lang, tpl.descKey)}</div>
+            <div className={styles.taskTemplateCardDesc}>{t(lang, tpl.descKey)}</div>
           </button>
         ))}
       </div>

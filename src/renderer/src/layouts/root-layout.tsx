@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import skynulLogo from '../assets/logo-skynul.svg'
 import { SUPABASE_CONFIGURED, supabase } from '../supabase'
+import styles from './RootLayout.module.css'
 
 export function RootLayout(): React.JSX.Element {
   const [isMaximized, setIsMaximized] = useState(false)
@@ -48,15 +49,25 @@ export function RootLayout(): React.JSX.Element {
   }
 
   return (
-    <div className={`layout${isMaximized ? ' maximized' : ''}`}>
+    <div className={`${styles.layout}${isMaximized ? ` ${styles.maximized}` : ''}`}>
       {/* Title bar */}
-      <div className="titleBar">
-        <button type="button" className="winBtn" onClick={handleMinimize} aria-label="Minimize">
+      <div className={styles.titleBar}>
+        <button
+          type="button"
+          className={styles.winBtn}
+          onClick={handleMinimize}
+          aria-label="Minimize"
+        >
           <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
             <rect x="4" y="11" width="16" height="2" rx="1" />
           </svg>
         </button>
-        <button type="button" className="winBtn" onClick={handleMaximize} aria-label="Maximize">
+        <button
+          type="button"
+          className={styles.winBtn}
+          onClick={handleMaximize}
+          aria-label="Maximize"
+        >
           <svg
             viewBox="0 0 24 24"
             width="11"
@@ -68,7 +79,12 @@ export function RootLayout(): React.JSX.Element {
             <rect x="4" y="4" width="16" height="16" rx="2" />
           </svg>
         </button>
-        <button type="button" className="winBtn close" onClick={handleClose} aria-label="Close">
+        <button
+          type="button"
+          className={`${styles.winBtn} ${styles.close}`}
+          onClick={handleClose}
+          aria-label="Close"
+        >
           <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
             <path d="M6.225 4.811a1 1 0 0 0-1.414 1.414L10.586 12l-5.775 5.775a1 1 0 1 0 1.414 1.414L12 13.414l5.775 5.775a1 1 0 0 0 1.414-1.414L13.414 12l5.775-5.775a1 1 0 0 0-1.414-1.414L12 10.586 6.225 4.811Z" />
           </svg>
@@ -76,15 +92,17 @@ export function RootLayout(): React.JSX.Element {
       </div>
 
       {/* Sidebar Navigation */}
-      <aside className="sidebar">
-        <div className="sidebarBrand">
-          <img src={skynulLogo} alt="Skynul" className="sbFooterLogo" />
+      <aside className={styles.sidebar}>
+        <div className={styles.sidebarBrand}>
+          <img src={skynulLogo} alt="Skynul" className={styles.sidebarFooterLogo} />
         </div>
 
-        <nav className="sidebarNav">
+        <nav className={styles.sidebarNav}>
           <NavLink
             to="/tasks"
-            className={({ isActive }) => `sidebarNavItem${isActive ? ' active' : ''}`}
+            className={({ isActive }) =>
+              `${styles.sidebarNavItem}${isActive ? ` ${styles.active}` : ''}`
+            }
           >
             <svg
               viewBox="0 0 24 24"
@@ -104,7 +122,9 @@ export function RootLayout(): React.JSX.Element {
 
           <NavLink
             to="/dashboard"
-            className={({ isActive }) => `sidebarNavItem${isActive ? ' active' : ''}`}
+            className={({ isActive }) =>
+              `${styles.sidebarNavItem}${isActive ? ` ${styles.active}` : ''}`
+            }
           >
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
               <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
@@ -114,7 +134,9 @@ export function RootLayout(): React.JSX.Element {
 
           <NavLink
             to="/projects"
-            className={({ isActive }) => `sidebarNavItem${isActive ? ' active' : ''}`}
+            className={({ isActive }) =>
+              `${styles.sidebarNavItem}${isActive ? ` ${styles.active}` : ''}`
+            }
           >
             <svg
               viewBox="0 0 24 24"
@@ -133,7 +155,9 @@ export function RootLayout(): React.JSX.Element {
 
           <NavLink
             to="/schedules"
-            className={({ isActive }) => `sidebarNavItem${isActive ? ' active' : ''}`}
+            className={({ isActive }) =>
+              `${styles.sidebarNavItem}${isActive ? ` ${styles.active}` : ''}`
+            }
           >
             <svg
               viewBox="0 0 24 24"
@@ -153,7 +177,9 @@ export function RootLayout(): React.JSX.Element {
 
           <NavLink
             to="/settings"
-            className={({ isActive }) => `sidebarNavItem${isActive ? ' active' : ''}`}
+            className={({ isActive }) =>
+              `${styles.sidebarNavItem}${isActive ? ` ${styles.active}` : ''}`
+            }
           >
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
               <path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.2 7.2 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 1h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.22-1.13.52-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 7.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.41 1.05.73 1.63.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .44-.18.49-.42l.36-2.54c.58-.22 1.13-.52 1.63-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z" />
@@ -164,8 +190,12 @@ export function RootLayout(): React.JSX.Element {
 
         {/* Sign In button at bottom */}
         <div
-          className="sidebarFooter"
-          style={{ marginTop: 'auto', padding: '16px', borderTop: '1px solid var(--nb-border)' }}
+          className={styles.sidebarFooter}
+          style={{
+            marginTop: 'auto',
+            padding: '16px',
+            borderTop: '1px solid var(--nb-border)'
+          }}
         >
           {accountConnected ? (
             <button
@@ -251,7 +281,7 @@ export function RootLayout(): React.JSX.Element {
       </aside>
 
       {/* Main content area */}
-      <section className="main">
+      <section className={styles.main}>
         <Outlet />
       </section>
     </div>

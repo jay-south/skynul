@@ -12,6 +12,7 @@ import openrouterIcon from '../../assets/openrouter.svg'
 import { CardGrid, Section, SectionLabel } from '../../components/layout'
 import { t } from '../../i18n'
 import { usePolicy, useSetOpenAIModel, useSetProvider } from '../../queries'
+import styles from './providers-settings-page.module.css'
 
 const PROVIDERS: Array<{
   id: ProviderId
@@ -116,43 +117,51 @@ export function ProvidersSettingsPage(): React.JSX.Element {
             const isGemini = p.id === 'gemini'
 
             return (
-              003cButton
+              <button
                 key={p.id}
                 type="button"
-                className={`providerCard ${isActive ? 'active' : ''} ${
-                  isKimi ? 'providerCard--kimi' : ''
-                } ${isGLM ? 'providerCard--glm' : ''} ${
-                  isMiniMax ? 'providerCard--minimax' : ''
-                } ${isOpenRouter ? 'providerCard--openrouter' : ''} ${
-                  isGemini ? 'providerCard--gemini' : ''
+                className={`${styles.providerCard} ${isActive ? 'active' : ''} ${
+                  isKimi ? styles.providerCardKimi : ''
+                } ${isGLM ? styles.providerCardGlm : ''} ${
+                  isMiniMax ? styles.providerCardMinimax : ''
+                } ${isOpenRouter ? styles.providerCardOpenrouter : ''} ${
+                  isGemini ? styles.providerCardGemini : ''
                 }`}
                 onClick={() => handleSetProvider(p.id)}
                 disabled={setProviderMutation.isPending}
               >
                 {isGLM ? (
-                  <div className="providerTextLogo providerTextLogo--bold" aria-label={p.label}>
+                  <div
+                    className={`${styles.providerTextLogo} ${styles.providerTextLogoBold}`}
+                    aria-label={p.label}
+                  >
                     GLM
                   </div>
                 ) : isMiniMax ? (
-                  <div className="providerTextLogo providerTextLogo--regular" aria-label={p.label}>
+                  <div
+                    className={`${styles.providerTextLogo} ${styles.providerTextLogoRegular}`}
+                    aria-label={p.label}
+                  >
                     MiniMax M2.5
                   </div>
                 ) : (
-                  <img src={p.icon} alt={p.label} className="providerIcon" />
+                  <img src={p.icon} alt={p.label} className={styles.providerIcon} />
                 )}
-                {isKimi && <div className="providerCardLabel">KIMI k2-5</div>}
+                {isKimi && <div className={styles.providerCardLabel}>KIMI k2-5</div>}
                 {isOpenRouter && (
-                  <div className="providerCardLabel providerCardLabel--medium">OPEN ROUTER</div>
+                  <div className={`${styles.providerCardLabel} ${styles.providerCardLabelMedium}`}>
+                    OPEN ROUTER
+                  </div>
                 )}
                 {isActive && p.id === 'chatgpt' && chatgptConnected && (
-                  <div className="providerCardBadge">
-                    <span className="providerCardBadgeCheck" aria-hidden>
+                  <div className={styles.providerCardBadge}>
+                    <span className={styles.providerCardBadgeCheck} aria-hidden>
                       ✓
                     </span>
                     {t(lang, 'provider_connected')}
                   </div>
                 )}
-              003c/Button>
+              </button>
             )
           })}
         </CardGrid>
@@ -201,28 +210,28 @@ export function ProvidersSettingsPage(): React.JSX.Element {
 
       {/* API Key for other providers */}
       {activeProvider && activeProvider !== 'chatgpt' && activeProvider !== 'ollama' && (
-        <div className="settingsSection">
-          <div className="settingsLabel">
+        <div className={styles.settingsSection}>
+          <div className={styles.settingsLabel}>
             {t(lang, `settings_${activeProvider}_key` as `settings_${typeof activeProvider}_key`)}
           </div>
-          <div className="settingsField">
+          <div className={styles.settingsField}>
             <input
               type="password"
-              className="apiKeyInput"
+              className={styles.apiKeyInput}
               placeholder={t(lang, 'provider_api_key_placeholder')}
               value={apiKeyDraft}
               onChange={(e) => setApiKeyDraft(e.target.value)}
               aria-label={t(lang, 'provider_api_key_placeholder')}
             />
-            003cButton
+            <button
               type="button"
-              variant="filled"
+              className="btn"
               onClick={handleSaveApiKey}
               disabled={!apiKeyDraft.trim()}
             >
               {t(lang, 'provider_api_key_save')}
-            003c/Button>
-            <div className="settingsFieldHint">
+            </button>
+            <div className={styles.settingsFieldHint}>
               {t(lang, `${activeProvider}_key_get_from` as `${typeof activeProvider}_key_get_from`)}
             </div>
           </div>

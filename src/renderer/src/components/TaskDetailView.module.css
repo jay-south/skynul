@@ -1,0 +1,86 @@
+.taskDetail {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+}
+
+.taskDetailHeader {
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--nb-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.taskDetailPrompt {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--nb-text);
+}
+
+.taskDetailMeta {
+  font-size: 12px;
+  font-weight: 520;
+  color: var(--nb-muted);
+}
+
+.taskDetailStatus {
+  font-weight: 600;
+}
+
+.taskDetailError {
+  color: var(--nb-danger);
+}
+
+.taskDetailSummary {
+  color: var(--nb-accent-2);
+}
+
+.taskDetailActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.taskDetailBody {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.taskScreenshot {
+  border-right: 1px solid var(--nb-border);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: color-mix(in srgb, var(--nb-bg), transparent 50%);
+}
+
+.taskScreenshotImg {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 1px solid var(--nb-border);
+}
+
+.taskScreenshotEmpty {
+  font-size: 13px;
+  color: var(--nb-muted);
+  text-align: center;
+}
+
+.taskBtnApprove {
+  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 50%) !important;
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 85%) !important;
+}
+
+.taskBtnCancel {
+  border-color: color-mix(in srgb, var(--nb-danger), transparent 60%) !important;
+  background: color-mix(in srgb, var(--nb-danger), transparent 90%) !important;
+  color: var(--nb-danger) !important;
+}

@@ -1,0 +1,216 @@
+.panel {
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--nb-border);
+  background: var(--nb-panel);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 24px;
+}
+
+.title {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--nb-muted);
+  white-space: nowrap;
+}
+
+.meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.metaPill {
+  font-size: 12px;
+  color: var(--nb-muted);
+  padding: 2px 8px;
+  border: 1px solid var(--nb-border);
+  border-radius: 999px;
+  background: var(--nb-panel-2);
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  padding: 0 24px 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-gutter: stable;
+}
+
+.row::-webkit-scrollbar {
+  height: 6px;
+}
+
+.row::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.row::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--nb-text), transparent 88%);
+  border-radius: 999px;
+}
+
+.card {
+  min-width: 220px;
+  max-width: 260px;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--nb-border);
+  background: var(--nb-panel-2);
+  box-shadow: none;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 120ms ease,
+    border-color 120ms ease,
+    background 120ms ease;
+}
+
+.card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--nb-accent-2), var(--nb-border) 70%);
+}
+
+.cardActive {
+  border-color: color-mix(in srgb, var(--nb-accent-2), var(--nb-border) 30%);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--nb-accent-2), transparent 82%);
+}
+
+.cardTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--nb-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role {
+  font-size: 12px;
+  color: var(--nb-muted);
+  white-space: nowrap;
+}
+
+.cardBottom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.status {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--nb-border);
+  background: color-mix(in srgb, var(--nb-bg), transparent 20%);
+  color: var(--nb-muted);
+}
+
+.statusRunning,
+.statusApproved {
+  color: color-mix(in srgb, var(--nb-accent-2), var(--nb-text) 10%);
+  border-color: color-mix(in srgb, var(--nb-accent-2), var(--nb-border) 65%);
+}
+
+.statusCompleted {
+  color: color-mix(in srgb, var(--nb-accent), var(--nb-text) 10%);
+  border-color: color-mix(in srgb, var(--nb-accent), var(--nb-border) 65%);
+}
+
+.statusFailed {
+  color: color-mix(in srgb, var(--nb-danger), var(--nb-text) 10%);
+  border-color: color-mix(in srgb, var(--nb-danger), var(--nb-border) 65%);
+}
+
+.tiny {
+  font-size: 12px;
+  color: var(--nb-muted);
+}
+
+.cardWrapper {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  animation: cardEnter 0.4s ease-out both;
+}
+
+@keyframes cardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.cable {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  flex: 0 0 28px;
+  position: relative;
+}
+
+.cableLine {
+  width: 100%;
+  height: 2px;
+  background: var(--nb-border);
+  border-radius: 1px;
+  transition: background 0.3s ease;
+}
+
+.cableTransmitting .cableLine {
+  background: color-mix(in srgb, var(--nb-accent-2), var(--nb-border) 40%);
+}
+
+.cablePulse {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--nb-accent-2);
+  box-shadow: 0 0 6px var(--nb-accent-2);
+  animation: pulseTravel 1.2s ease-in-out infinite;
+}
+
+@keyframes pulseTravel {
+  0% {
+    left: 0;
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% - 6px);
+    opacity: 0;
+  }
+}

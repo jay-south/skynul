@@ -1,0 +1,149 @@
+.layout {
+  height: 100%;
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  grid-template-rows: 38px 1fr;
+  background: var(--nb-bg);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 24px 48px rgba(0, 0, 0, 0.5);
+}
+
+.layout.maximized {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.titleBar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 8px;
+  gap: 6px;
+  -webkit-app-region: drag;
+  background: var(--nb-bg);
+  border-bottom: 1px solid var(--nb-border);
+  user-select: none;
+}
+
+.winBtn {
+  -webkit-app-region: no-drag;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--nb-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background 100ms ease,
+    color 100ms ease;
+  flex-shrink: 0;
+}
+
+.winBtn:hover {
+  background: color-mix(in srgb, var(--nb-text), transparent 88%);
+  color: var(--nb-text);
+}
+
+.winBtn.close:hover {
+  background: color-mix(in srgb, var(--nb-danger), transparent 82%);
+  color: var(--nb-danger);
+}
+
+.sidebar {
+  min-height: 0;
+  padding: 14px;
+  border-right: 1px solid var(--nb-border);
+  background: var(--nb-sidebar-bg, var(--nb-panel-2));
+  backdrop-filter: blur(18px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  user-select: none;
+}
+
+.sidebarBrand {
+  flex-shrink: 0;
+  padding: 4px 8px 20px;
+}
+
+.sidebarNav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+}
+
+.sidebarNavItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: var(--nb-muted);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 150ms ease;
+}
+
+.sidebarNavItem:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--nb-text);
+}
+
+.sidebarNavItem.active {
+  background: rgba(108, 140, 255, 0.12);
+  color: var(--nb-accent);
+}
+
+.sidebarNavItem svg {
+  flex-shrink: 0;
+}
+
+.sidebarFooter {
+  margin-top: auto;
+  padding: 16px;
+  border-top: 1px solid var(--nb-border);
+}
+
+.sidebarFooterLogo {
+  display: block;
+  height: 28px;
+  width: auto;
+  object-fit: contain;
+}
+
+[data-theme="light"] .sidebarFooterLogo {
+  filter: brightness(0);
+}
+
+[data-theme="dark"] .sidebarFooterLogo {
+  filter: brightness(0) invert(1);
+}
+
+.main {
+  height: 100%;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  min-height: 0;
+}
+
+/* Responsive */
+@media (max-width: 860px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    display: none;
+  }
+}
