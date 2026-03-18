@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { type CSSProperties, useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import skynulLogo from '../assets/logo-skynul.svg'
 import { SUPABASE_CONFIGURED, supabase } from '../supabase'
+import { Button } from '../components/ui/button'
+import { cn } from '../lib/utils'
 
 export function RootLayout(): React.JSX.Element {
   const [isMaximized, setIsMaximized] = useState(false)
@@ -47,16 +49,55 @@ export function RootLayout(): React.JSX.Element {
     await supabase.auth.signOut()
   }
 
+  useEffect(() => {
+    const rootEl = document.getElementById('root')
+    if (!rootEl) return
+    rootEl.style.padding = isMaximized ? '0' : '1px'
+  }, [isMaximized])
+
   return (
-    <div className={`layout${isMaximized ? ' maximized' : ''}`}>
+    <div
+      className={cn(
+        'h-full min-h-0 grid grid-cols-[320px_1fr] grid-rows-[38px_1fr] overflow-hidden rounded-[10px] bg-[var(--nb-bg)]',
+        'max-[860px]:grid-cols-1',
+        'shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_24px_48px_rgba(0,0,0,0.5)]',
+        isMaximized && 'rounded-none shadow-none'
+      )}
+    >
       {/* Title bar */}
-      <div className="titleBar">
-        <button type="button" className="winBtn" onClick={handleMinimize} aria-label="Minimize">
+      <div
+        className={cn(
+          'col-span-2 max-[860px]:col-span-1 flex items-center justify-end gap-[6px] px-[8px] border-b border-[var(--nb-border)]',
+          'bg-[var(--nb-bg)] select-none'
+        )}
+        style={{ WebkitAppRegion: 'drag' } as CSSProperties}
+      >
+        <button
+          type="button"
+          className={cn(
+            'w-[26px] h-[26px] rounded-[6px] border-none bg-transparent text-[var(--nb-muted)]',
+            'flex items-center justify-center cursor-pointer flex-shrink-0 transition-colors duration-100',
+            'hover:bg-[color-mix(in_srgb,var(--nb-text),transparent_88%)] hover:text-[var(--nb-text)]'
+          )}
+          onClick={handleMinimize}
+          aria-label="Minimize"
+          style={{ WebkitAppRegion: 'no-drag' } as CSSProperties}
+        >
           <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
             <rect x="4" y="11" width="16" height="2" rx="1" />
           </svg>
         </button>
-        <button type="button" className="winBtn" onClick={handleMaximize} aria-label="Maximize">
+        <button
+          type="button"
+          className={cn(
+            'w-[26px] h-[26px] rounded-[6px] border-none bg-transparent text-[var(--nb-muted)]',
+            'flex items-center justify-center cursor-pointer flex-shrink-0 transition-colors duration-100',
+            'hover:bg-[color-mix(in_srgb,var(--nb-text),transparent_88%)] hover:text-[var(--nb-text)]'
+          )}
+          onClick={handleMaximize}
+          aria-label="Maximize"
+          style={{ WebkitAppRegion: 'no-drag' } as CSSProperties}
+        >
           <svg
             viewBox="0 0 24 24"
             width="11"
@@ -68,7 +109,17 @@ export function RootLayout(): React.JSX.Element {
             <rect x="4" y="4" width="16" height="16" rx="2" />
           </svg>
         </button>
-        <button type="button" className="winBtn close" onClick={handleClose} aria-label="Close">
+        <button
+          type="button"
+          className={cn(
+            'w-[26px] h-[26px] rounded-[6px] border-none bg-transparent text-[var(--nb-muted)]',
+            'flex items-center justify-center cursor-pointer flex-shrink-0 transition-colors duration-100',
+            'hover:bg-[color-mix(in_srgb,var(--nb-danger),transparent_82%)] hover:text-[var(--nb-danger)]'
+          )}
+          onClick={handleClose}
+          aria-label="Close"
+          style={{ WebkitAppRegion: 'no-drag' } as CSSProperties}
+        >
           <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
             <path d="M6.225 4.811a1 1 0 0 0-1.414 1.414L10.586 12l-5.775 5.775a1 1 0 1 0 1.414 1.414L12 13.414l5.775 5.775a1 1 0 0 0 1.414-1.414L13.414 12l5.775-5.775a1 1 0 0 0-1.414-1.414L12 10.586 6.225 4.811Z" />
           </svg>
@@ -76,15 +127,30 @@ export function RootLayout(): React.JSX.Element {
       </div>
 
       {/* Sidebar Navigation */}
-      <aside className="sidebar">
-        <div className="sidebarBrand">
+      <aside
+        className={cn(
+          'min-h-0 p-[14px] border-r border-[var(--nb-border)] bg-[var(--nb-sidebar-bg,var(--nb-panel-2))]',
+          'max-[860px]:hidden',
+          'backdrop-blur-[18px] overflow-hidden flex flex-col gap-[12px] select-none'
+        )}
+        style={{ WebkitBackdropFilter: 'blur(18px)' } as CSSProperties}
+      >
+        <div className="flex-shrink-0 p-[4px_8px_20px]">
           <img src={skynulLogo} alt="Skynul" className="sbFooterLogo" />
         </div>
 
-        <nav className="sidebarNav">
+        <nav className="flex flex-col gap-[4px] p-[8px_12px]">
           <NavLink
             to="/tasks"
-            className={({ isActive }) => `sidebarNavItem${isActive ? ' active' : ''}`}
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-[12px] px-[12px] py-[10px] rounded-[8px] text-[var(--nb-muted)]',
+                'no-underline text-[14px] font-[500] transition-all duration-[150ms]',
+                '[&>svg]:shrink-0',
+                'hover:bg-[rgba(255,255,255,0.04)] hover:text-[var(--nb-text)]',
+                isActive && 'bg-[rgba(108,140,255,0.12)] text-[var(--nb-accent)]'
+              )
+            }
           >
             <svg
               viewBox="0 0 24 24"
@@ -104,7 +170,15 @@ export function RootLayout(): React.JSX.Element {
 
           <NavLink
             to="/dashboard"
-            className={({ isActive }) => `sidebarNavItem${isActive ? ' active' : ''}`}
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-[12px] px-[12px] py-[10px] rounded-[8px] text-[var(--nb-muted)]',
+                'no-underline text-[14px] font-[500] transition-all duration-[150ms]',
+                '[&>svg]:shrink-0',
+                'hover:bg-[rgba(255,255,255,0.04)] hover:text-[var(--nb-text)]',
+                isActive && 'bg-[rgba(108,140,255,0.12)] text-[var(--nb-accent)]'
+              )
+            }
           >
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
               <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
@@ -114,7 +188,15 @@ export function RootLayout(): React.JSX.Element {
 
           <NavLink
             to="/projects"
-            className={({ isActive }) => `sidebarNavItem${isActive ? ' active' : ''}`}
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-[12px] px-[12px] py-[10px] rounded-[8px] text-[var(--nb-muted)]',
+                'no-underline text-[14px] font-[500] transition-all duration-[150ms]',
+                '[&>svg]:shrink-0',
+                'hover:bg-[rgba(255,255,255,0.04)] hover:text-[var(--nb-text)]',
+                isActive && 'bg-[rgba(108,140,255,0.12)] text-[var(--nb-accent)]'
+              )
+            }
           >
             <svg
               viewBox="0 0 24 24"
@@ -133,7 +215,15 @@ export function RootLayout(): React.JSX.Element {
 
           <NavLink
             to="/schedules"
-            className={({ isActive }) => `sidebarNavItem${isActive ? ' active' : ''}`}
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-[12px] px-[12px] py-[10px] rounded-[8px] text-[var(--nb-muted)]',
+                'no-underline text-[14px] font-[500] transition-all duration-[150ms]',
+                '[&>svg]:shrink-0',
+                'hover:bg-[rgba(255,255,255,0.04)] hover:text-[var(--nb-text)]',
+                isActive && 'bg-[rgba(108,140,255,0.12)] text-[var(--nb-accent)]'
+              )
+            }
           >
             <svg
               viewBox="0 0 24 24"
@@ -153,7 +243,15 @@ export function RootLayout(): React.JSX.Element {
 
           <NavLink
             to="/settings"
-            className={({ isActive }) => `sidebarNavItem${isActive ? ' active' : ''}`}
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-[12px] px-[12px] py-[10px] rounded-[8px] text-[var(--nb-muted)]',
+                'no-underline text-[14px] font-[500] transition-all duration-[150ms]',
+                '[&>svg]:shrink-0',
+                'hover:bg-[rgba(255,255,255,0.04)] hover:text-[var(--nb-text)]',
+                isActive && 'bg-[rgba(108,140,255,0.12)] text-[var(--nb-accent)]'
+              )
+            }
           >
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
               <path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.2 7.2 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 1h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.22-1.13.52-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 7.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.41 1.05.73 1.63.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .44-.18.49-.42l.36-2.54c.58-.22 1.13-.52 1.63-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z" />
@@ -164,13 +262,11 @@ export function RootLayout(): React.JSX.Element {
 
         {/* Sign In button at bottom */}
         <div
-          className="sidebarFooter"
-          style={{ marginTop: 'auto', padding: '16px', borderTop: '1px solid var(--nb-border)' }}
+          className="mt-auto p-[16px] border-t border-[var(--nb-border)]"
         >
           {accountConnected ? (
             <button
               type="button"
-              className="profileBtn"
               onClick={() => void handleSignOut()}
               style={{
                 width: '100%',
@@ -187,7 +283,6 @@ export function RootLayout(): React.JSX.Element {
               }}
             >
               <div
-                className="profileAvatar"
                 style={{
                   width: '28px',
                   height: '28px',
@@ -225,9 +320,7 @@ export function RootLayout(): React.JSX.Element {
               </svg>
             </button>
           ) : (
-            <button
-              type="button"
-              className="btn"
+            <Button
               onClick={() => {
                 // TODO: Open auth modal
                 console.log('Open auth modal')
@@ -245,7 +338,7 @@ export function RootLayout(): React.JSX.Element {
                 <path d="M10 17l5-5-5-5v10zm9-14H5c-1.1 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z" />
               </svg>
               Sign In
-            </button>
+            </Button>
           )}
         </div>
       </aside>

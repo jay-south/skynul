@@ -32,21 +32,26 @@ export function PageHeader({
   }
 
   return (
-    <div className="pageHeader">
+    <div className="flex flex-col gap-3 mb-6">
+      {/* Back button row */}
       {showBack && (
-        <div className="pageHeaderTop">
-          <button type="button" className="pageHeaderBack" onClick={handleBack}>
-            <IconArrowLeft width="22" height="22" />
-            Back
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handleBack}
+          className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 transition-colors w-fit"
+        >
+          <IconArrowLeft width="18" height="18" />
+          Back
+        </button>
       )}
-      <div className="pageHeaderRow">
-        <div className="pageHeaderText">
-          <h1 className="pageHeaderTitle">{title}</h1>
-          {subtitle && <p className="pageHeaderSubtitle">{subtitle}</p>}
+
+      {/* Title row */}
+      <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{title}</h1>
+          {subtitle && <p className="text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>}
         </div>
-        {actions && <div className="pageHeaderActions">{actions}</div>}
+        {actions && <div className="flex items-center gap-2">{actions}</div>}
       </div>
     </div>
   )

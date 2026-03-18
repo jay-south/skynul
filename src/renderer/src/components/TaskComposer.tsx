@@ -1,6 +1,7 @@
 import type { LanguageCode, ScheduleFrequency, TaskCapabilityId } from '@skynul/shared'
 import { ALL_TASK_CAPABILITIES } from '@skynul/shared'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Button } from './ui/button'
 import { speechLocale, t } from '../i18n'
 import {
   deleteSavedPrompt,
@@ -264,12 +265,12 @@ export function TaskComposer(props: {
       <div className="taskComposerHeader">
         <div className="taskComposerTitle">{title}</div>
         <div className="taskComposerActions">
-          <button className="btnSecondary" onClick={props.onCancel}>
+          <Button variant="secondary" onClick={props.onCancel}>
             {t(lang, 'common_cancel')}
-          </button>
-          <button className="btn" onClick={submit} disabled={!prompt.trim()}>
+          </Button>
+          <Button variant="default" onClick={submit} disabled={!prompt.trim()}>
             {t(lang, 'tasks_new_from_template')}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -344,14 +345,14 @@ export function TaskComposer(props: {
           </div>
 
           <div className="taskComposerPromptActions">
-            <button
-              className="btnSecondary"
+            <Button
+              variant="secondary"
               onClick={saveCurrentPrompt}
               disabled={!prompt.trim()}
               title={t(lang, 'tasks_save_prompt')}
             >
               {savedFeedback ? t(lang, 'tasks_saved') : t(lang, 'tasks_save_prompt')}
-            </button>
+            </Button>
           </div>
         </div>
 

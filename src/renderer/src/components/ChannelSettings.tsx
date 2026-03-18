@@ -6,6 +6,8 @@ import signalIcon from '../assets/signal.svg'
 import slackIcon from '../assets/slack.svg'
 import telegramIcon from '../assets/telegram.svg'
 import whatsappIcon from '../assets/whatsapp.svg'
+import { cn } from '../lib/utils'
+import { Button } from './ui/button'
 
 const CHANNEL_INFO: Record<
   ChannelId,
@@ -174,20 +176,38 @@ export function ChannelSettings(): React.JSX.Element {
       {error && <div className="composerError">{error}</div>}
 
       <button
-        className={`cap ${autoApprove ? 'on' : 'off'}`}
+        className={cn(
+          'w-full flex items-center justify-between gap-[12px] p-[12px] rounded-[14px] border border-[var(--nb-border)] bg-[var(--nb-panel)] cursor-pointer text-left',
+          autoApprove &&
+            'border-[color-mix(in_srgb,var(--nb-accent-2),transparent_60%)] bg-[color-mix(in_srgb,var(--nb-accent-2),transparent_92%)]'
+        )}
         onClick={() => void handleAutoApproveToggle()}
         style={{ marginBottom: 12 }}
       >
-        <div className="capLeft">
-          <div className="capTitle">Aprobar tareas automáticamente</div>
-          <div className="capDesc">
+        <div className="flex flex-col min-w-0">
+          <div className="text-[14px] font-semibold text-[color-mix(in_srgb,var(--nb-text),transparent_10%)]">
+            Aprobar tareas automáticamente
+          </div>
+          <div className="text-[12px] font-[520] text-[var(--nb-muted)]">
             {autoApprove
               ? 'Las tareas de canales se ejecutan sin confirmación'
               : 'Las tareas quedan pendientes hasta que las apruebes'}
           </div>
         </div>
-        <div className="capToggle" aria-hidden="true">
-          <div className="capKnob" />
+        <div
+          className={cn(
+            'w-[44px] h-[26px] rounded-full border border-[var(--nb-border)] bg-[color-mix(in_srgb,var(--nb-text),transparent_92%)] p-[3px] flex items-center justify-start',
+            autoApprove &&
+              'border-[color-mix(in_srgb,var(--nb-accent-2),transparent_60%)] bg-[color-mix(in_srgb,var(--nb-accent-2),transparent_78%)]'
+          )}
+          aria-hidden="true"
+        >
+          <div
+            className={cn(
+              'w-[18px] h-[18px] rounded-full bg-[var(--nb-panel-2)] border border-[var(--nb-border)] shadow-[0_10px_22px_rgba(0,0,0,0.08)] transition-transform duration-[140ms] ease-out',
+              autoApprove && 'translate-x-[18px] border-[color-mix(in_srgb,var(--nb-accent-2),transparent_65%)]'
+            )}
+          />
         </div>
       </button>
 
@@ -226,13 +246,14 @@ export function ChannelSettings(): React.JSX.Element {
                       {ch.hasCredentials && !credDraft && (
                         <div className="channelSavedCred">
                           <span className="credMask">••••••••••••••••</span>
-                          <button
+                          <Button
                             type="button"
-                            className="btn btnSmall"
+                            size="small"
+                            variant="default"
                             onClick={() => setCredDraft(' ')}
                           >
                             Change
-                          </button>
+                          </Button>
                         </div>
                       )}
                       {(!ch.hasCredentials || credDraft) && (
@@ -255,14 +276,14 @@ export function ChannelSettings(): React.JSX.Element {
                               aria-label={info.credentialLabel2}
                             />
                           )}
-                          <button
+                          <Button
                             type="button"
-                            className="btn"
+                            variant="default"
                             onClick={() => void handleSaveCredentials(ch.id)}
                             disabled={isBusy || !credDraft.trim()}
                           >
                             {isBusy ? '...' : 'Save'}
-                          </button>
+                          </Button>
                         </>
                       )}
                     </div>
@@ -270,18 +291,37 @@ export function ChannelSettings(): React.JSX.Element {
 
                   {/* Enable toggle */}
                   <button
-                    className={`cap ${ch.enabled ? 'on' : 'off'}`}
+                    className={cn(
+                      'w-full flex items-center justify-between gap-[12px] p-[12px] rounded-[14px] border border-[var(--nb-border)] bg-[var(--nb-panel)] cursor-pointer text-left disabled:cursor-not-allowed disabled:opacity-[0.65]',
+                      ch.enabled &&
+                        'border-[color-mix(in_srgb,var(--nb-accent-2),transparent_60%)] bg-[color-mix(in_srgb,var(--nb-accent-2),transparent_92%)]'
+                    )}
                     onClick={() => void handleToggle(ch.id, ch.enabled)}
                     disabled={isBusy}
                   >
-                    <div className="capLeft">
-                      <div className="capTitle">Active</div>
-                      <div className="capDesc">
+                    <div className="flex flex-col min-w-0">
+                      <div className="text-[14px] font-semibold text-[color-mix(in_srgb,var(--nb-text),transparent_10%)]">
+                        Active
+                      </div>
+                      <div className="text-[12px] font-[520] text-[var(--nb-muted)]">
                         {ch.enabled ? `Status: ${ch.status}` : 'Channel is off'}
                       </div>
                     </div>
-                    <div className="capToggle" aria-hidden="true">
-                      <div className="capKnob" />
+                    <div
+                      className={cn(
+                        'w-[44px] h-[26px] rounded-full border border-[var(--nb-border)] bg-[color-mix(in_srgb,var(--nb-text),transparent_92%)] p-[3px] flex items-center justify-start',
+                        ch.enabled &&
+                          'border-[color-mix(in_srgb,var(--nb-accent-2),transparent_60%)] bg-[color-mix(in_srgb,var(--nb-accent-2),transparent_78%)]'
+                      )}
+                      aria-hidden="true"
+                    >
+                      <div
+                        className={cn(
+                          'w-[18px] h-[18px] rounded-full bg-[var(--nb-panel-2)] border border-[var(--nb-border)] shadow-[0_10px_22px_rgba(0,0,0,0.08)] transition-transform duration-[140ms] ease-out',
+                          ch.enabled &&
+                            'translate-x-[18px] border-[color-mix(in_srgb,var(--nb-accent-2),transparent_65%)]'
+                        )}
+                      />
                     </div>
                   </button>
 
@@ -309,13 +349,13 @@ export function ChannelSettings(): React.JSX.Element {
                           {ch.id === 'signal' && <>Link device via Signal</>}
                         </div>
                       ) : (
-                        <button
-                          className="btn"
+                        <Button
+                          variant="default"
                           onClick={() => void handleGeneratePairing(ch.id)}
                           disabled={isBusy}
                         >
                           {isBusy ? '...' : 'Generate Pairing Code'}
-                        </button>
+                        </Button>
                       )}
                     </div>
                   )}
@@ -334,13 +374,13 @@ export function ChannelSettings(): React.JSX.Element {
                         {ch.id === 'whatsapp' && <>Paired to {String(ch.meta.phoneNumber)}</>}
                         {ch.id === 'signal' && <>Paired to {String(ch.meta.phoneNumber)}</>}
                       </div>
-                      <button
-                        className="btn"
+                      <Button
+                        variant="default"
                         onClick={() => void handleUnpair(ch.id)}
                         disabled={isBusy}
                       >
                         Unpair
-                      </button>
+                      </Button>
                     </div>
                   )}
 

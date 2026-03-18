@@ -2,6 +2,8 @@ import type { Schedule, Task } from '@skynul/shared'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { PageContent } from '../components/layout'
+import { Button } from '../components/ui/button'
+import { cn } from '../lib/utils'
 
 export function ScheduleDetailPage(): React.JSX.Element {
   const { scheduleId } = useParams()
@@ -191,34 +193,38 @@ export function ScheduleDetailPage(): React.JSX.Element {
         </div>
 
         <div style={{ display: 'flex', gap: 8, marginTop: 24 }}>
-          <button type="button" className="btn" onClick={() => void handleToggle()}>
+          <Button type="button" variant="default" onClick={() => void handleToggle()}>
             {schedule.enabled ? 'Pause' : 'Resume'}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="btn"
-            style={{ color: 'var(--nb-danger)' }}
+            variant="default"
+            className="!text-[var(--nb-danger)]"
             onClick={() => void handleDelete()}
           >
             Delete
-          </button>
+          </Button>
         </div>
 
         {scheduleHistory.length > 0 && (
           <div className="settingsSection" style={{ marginTop: 32 }}>
             <div className="settingsLabel">Run History</div>
-            <div className="capList">
+            <div className="flex flex-col gap-[10px]">
               {scheduleHistory.map((t) => (
                 <button
                   type="button"
                   key={t.id}
-                  className="cap"
+                  className={cn(
+                    'w-full flex items-center justify-between gap-[12px] p-[12px] rounded-[14px] border border-[var(--nb-border)] bg-[var(--nb-panel)] cursor-pointer text-left'
+                  )}
                   onClick={() => navigate(`/tasks/${t.id}`)}
                   style={{ cursor: 'pointer', width: '100%', textAlign: 'left' }}
                 >
-                  <div className="capLeft">
-                    <div className="capTitle">{t.prompt.slice(0, 50)}...</div>
-                    <div className="capDesc">
+                  <div className="flex flex-col min-w-0">
+                    <div className="text-[14px] font-semibold text-[color-mix(in_srgb,var(--nb-text),transparent_10%)]">
+                      {t.prompt.slice(0, 50)}...
+                    </div>
+                    <div className="text-[12px] font-[520] text-[var(--nb-muted)]">
                       {t.status} · {t.steps.length} steps · {formatAgo(t.updatedAt)}
                     </div>
                   </div>

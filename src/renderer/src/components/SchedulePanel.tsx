@@ -1,6 +1,7 @@
 import type { Schedule, ScheduleFrequency } from '@skynul/shared'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { Button } from './ui/button'
 
 /* ── Helpers ───────────────────────────────────────────────────────── */
 
@@ -508,12 +509,12 @@ export function ScheduleDetail(props: {
       </div>
 
       <div className="schedDetailActions">
-        <button className="btn schedDetailBtn" onClick={props.onToggle}>
+        <Button variant="default" className="schedDetailBtn" onClick={props.onToggle}>
           {s.enabled ? 'Pause' : 'Enable'}
-        </button>
-        <button className="btn schedDetailBtn danger" onClick={props.onDelete}>
+        </Button>
+        <Button variant="default" className="schedDetailBtn danger" onClick={props.onDelete}>
           Delete
-        </button>
+        </Button>
       </div>
 
       {/* ── Run history ─────────────────────────────────────────── */}

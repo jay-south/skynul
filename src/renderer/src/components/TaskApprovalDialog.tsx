@@ -1,5 +1,6 @@
 import type { Task } from '@skynul/shared'
 import { ALL_TASK_CAPABILITIES } from '@skynul/shared'
+import { Button } from './ui/button'
 
 export function TaskApprovalDialog(props: {
   task: Task
@@ -48,12 +49,12 @@ export function TaskApprovalDialog(props: {
             </div>
           </div>
           <div className="taskApprovalActions">
-            <button className="btn taskBtnCancel" onClick={props.onCancel}>
+            <Button variant="default" className="taskBtnCancel" onClick={props.onCancel}>
               Cancel
-            </button>
-            <button className="btn taskBtnApprove" onClick={props.onApprove}>
+            </Button>
+            <Button variant="default" className="taskBtnApprove" onClick={props.onApprove}>
               Approve & Run
-            </button>
+            </Button>
           </div>
         </div>
       </div>

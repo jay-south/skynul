@@ -1,5 +1,6 @@
 import type { Task } from '@skynul/shared'
 import { TaskStepLog } from './TaskStepLog'
+import { Button } from './ui/button'
 
 const STATUS_LABELS: Record<string, string> = {
   pending_approval: 'Pending Approval',
@@ -31,18 +32,18 @@ export function TaskDetailView(props: {
         <div className="taskDetailActions">
           {task.status === 'pending_approval' && (
             <>
-              <button className="btn taskBtnApprove" onClick={props.onApprove}>
+              <Button variant="default" className="taskBtnApprove" onClick={props.onApprove}>
                 Approve & Run
-              </button>
-              <button className="btn taskBtnCancel" onClick={props.onCancel}>
+              </Button>
+              <Button variant="default" className="taskBtnCancel" onClick={props.onCancel}>
                 Cancel
-              </button>
+              </Button>
             </>
           )}
           {task.status === 'running' && (
-            <button className="btn taskBtnCancel" onClick={props.onCancel}>
+            <Button variant="default" className="taskBtnCancel" onClick={props.onCancel}>
               Stop Task
-            </button>
+            </Button>
           )}
         </div>
       </div>

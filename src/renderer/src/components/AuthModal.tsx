@@ -1,6 +1,7 @@
 import type { LanguageCode } from '@skynul/shared'
 import { useEffect, useId, useRef } from 'react'
 import { t } from '../i18n'
+import { Button } from './ui/button'
 
 export const AUTH_PROVIDER = {
   GOOGLE: 'google',
@@ -138,9 +139,9 @@ export function AuthModal(props: {
         </div>
 
         <div className="modalFooter authModalFooter">
-          <button type="button" className="btnSecondary authModalCancelBtn" onClick={props.onClose}>
+          <Button variant="secondary" className="authModalCancelBtn" onClick={props.onClose}>
             {t(props.lang, 'common_cancel')}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

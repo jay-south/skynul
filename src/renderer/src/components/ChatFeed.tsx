@@ -1,6 +1,7 @@
 import type { Task, TaskCapabilityId, TaskStep } from '@skynul/shared'
 import { ALL_TASK_CAPABILITIES } from '@skynul/shared'
 import { useEffect, useRef, useState } from 'react'
+import { Button } from './ui/button'
 
 /** Convert URLs in text to clickable <a> tags, preserving the rest as text */
 function renderLinked(text: string): (string | React.ReactElement)[] {
@@ -87,12 +88,12 @@ function CapsApproval(props: {
         })}
         {isPending && (
           <div className="feedCapsActions">
-            <button className="btn feedBtnAllow" onClick={props.onApprove}>
+            <Button variant="default" className="feedBtnAllow" onClick={props.onApprove}>
               Allow & Run
-            </button>
-            <button className="btn feedBtnCancel" onClick={props.onCancel}>
+            </Button>
+            <Button variant="default" className="feedBtnCancel" onClick={props.onCancel}>
               Cancel
-            </button>
+            </Button>
             <button
               className="feedDontAsk"
               onClick={() => {

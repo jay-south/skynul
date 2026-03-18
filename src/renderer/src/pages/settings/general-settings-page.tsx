@@ -2,6 +2,7 @@ import type { LanguageCode, ThemeMode } from '@skynul/shared'
 import { useEffect, useState } from 'react'
 import { Section, SectionLabel, SettingsShell } from '../../components/layout'
 import { UpdateSettings } from '../../components/UpdateSettings'
+import { Button } from '../../components/ui/button'
 import { t } from '../../i18n'
 import { usePickWorkspace, usePolicy, useSetLanguage, useSetTheme } from '../../queries'
 import { SUPABASE_CONFIGURED, supabase } from '../../supabase'
@@ -132,9 +133,9 @@ export function GeneralSettingsPage(): React.JSX.Element {
         <div className="pathBox" title={workspaceLabel}>
           {workspaceLabel}
         </div>
-        <button type="button" className="btn" onClick={handlePickWorkspace}>
+        <Button type="button" variant="default" onClick={handlePickWorkspace}>
           {t(lang, 'settings_pick_workspace')}
-        </button>
+        </Button>
       </Section>
 
       {/* Account */}
@@ -153,23 +154,13 @@ export function GeneralSettingsPage(): React.JSX.Element {
                   : t(lang, 'account_not_connected')}
           </div>
           {accountConnected ? (
-            <button
-              type="button"
-              className="btn"
-              onClick={() => void signOut()}
-              disabled={accountBusy}
-            >
+            <Button type="button" variant="default" onClick={() => void signOut()} disabled={accountBusy}>
               {t(lang, 'account_sign_out')}
-            </button>
+            </Button>
           ) : (
-            <button
-              type="button"
-              className="btn"
-              onClick={openAuthModal}
-              disabled={accountBusy || accountLoading}
-            >
+            <Button type="button" variant="default" onClick={openAuthModal} disabled={accountBusy || accountLoading}>
               {t(lang, 'auth_login')}
-            </button>
+            </Button>
           )}
         </div>
       </Section>

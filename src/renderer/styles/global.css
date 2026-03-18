@@ -1,8 +1,6 @@
 @import "tailwindcss";
-
 @import "tw-animate-css";
-
-@source "../**/*.{ts,tsx,js,jsx}";
+@import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -124,86 +122,4 @@
   body {
     @apply bg-background text-foreground;
   }
-}
-
-/* ── Shared PageHeader (migrado fuera de main.css) ──────────────── */
-.pageHeader {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.pageHeaderTop {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.pageHeaderRow {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 16px;
-  flex-wrap: nowrap;
-}
-
-.pageHeaderText {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.pageHeaderBack {
-  display: inline-flex;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 14px 8px 0px; /* icono alineado al inicio */
-  border-radius: 10px;
-  border: none;
-  background: var(--nb-surface-2);
-  color: var(--nb-muted);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-  transition:
-    background 0.12s,
-    color 0.12s;
-  width: fit-content;
-}
-
-.pageHeaderBack svg {
-  display: block;
-  flex-shrink: 0;
-}
-
-.pageHeaderBack:hover {
-  background: color-mix(in srgb, var(--nb-accent-2), transparent 85%);
-  color: var(--nb-text);
-}
-
-.pageHeaderTitle {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--nb-text);
-  margin: 0;
-}
-
-.pageHeaderSubtitle {
-  margin: 0;
-  font-size: 13px;
-  color: var(--nb-muted);
-}
-
-.pageHeaderActions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
 }

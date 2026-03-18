@@ -1,5 +1,6 @@
 import type { RuntimeStats, Schedule, Task } from '@skynul/shared'
 import { useEffect, useMemo, useState } from 'react'
+import { Button } from './ui/button'
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -104,12 +105,12 @@ function AgentCard(props: {
           <span className="agentPill">Updated: {formatAgo(task.updatedAt)}</span>
         </div>
         <div className="agentCardActions">
-          <button className="btnSecondary" onClick={props.onDetails}>
+          <Button variant="secondary" onClick={props.onDetails}>
             Details
-          </button>
-          <button className="btn" onClick={props.onOpen}>
+          </Button>
+          <Button variant="default" onClick={props.onOpen}>
             Open
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -489,9 +490,9 @@ export function TaskDashboard(props: {
         </div>
 
         <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-          <button className="btn" onClick={() => props.onSelectTask(selectedAgent.id)}>
+          <Button variant="default" onClick={() => props.onSelectTask(selectedAgent.id)}>
             Open agent
-          </button>
+          </Button>
         </div>
       </div>
     )

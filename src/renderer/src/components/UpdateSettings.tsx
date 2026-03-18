@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Button } from "./ui/button";
 
 type UpdateState =
   | "idle"
@@ -123,18 +124,18 @@ export function UpdateSettings(): React.JSX.Element {
         {error ? <div className="composerError">{error}</div> : null}
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button className="btn" onClick={checkNow}>
+          <Button variant="default" onClick={checkNow}>
             Check now
-          </button>
+          </Button>
           {state === "available" ? (
-            <button className="btn" onClick={download}>
+            <Button variant="default" onClick={download}>
               Download
-            </button>
+            </Button>
           ) : null}
           {state === "ready" ? (
-            <button className="btn" onClick={restart}>
+            <Button variant="default" onClick={restart}>
               Restart to update
-            </button>
+            </Button>
           ) : null}
         </div>
       </div>

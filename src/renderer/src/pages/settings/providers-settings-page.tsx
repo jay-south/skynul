@@ -11,6 +11,7 @@ import minimaxIcon from '../../assets/minimax.svg'
 import openrouterIcon from '../../assets/openrouter.svg'
 import { CardGrid, Section, SectionLabel, SettingsShell } from '../../components/layout'
 import { t } from '../../i18n'
+import { Button } from '../../components/ui/button'
 import { usePolicy, useSetOpenAIModel, useSetProvider } from '../../queries'
 
 const PROVIDERS: Array<{
@@ -214,14 +215,9 @@ export function ProvidersSettingsPage(): React.JSX.Element {
               onChange={(e) => setApiKeyDraft(e.target.value)}
               aria-label={t(lang, 'provider_api_key_placeholder')}
             />
-            <button
-              type="button"
-              className="btn"
-              onClick={handleSaveApiKey}
-              disabled={!apiKeyDraft.trim()}
-            >
+            <Button type="button" variant="default" onClick={handleSaveApiKey} disabled={!apiKeyDraft.trim()}>
               {t(lang, 'provider_api_key_save')}
-            </button>
+            </Button>
             <div className="settingsFieldHint">
               {t(lang, `${activeProvider}_key_get_from` as `${typeof activeProvider}_key_get_from`)}
             </div>

@@ -1,5 +1,4 @@
 import './assets/main.css'
-import './assets/debug-boxmodel.css'
 
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -7,7 +6,10 @@ import { RouterProvider } from 'react-router-dom'
 import { QueryProvider } from './providers/query-provider'
 import { router } from './router'
 
-createRoot(document.getElementById('root')!).render(
+const rootElement = document.getElementById('root')
+if (!rootElement) throw new Error('Missing #root element')
+
+createRoot(rootElement).render(
   <StrictMode>
     <QueryProvider>
       <RouterProvider router={router} />
