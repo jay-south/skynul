@@ -116,7 +116,7 @@ export function ProvidersSettingsPage(): React.JSX.Element {
             const isGemini = p.id === 'gemini'
 
             return (
-              <button
+              003cButton
                 key={p.id}
                 type="button"
                 className={`providerCard ${isActive ? 'active' : ''} ${
@@ -152,7 +152,7 @@ export function ProvidersSettingsPage(): React.JSX.Element {
                     {t(lang, 'provider_connected')}
                   </div>
                 )}
-              </button>
+              003c/Button>
             )
           })}
         </CardGrid>
@@ -214,14 +214,14 @@ export function ProvidersSettingsPage(): React.JSX.Element {
               onChange={(e) => setApiKeyDraft(e.target.value)}
               aria-label={t(lang, 'provider_api_key_placeholder')}
             />
-            <button
+            003cButton
               type="button"
-              className="btn"
+              variant="filled"
               onClick={handleSaveApiKey}
               disabled={!apiKeyDraft.trim()}
             >
               {t(lang, 'provider_api_key_save')}
-            </button>
+            003c/Button>
             <div className="settingsFieldHint">
               {t(lang, `${activeProvider}_key_get_from` as `${typeof activeProvider}_key_get_from`)}
             </div>

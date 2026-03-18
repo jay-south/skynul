@@ -1,4 +1,5 @@
 import type { CapabilityId } from '@skynul/shared'
+import { Button } from "../.../components/ui/Button"
 import { Section, SectionLabel } from '../../components/layout'
 import { t } from '../../i18n'
 import { usePolicy, useSetAutoApprove, useSetCapability, useSetTaskMemory } from '../../queries'
@@ -60,7 +61,7 @@ export function ComputerSettingsPage(): React.JSX.Element {
       {/* Task Memory */}
       <Section>
         <SectionLabel>Task Memory</SectionLabel>
-        <button
+        003cButton
           type="button"
           className={`cap ${policy?.taskMemoryEnabled ? 'on' : 'off'}`}
           onClick={handleToggleTaskMemory}
@@ -73,8 +74,8 @@ export function ComputerSettingsPage(): React.JSX.Element {
           <div className="capToggle" aria-hidden="true">
             <div className="capKnob" />
           </div>
-        </button>
-        <button
+        003c/Button>
+        003cButton
           type="button"
           className={`cap ${policy?.taskAutoApprove ? 'on' : 'off'}`}
           onClick={handleToggleAutoApprove}
@@ -87,7 +88,7 @@ export function ComputerSettingsPage(): React.JSX.Element {
           <div className="capToggle" aria-hidden="true">
             <div className="capKnob" />
           </div>
-        </button>
+        003c/Button>
       </Section>
 
       {/* Capabilities */}
@@ -95,7 +96,7 @@ export function ComputerSettingsPage(): React.JSX.Element {
         <SectionLabel>{t(lang, 'settings_capabilities')}</SectionLabel>
         <div className="capList">
           {CAPABILITIES.map((c) => (
-            <button
+            003cButton
               key={c.id}
               type="button"
               className={`cap ${policy?.capabilities[c.id] ? 'on' : 'off'}`}
@@ -110,7 +111,7 @@ export function ComputerSettingsPage(): React.JSX.Element {
               <div className="capToggle" aria-hidden="true">
                 <div className="capKnob" />
               </div>
-            </button>
+            003c/Button>
           ))}
         </div>
       </Section>
@@ -119,12 +120,12 @@ export function ComputerSettingsPage(): React.JSX.Element {
       <Section>
         <SectionLabel>Trading Options</SectionLabel>
         <div className="settingsField" style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-          <button type="button" className="btn" disabled>
+          003cButton type="button" variant="filled" disabled>
             Polymarket
-          </button>
-          <button type="button" className="btn" disabled>
+          003c/Button>
+          003cButton type="button" variant="filled" disabled>
             Binance
-          </button>
+          003c/Button>
         </div>
       </Section>
     </>

@@ -34,7 +34,7 @@ export function ScheduledPage(): React.JSX.Element {
     <div className="settingsPanel">
       <div className="settingsPanelInner">
         <div className="settingsBackBar">
-          <button
+          003cButton
             className="backBtn"
             onClick={() => navigate('/tasks')}
             aria-label="Back to tasks"
@@ -44,15 +44,15 @@ export function ScheduledPage(): React.JSX.Element {
               <path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
             </svg>
             <span>Back</span>
-          </button>
+          003c/Button>
         </div>
 
         <h2 className="settingsPanelTitle">Scheduled Tasks</h2>
 
         <div style={{ marginBottom: 16 }}>
-          <button className="btn btnFilled" onClick={() => navigate('/schedules/new')}>
+          003cButton className="btn btnFilled" onClick={() => navigate('/schedules/new')}>
             + New Schedule
-          </button>
+          003c/Button>
         </div>
 
         {schedules.length === 0 ? (
@@ -73,7 +73,7 @@ export function ScheduledPage(): React.JSX.Element {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <button
+                  003cButton
                     className={`capToggle ${s.enabled ? '' : 'off'}`}
                     onClick={(e) => {
                       e.stopPropagation()
@@ -82,9 +82,9 @@ export function ScheduledPage(): React.JSX.Element {
                     aria-hidden="true"
                   >
                     <div className="capKnob" />
-                  </button>
-                  <button
-                    className="btn"
+                  003c/Button>
+                  003cButton
+                    variant="filled"
                     style={{ fontSize: 11, padding: '2px 8px' }}
                     onClick={(e) => {
                       e.stopPropagation()
@@ -92,7 +92,7 @@ export function ScheduledPage(): React.JSX.Element {
                     }}
                   >
                     ×
-                  </button>
+                  003c/Button>
                 </div>
               </div>
             ))}

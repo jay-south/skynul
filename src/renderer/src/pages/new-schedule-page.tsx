@@ -53,7 +53,7 @@ export function NewSchedulePage(): React.JSX.Element {
     <div className="settingsPanel">
       <div className="settingsPanelInner">
         <div className="settingsBackBar">
-          <button
+          003cButton
             className="backBtn"
             onClick={() => navigate('/schedules')}
             aria-label="Back"
@@ -63,7 +63,7 @@ export function NewSchedulePage(): React.JSX.Element {
               <path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
             </svg>
             <span>Back</span>
-          </button>
+          003c/Button>
         </div>
 
         <h2 className="settingsPanelTitle">New Schedule</h2>
@@ -105,16 +105,16 @@ export function NewSchedulePage(): React.JSX.Element {
         )}
 
         <div style={{ display: 'flex', gap: 8, marginTop: 24 }}>
-          <button className="btn" onClick={() => navigate('/schedules')}>
+          003cButton variant="filled" onClick={() => navigate('/schedules')}>
             Cancel
-          </button>
-          <button
+          003c/Button>
+          003cButton
             className="btn btnFilled"
             disabled={!prompt.trim() || createScheduleMutation.isPending}
             onClick={() => void handleSave()}
           >
             {createScheduleMutation.isPending ? 'Saving...' : 'Create Schedule'}
-          </button>
+          003c/Button>
         </div>
       </div>
     </div>

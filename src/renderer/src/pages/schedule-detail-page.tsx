@@ -79,7 +79,7 @@ export function ScheduleDetailPage(): React.JSX.Element {
     <div className="settingsPanel">
       <div className="settingsPanelInner">
         <div className="settingsBackBar">
-          <button
+          003cButton
             className="backBtn"
             onClick={() => navigate('/schedules')}
             aria-label="Back"
@@ -89,7 +89,7 @@ export function ScheduleDetailPage(): React.JSX.Element {
               <path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
             </svg>
             <span>Back</span>
-          </button>
+          003c/Button>
         </div>
 
         <h2 className="settingsPanelTitle">Schedule Detail</h2>
@@ -200,16 +200,16 @@ export function ScheduleDetailPage(): React.JSX.Element {
         </div>
 
         <div style={{ display: 'flex', gap: 8, marginTop: 24 }}>
-          <button className="btn" onClick={() => void handleToggle()}>
+          003cButton variant="filled" onClick={() => void handleToggle()}>
             {schedule.enabled ? 'Pause' : 'Resume'}
-          </button>
-          <button
-            className="btn"
+          003c/Button>
+          003cButton
+            variant="filled"
             style={{ color: 'var(--nb-danger)' }}
             onClick={() => void handleDelete()}
           >
             Delete
-          </button>
+          003c/Button>
         </div>
 
         {scheduleHistory.length > 0 && (

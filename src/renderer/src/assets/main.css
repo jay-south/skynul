@@ -582,41 +582,7 @@ code {
   margin-bottom: 10px;
 }
 
-.btn {
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  border-radius: 999px;
-  padding: 10px 14px;
-  border: 1px solid color-mix(in srgb, var(--nb-accent-2), transparent 68%);
-  background: color-mix(in srgb, var(--nb-accent-2), transparent 92%);
-  color: var(--nb-text);
-  transition:
-    transform 120ms ease,
-    background-color 120ms ease,
-    border-color 120ms ease;
-}
-
-.btn:hover {
-  transform: translateY(-1px);
-  background: color-mix(in srgb, var(--nb-accent-2), transparent 88%);
-  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 55%);
-}
-
-.btn:active {
-  transform: translateY(0px);
-}
-
-.btnFilled {
-  background: color-mix(in srgb, var(--nb-accent-2), transparent 78%);
-  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 45%);
-  padding: 10px 20px;
-}
-
-.btnFilled:hover {
-  background: color-mix(in srgb, var(--nb-accent-2), transparent 68%);
-  border-color: color-mix(in srgb, var(--nb-accent-2), transparent 30%);
-}
+/* Button styles migrated to CSS Modules - see src/renderer/src/components/ui/Button.module.css */
 
 .capList {
   display: flex;

@@ -133,12 +133,12 @@ export function SkillsSettingsPage(): React.JSX.Element {
       <div className="settingsSection">
         <div className="settingsLabel">Manage Skills</div>
         <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
-          <button className="btn btnFilled" onClick={handleCreateSkill}>
+          003cButton className="btn btnFilled" onClick={handleCreateSkill}>
             Create Skill
-          </button>
-          <button className="btn btnFilled" onClick={handleImportClick}>
+          003c/Button>
+          003cButton className="btn btnFilled" onClick={handleImportClick}>
             Import Skill
-          </button>
+          003c/Button>
         </div>
         <div className="settingsFieldHint">Supports .json and .md (with YAML frontmatter)</div>
 
@@ -147,7 +147,7 @@ export function SkillsSettingsPage(): React.JSX.Element {
         {skills.length > 0 && (
           <div className="capList">
             {skills.map((s) => (
-              <button
+              003cButton
                 key={s.id}
                 className={`cap ${s.enabled ? 'on' : 'off'}`}
                 onClick={() => handleToggleSkill(s.id)}
@@ -187,7 +187,7 @@ export function SkillsSettingsPage(): React.JSX.Element {
                     <div className="capKnob" />
                   </div>
                 </div>
-              </button>
+              003c/Button>
             ))}
           </div>
         )}
@@ -199,9 +199,9 @@ export function SkillsSettingsPage(): React.JSX.Element {
           <div className="modal" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 500 }}>
             <div className="modalHeader">
               <div className="modalTitle">{skillModal === 'new' ? 'New Skill' : 'Edit Skill'}</div>
-              <button className="modalClose" onClick={() => setSkillModal(null)} aria-label="Close">
+              003cButton className="modalClose" onClick={() => setSkillModal(null)} aria-label="Close">
                 ×
-              </button>
+              003c/Button>
             </div>
             <div className="modalBody" style={{ gridTemplateColumns: '1fr' }}>
               <div className="modalSection">
@@ -252,13 +252,13 @@ export function SkillsSettingsPage(): React.JSX.Element {
               </div>
             </div>
             <div className="modalFooter">
-              <button
-                className="btn"
+              003cButton
+                variant="filled"
                 disabled={!skillDraft.name.trim() || !skillDraft.prompt.trim()}
                 onClick={() => void handleSaveSkill()}
               >
                 {skillModal === 'new' ? 'Create' : 'Save'}
-              </button>
+              003c/Button>
             </div>
           </div>
         </div>

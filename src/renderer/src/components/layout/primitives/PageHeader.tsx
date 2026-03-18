@@ -1,28 +1,37 @@
+import { useNavigate } from 'react-router-dom'
+import styles from './PageHeader.module.css'
+
 interface PageHeaderProps {
   title: string
-  subtitle?: string
+  showBack?: boolean
+  backTo?: string
 }
 
-/**
- * Header de página con título y subtítulo opcional
- * Usado en: tasks index, dashboard
- */
-export function PageHeader({ title, subtitle }: PageHeaderProps): React.JSX.Element {
+export function PageHeader({ title, showBack, backTo }: PageHeaderProps): React.JSX.Element {
+  const navigate = useNavigate()
+
+  const handleBack = () => {
+    if (backTo) {
+      navigate(backTo)
+    } else {
+      navigate(-1)
+    }
+  }
+
   return (
-    <div style={{ marginBottom: '32px', textAlign: 'center' }}>
-      <div className="composerHeading">{title}</div>
-      {subtitle && (
-        <div
-          style={{
-            color: 'var(--nb-muted)',
-            fontSize: '15px',
-            marginTop: '12px',
-            lineHeight: 1.5
-          }}
-        >
-          {subtitle}
-        </div>
+    <div className={styles.pageHeader}>
+      {showBack && (
+        <button type="button" className={styles.backButton} onClick={handleBack}>
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+            <path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+          </svg>
+          Back
+        </button>
       )}
+
+      <div className={styles.titleRow}>
+        <h1 className={styles.title}>{title}</h1>
+      </div>
     </div>
   )
 }

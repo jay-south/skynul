@@ -1,0 +1,42 @@
+.pageHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 14px 8px 8px;
+  border-radius: 10px;
+  border: none;
+  background: var(--nb-surface-2);
+  color: var(--nb-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition:
+    background 0.12s,
+    color 0.12s;
+  width: fit-content;
+}
+
+.backButton:hover {
+  background: color-mix(in srgb, var(--nb-accent-2), transparent 85%);
+  color: var(--nb-text);
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--nb-text);
+  margin: 0;
+}
