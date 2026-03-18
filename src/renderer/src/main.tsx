@@ -1,5 +1,4 @@
 import './assets/base.css'
-import './assets/debug-boxmodel.css'
 
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
