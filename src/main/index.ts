@@ -38,10 +38,14 @@ if (isWslEnv && !process.env.TZ) {
 
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { app, BrowserWindow, nativeTheme, protocol, screen, session, shell } from 'electron'
+import { randomBytes } from 'crypto'
 import { readFile } from 'fs/promises'
 import { join } from 'path'
 import icon from '../../resources/icon.png?asset'
+import { registerIpcHandlers } from './ipc-handlers'
 import { initAutoUpdater } from './updater'
+import { spawnServer, stopServer } from './server'
+import { createTray, destroyTray } from './tray'
 
 // Protocolo custom para servir archivos locales al renderer (file:// está bloqueado en dev)
 protocol.registerSchemesAsPrivileged([
@@ -61,6 +65,8 @@ if (process.env.TZ && process.env.TZ !== 'UTC') {
 
 nativeTheme.themeSource = 'dark'
 
+let isQuitting = false
+
 function isWslHost(): boolean {
   if (process.platform !== 'linux') return false
   if (process.env.WSL_INTEROP || process.env.WSL_DISTRO_NAME) return true
@@ -72,7 +78,7 @@ function isWslHost(): boolean {
   }
 }
 
-function createWindow(): BrowserWindow {
+function createWindow(authToken: string): BrowserWindow {
   // Create the browser window.
   const useNativeFrame = process.platform === 'linux' && !isWslHost()
   const mainWindow = new BrowserWindow({
@@ -90,7 +96,8 @@ function createWindow(): BrowserWindow {
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
-      webSecurity: true
+      webSecurity: true,
+      additionalArguments: [`--skynul-auth-token=${authToken}`]
     }
   })
 
@@ -100,6 +107,13 @@ function createWindow(): BrowserWindow {
 
   // Show window immediately (ready-to-show not firing on some Wayland setups)
   mainWindow.show()
+
+  mainWindow.on('close', (e) => {
+    if (!isQuitting) {
+      e.preventDefault()
+      mainWindow.hide()
+    }
+  })
 
   // Notify renderer when maximize state changes so it can adapt the layout.
   mainWindow.on('maximize', () => {
@@ -175,21 +189,28 @@ app.whenReady().then(async () => {
     })
   })
 
-  const win = createWindow()
+  const authToken = randomBytes(32).toString('hex')
+  process.env.SKYNUL_AUTH_TOKEN = authToken
 
+  const win = createWindow(authToken)
+
+  registerIpcHandlers(win)
   initAutoUpdater(win)
+  createTray(win)
+
+  await spawnServer(authToken)
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    if (BrowserWindow.getAllWindows().length === 0) createWindow(authToken)
   })
 })
 
 app.on('before-quit', () => {
-  // Server handles its own cleanup (playwright, channels, tasks) via SIGTERM
+  isQuitting = true
+  destroyTray()
+  stopServer()
 })
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
+  // Don't quit — keep server running in background
 })

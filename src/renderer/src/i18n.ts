@@ -47,8 +47,6 @@ const MESSAGES = {
     auth_not_signed_in: 'Not signed in',
     auth_loading: 'Loading...',
     auth_loading_account: 'Loading account...',
-    auth_supabase_not_configured_hint:
-      'Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.',
 
     workspace_none: 'No workspace',
 
@@ -87,7 +85,6 @@ const MESSAGES = {
     account_connected_as: 'Connected as {email}.',
     account_connected: 'Connected.',
     account_not_connected: 'Not connected.',
-    account_supabase_not_configured: 'Supabase not configured.',
     account_sign_out: 'Sign out',
     account_sign_in_google: 'Sign in with Google',
     account_sign_in_github: 'Sign in with GitHub',
@@ -262,8 +259,6 @@ const MESSAGES = {
     auth_not_signed_in: 'No iniciaste sesión',
     auth_loading: 'Cargando...',
     auth_loading_account: 'Cargando cuenta...',
-    auth_supabase_not_configured_hint:
-      'Supabase no está configurado. Seteá VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.',
 
     workspace_none: 'Sin workspace',
 
@@ -303,7 +298,6 @@ const MESSAGES = {
     account_connected_as: 'Conectado como {email}.',
     account_connected: 'Conectado.',
     account_not_connected: 'No conectado.',
-    account_supabase_not_configured: 'Supabase no está configurado.',
     account_sign_out: 'Cerrar sesión',
     account_sign_in_google: 'Iniciar sesión con Google',
     account_sign_in_github: 'Iniciar sesión con GitHub',

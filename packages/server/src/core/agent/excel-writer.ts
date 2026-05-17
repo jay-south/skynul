@@ -6,7 +6,7 @@
 import { execSync } from 'child_process'
 import ExcelJS from 'exceljs'
 import path from 'path'
-import { getDataDir } from '../config'
+import { getDataDir } from '../db/config'
 
 /**
  * Create a formatted Excel file from TSV data string.

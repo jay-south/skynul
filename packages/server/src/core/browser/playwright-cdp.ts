@@ -6,7 +6,7 @@ import net from 'net'
 import os from 'os'
 import { dirname, join } from 'path'
 import { type Browser, type BrowserContext, chromium, type Page } from 'playwright-core'
-import { getDataDir } from '../config'
+import { getDataDir } from '../db/config'
 
 const app = { getPath: (_: string) => getDataDir() }
 

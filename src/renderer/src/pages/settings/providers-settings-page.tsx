@@ -29,13 +29,13 @@ const PROVIDERS: Array<{
     id: 'claude',
     label: 'Claude',
     icon: claudeIcon,
-    desc: 'Supabase edge function'
+    desc: 'API key · console.anthropic.com'
   },
   {
     id: 'deepseek',
     label: 'DeepSeek',
     icon: deepseekIcon,
-    desc: 'Supabase edge function'
+    desc: 'API key · platform.deepseek.com'
   },
   {
     id: 'kimi',

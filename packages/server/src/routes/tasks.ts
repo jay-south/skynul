@@ -1,19 +1,20 @@
 import { zValidator } from '@hono/zod-validator'
-import type { TaskListResponse } from '@skynul/shared'
+import type { TaskCreateRequest, TaskListResponse } from '@skynul/shared'
+import { TASK_CAPABILITY_IDS } from '@skynul/shared'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { TaskManager } from '../core/agent/task-manager'
-import { policyState } from './policy'
+import { getPolicy } from './policy'
 
-const tm = new TaskManager()
-tm.setPolicyGetter(() => policyState)
-
-/** Expose the TaskManager instance for use by other modules (e.g., channels). */
-export { tm as taskManager }
+let tm: TaskManager | null = null
+export function taskManager(): TaskManager {
+  if (!tm) { tm = new TaskManager(); tm.setPolicyGetter(getPolicy); tm.init() }
+  return tm
+}
 
 const taskCreateSchema = z.object({
   prompt: z.string().min(1),
-  capabilities: z.array(z.string()),
+  capabilities: z.array(z.enum(TASK_CAPABILITY_IDS)),
   attachments: z.array(z.string()).optional(),
   mode: z.enum(['browser', 'code']).optional().default('browser'),
   maxSteps: z.number().optional(),
@@ -22,60 +23,31 @@ const taskCreateSchema = z.object({
   parentTaskId: z.string().optional(),
   agentName: z.string().optional(),
   agentRole: z.string().optional()
-})
+}) satisfies z.ZodType<TaskCreateRequest>
 
 const tasks = new Hono()
-  .get('/', (c) => {
-    const response: TaskListResponse = { tasks: tm.list() }
-    return c.json(response)
+  .onError((err, c) => {
+    return c.json({ error: err instanceof Error ? err.message : String(err) }, 400)
   })
+  .get('/', (c) => c.json({ tasks: taskManager().list() } as TaskListResponse))
   .get('/:id', (c) => {
-    const id = c.req.param('id')
-    const task = tm.get(id)
+    const task = taskManager().get(c.req.param('id'))
     if (!task) return c.json({ error: 'Task not found' }, 404)
     return c.json(task)
   })
   .post('/', zValidator('json', taskCreateSchema), (c) => {
-    const body = c.req.valid('json')
-    try {
-      const task = tm.create(body as any)
-      return c.json({ task })
-    } catch (e) {
-      return c.json({ error: e instanceof Error ? e.message : String(e) }, 400)
-    }
+    return c.json({ task: taskManager().create(c.req.valid('json')) })
   })
   .post('/:id/approve', async (c) => {
-    const id = c.req.param('id')
-    try {
-      const task = await tm.approve(id)
-      return c.json({ task })
-    } catch (e) {
-      return c.json({ error: e instanceof Error ? e.message : String(e) }, 400)
-    }
+    return c.json({ task: await taskManager().approve(c.req.param('id')) })
   })
   .post('/:id/cancel', (c) => {
-    const id = c.req.param('id')
-    try {
-      const task = tm.cancel(id)
-      return c.json({ task })
-    } catch (e) {
-      return c.json({ error: e instanceof Error ? e.message : String(e) }, 400)
-    }
+    return c.json({ task: taskManager().cancel(c.req.param('id')) })
   })
-  .delete('/:id', (c) => {
-    const id = c.req.param('id')
-    tm.delete(id)
-    return c.json({ ok: true })
-  })
+  .delete('/:id', (c) => { taskManager().delete(c.req.param('id')); return c.json({ ok: true }) })
   .post('/:id/message', zValidator('json', z.object({ message: z.string() })), (c) => {
-    const id = c.req.param('id')
-    const { message } = c.req.valid('json')
-    try {
-      tm.sendMessage(id, 'user', message)
-      return c.json({ ok: true })
-    } catch (e) {
-      return c.json({ error: e instanceof Error ? e.message : String(e) }, 400)
-    }
+    taskManager().sendMessage(c.req.param('id'), 'user', c.req.valid('json').message)
+    return c.json({ ok: true })
   })
 
 export { tasks }

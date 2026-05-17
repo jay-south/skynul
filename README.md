@@ -106,9 +106,8 @@ Environment variables can be provided via your shell or a repo-root `.env` file 
 
 Key variables:
 
-- `VITE_SUPABASE_URL` - Supabase URL for OAuth
-- `VITE_SUPABASE_ANON_KEY` - Supabase anon key
 - `SKYNUL_PORT` - Server port (default: 3141)
+- `SKYNUL_DATA_DIR` - Data directory override (default: ~/.skynul)
 
 ## Security And Permission Model
 

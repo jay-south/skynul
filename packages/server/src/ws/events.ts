@@ -1,11 +1,9 @@
+import type { TaskStep } from '@skynul/shared'
 import type { WSContext } from 'hono/ws'
 
-/**
- * Server-sent event types that mirror the Electron IPC events.
- * Clients receive these via WebSocket as JSON messages.
- */
 export type ServerEvent =
   | { type: 'task:update'; payload: unknown }
+  | { type: 'task:step'; payload: { taskId: string; step: TaskStep } }
   | { type: 'channel:update'; payload: unknown }
   | { type: 'connected'; payload: { ts: number } }
 

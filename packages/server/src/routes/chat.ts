@@ -2,8 +2,8 @@ import { zValidator } from '@hono/zod-validator'
 import type { ChatSendResponse } from '@skynul/shared'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { dispatchChat } from '../core/providers/dispatch'
-import { policyState } from './policy'
+import { dispatchChat } from '../core/transport/providers/dispatch'
+import { getPolicy } from './policy'
 
 const chatMessageSchema = z.object({
   role: z.enum(['user', 'assistant']),
@@ -19,13 +19,13 @@ const chat = new Hono().post(
     })
   ),
   async (c) => {
-    if (!policyState.capabilities['net.http']) {
+    if (!getPolicy().capabilities['net.http']) {
       return c.json({ error: 'Capability net.http is disabled' }, 403)
     }
 
     const { messages } = c.req.valid('json')
     try {
-      const content = await dispatchChat(policyState.provider.active, messages)
+      const content = await dispatchChat(getPolicy().provider.active, messages)
       const response: ChatSendResponse = { content }
       return c.json(response)
     } catch (e) {

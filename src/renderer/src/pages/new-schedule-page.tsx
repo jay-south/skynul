@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BackBar, BackButton, PanelTitle, Section, SettingsPanel } from '@/components/common'
-import { Button } from '@/components/ui/Button'
+import { Button } from '@/components/ui/button'
 import { useCreateSchedule } from '@/queries'
 
 export function NewSchedulePage(): React.JSX.Element {
@@ -97,7 +97,7 @@ export function NewSchedulePage(): React.JSX.Element {
       <div style={{ display: 'flex', gap: 8, marginTop: 24 }}>
         <Button onClick={() => navigate('/schedules')}>Cancel</Button>
         <Button
-          variant="filled"
+          variant="default"
           disabled={!prompt.trim() || createScheduleMutation.isPending}
           onClick={() => void handleSave()}
         >

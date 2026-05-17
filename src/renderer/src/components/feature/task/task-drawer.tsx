@@ -12,8 +12,7 @@ export function TaskDrawer({ isOpen, onClose }: TaskDrawerProps): React.JSX.Elem
   const { taskId } = useParams()
 
   // Queries
-  const { data: tasksResponse } = useTasks()
-  const tasks = tasksResponse?.tasks ?? []
+  const { data: tasks = [] } = useTasks()
 
   // Mutations
   const deleteTaskMutation = useDeleteTask()

@@ -1,34 +1,10 @@
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import skynulLogo from '../assets/logo-skynul.svg'
-import { SUPABASE_CONFIGURED, supabase } from '../supabase'
 import styles from './root-layout.module.css'
 
 export function RootLayout(): React.JSX.Element {
   const [isMaximized, setIsMaximized] = useState(false)
-  const [accountEmail, setAccountEmail] = useState('')
-  const [accountConnected, setAccountConnected] = useState(false)
-
-  // Check auth status
-  useState(() => {
-    if (!SUPABASE_CONFIGURED || !supabase) return
-
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) {
-        setAccountConnected(true)
-        setAccountEmail(data.user.email ?? '')
-      }
-    })
-
-    const {
-      data: { subscription }
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setAccountConnected(!!session)
-      setAccountEmail(session?.user?.email ?? '')
-    })
-
-    return () => subscription.unsubscribe()
-  })
 
   const handleMinimize = () => {
     console.log('Minimize window')
@@ -41,11 +17,6 @@ export function RootLayout(): React.JSX.Element {
 
   const handleClose = () => {
     console.log('Close window')
-  }
-
-  const handleSignOut = async () => {
-    if (!SUPABASE_CONFIGURED || !supabase) return
-    await supabase.auth.signOut()
   }
 
   return (
@@ -187,97 +158,6 @@ export function RootLayout(): React.JSX.Element {
             Settings
           </NavLink>
         </nav>
-
-        {/* Sign In button at bottom */}
-        <div
-          className={styles.sidebarFooter}
-          style={{
-            marginTop: 'auto',
-            padding: '16px',
-            borderTop: '1px solid var(--nb-border)'
-          }}
-        >
-          {accountConnected ? (
-            <button
-              type="button"
-              className="profileBtn"
-              onClick={() => void handleSignOut()}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '10px 12px',
-                background: 'transparent',
-                border: '1px solid var(--nb-border)',
-                borderRadius: '8px',
-                color: 'var(--text-primary)',
-                cursor: 'pointer',
-                fontSize: '13px'
-              }}
-            >
-              <div
-                className="profileAvatar"
-                style={{
-                  width: '28px',
-                  height: '28px',
-                  borderRadius: '50%',
-                  background: 'var(--nb-accent)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  color: 'white'
-                }}
-              >
-                {accountEmail.slice(0, 2).toUpperCase()}
-              </div>
-              <span
-                style={{
-                  flex: 1,
-                  textAlign: 'left',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                {accountEmail}
-              </span>
-              <svg
-                viewBox="0 0 24 24"
-                width="14"
-                height="14"
-                fill="currentColor"
-                style={{ opacity: 0.6 }}
-              >
-                <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
-              </svg>
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="btn"
-              onClick={() => {
-                // TODO: Open auth modal
-                console.log('Open auth modal')
-              }}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                padding: '10px 16px'
-              }}
-            >
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                <path d="M10 17l5-5-5-5v10zm9-14H5c-1.1 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z" />
-              </svg>
-              Sign In
-            </button>
-          )}
-        </div>
       </aside>
 
       {/* Main content area */}

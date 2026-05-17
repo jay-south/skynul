@@ -2,58 +2,31 @@ import { zValidator } from '@hono/zod-validator'
 import type { Schedule } from '@skynul/shared'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { createScheduleId, loadSchedules, saveSchedules } from '../core/stores/schedule-store'
+import * as repo from '../core/repositories/schedules'
 
 const scheduleSchema = z.object({
-  id: z.string().optional(),
-  prompt: z.string().min(1),
-  capabilities: z.array(z.string()),
-  mode: z.enum(['browser', 'code']),
-  frequency: z.enum(['daily', 'weekly', 'custom']),
-  cronExpr: z.string(),
-  enabled: z.boolean().optional().default(true)
+  id: z.string().optional(), prompt: z.string().min(1), capabilities: z.array(z.string()),
+  mode: z.enum(['browser', 'code']), frequency: z.enum(['daily', 'weekly', 'custom']),
+  cronExpr: z.string(), enabled: z.boolean().optional().default(true)
 })
 
 const schedules = new Hono()
-  .get('/', async (c) => {
-    return c.json({ schedules: await loadSchedules() })
-  })
-  .post('/', zValidator('json', scheduleSchema), async (c) => {
+  .get('/', (c) => c.json({ schedules: repo.list() }))
+  .post('/', zValidator('json', scheduleSchema), (c) => {
     const body = c.req.valid('json')
-    const all = await loadSchedules()
-
+    const now = Date.now()
     if (body.id) {
-      const idx = all.findIndex((s) => s.id === body.id)
-      if (idx !== -1) {
-        all[idx] = { ...all[idx], ...body } as Schedule
-      }
+      repo.update(body.id, {
+        prompt: body.prompt, capabilities: body.capabilities as Schedule['capabilities'],
+        mode: body.mode, frequency: body.frequency, cronExpr: body.cronExpr, enabled: body.enabled
+      })
     } else {
-      all.push({
-        ...body,
-        id: createScheduleId(),
-        lastRunAt: null,
-        nextRunAt: Date.now(),
-        createdAt: Date.now()
-      } as Schedule)
+      repo.create(body.prompt, JSON.stringify(body.capabilities), body.mode, body.frequency, body.cronExpr, now)
     }
-
-    await saveSchedules(all)
-    return c.json({ schedules: all })
+    return c.json({ schedules: repo.list() })
   })
-  .delete('/:id', async (c) => {
-    const id = c.req.param('id')
-    const all = (await loadSchedules()).filter((s) => s.id !== id)
-    await saveSchedules(all)
-    return c.json({ schedules: all })
-  })
-  .put('/:id/toggle', async (c) => {
-    const id = c.req.param('id')
-    const all = await loadSchedules()
-    const s = all.find((sc) => sc.id === id)
-    if (s) s.enabled = !s.enabled
-    await saveSchedules(all)
-    return c.json({ schedules: all })
-  })
+  .delete('/:id', (c) => { repo.remove(c.req.param('id')); return c.json({ schedules: repo.list() }) })
+  .put('/:id/toggle', (c) => { repo.toggle(c.req.param('id')); return c.json({ schedules: repo.list() }) })
 
 export { schedules }
 export type SchedulesRoute = typeof schedules

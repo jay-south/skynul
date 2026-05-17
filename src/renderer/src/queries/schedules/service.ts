@@ -1,40 +1,36 @@
 import type { Schedule } from '@skynul/shared'
-import type { ScheduleCreateRequest } from './types'
+import { apiFetch } from '@/lib/api-fetch'
 
-const API_BASE = 'http://localhost:3141/api'
-
-async function api<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers
-    }
-  })
-
-  if (!response.ok) {
-    const error = await response.text()
-    throw new Error(error || `HTTP ${response.status}`)
-  }
-
-  return response.json()
+type ScheduleCreateRequest = {
+  prompt: string
+  frequency: string
+  cronExpr: string
+  enabled?: boolean
 }
 
 export async function fetchSchedules(): Promise<Schedule[]> {
-  return api('/schedules')
+  const res = await apiFetch<{ schedules: Schedule[] }>('/schedules')
+  return res.schedules
 }
 
 export async function createSchedule(data: ScheduleCreateRequest): Promise<Schedule[]> {
-  return api('/schedules', {
+  const res = await apiFetch<{ schedules: Schedule[] }>('/schedules', {
     method: 'POST',
     body: JSON.stringify(data)
   })
+  return res.schedules
 }
 
 export async function toggleSchedule(id: string): Promise<Schedule[]> {
-  return api(`/schedules/${id}/toggle`, { method: 'POST' })
+  const res = await apiFetch<{ schedules: Schedule[] }>(`/schedules/${id}/toggle`, {
+    method: 'PUT'
+  })
+  return res.schedules
 }
 
 export async function deleteSchedule(id: string): Promise<Schedule[]> {
-  return api(`/schedules/${id}`, { method: 'DELETE' })
+  const res = await apiFetch<{ schedules: Schedule[] }>(`/schedules/${id}`, {
+    method: 'DELETE'
+  })
+  return res.schedules
 }

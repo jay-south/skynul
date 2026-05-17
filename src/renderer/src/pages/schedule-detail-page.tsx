@@ -1,5 +1,4 @@
-import type { Schedule, Task } from '@skynul/shared'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   BackBar,
@@ -11,35 +10,27 @@ import {
   SettingsPanel
 } from '@/components/common'
 import { CapabilityList, CapabilityToggle } from '@/components/feature/settings'
+import { useSchedules, useToggleSchedule, useDeleteSchedule } from '@/queries/schedules/hooks'
+import { useTasks } from '@/queries/tasks/hooks'
 
 export function ScheduleDetailPage(): React.JSX.Element {
   const { scheduleId } = useParams()
   const navigate = useNavigate()
-  const [schedule, setSchedule] = useState<Schedule | null>(null)
-  const [tasks, setTasks] = useState<Task[]>([])
+  const { data: schedules = [] } = useSchedules()
+  const { data: tasks = [] } = useTasks()
+  const toggleSchedule = useToggleSchedule()
+  const deleteSchedule = useDeleteSchedule()
 
-  useEffect(() => {
-    if (!scheduleId) return
-
-    void window.skynul.scheduleList().then((schedules) => {
-      const s = schedules.find((x) => x.id === scheduleId)
-      if (s) setSchedule(s)
-    })
-
-    void window.skynul.taskList().then(({ tasks: list }) => {
-      setTasks(list)
-    })
-  }, [scheduleId])
+  const schedule = schedules.find((s) => s.id === scheduleId) ?? null
 
   const handleToggle = async () => {
     if (!schedule) return
-    const updated = await window.skynul.scheduleToggle(schedule.id)
-    setSchedule(updated.find((s) => s.id === scheduleId) ?? null)
+    await toggleSchedule.mutateAsync(schedule.id)
   }
 
   const handleDelete = async () => {
     if (!schedule) return
-    await window.skynul.scheduleDelete(schedule.id)
+    await deleteSchedule.mutateAsync(schedule.id)
     navigate('/schedules')
   }
 

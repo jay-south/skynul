@@ -2,10 +2,10 @@ import { zValidator } from '@hono/zod-validator'
 import type { ChannelId } from '@skynul/shared'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { ChannelManager } from '../core/channels/channel-manager'
+import { ChannelManager } from '../core/transport/channels/channel-manager'
 import { taskManager } from './tasks'
 
-const cm = new ChannelManager(taskManager)
+const cm = new ChannelManager(taskManager())
 
 // Load global settings and start enabled channels on init
 void cm.loadGlobal().then(() => cm.startAll())

@@ -1,5 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { tasksKeys } from './keys'
+import { useInvalidate } from '../invalidation'
 import {
   approveTask,
   cancelTask,
@@ -10,15 +11,8 @@ import {
   sendTaskMessage
 } from './service'
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// QUERIES
-// ═══════════════════════════════════════════════════════════════════════════════
-
 export function useTasks() {
-  return useQuery({
-    queryKey: tasksKeys.lists(),
-    queryFn: fetchTasks
-  })
+  return useQuery({ queryKey: tasksKeys.lists(), queryFn: fetchTasks })
 }
 
 export function useTask(id: string | undefined) {
@@ -29,63 +23,42 @@ export function useTask(id: string | undefined) {
   })
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// MUTATIONS
-// ═══════════════════════════════════════════════════════════════════════════════
-
 export function useCreateTask() {
-  const queryClient = useQueryClient()
-
+  const invalidate = useInvalidate()
   return useMutation({
     mutationFn: createTask,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: tasksKeys.lists() })
-    }
+    onSuccess: () => invalidate(tasksKeys.lists())
   })
 }
 
 export function useApproveTask() {
-  const queryClient = useQueryClient()
-
+  const invalidate = useInvalidate()
   return useMutation({
     mutationFn: approveTask,
-    onSuccess: (_data, id) => {
-      queryClient.invalidateQueries({ queryKey: tasksKeys.detail(id) })
-      queryClient.invalidateQueries({ queryKey: tasksKeys.lists() })
-    }
+    onSuccess: (_data, id) => invalidate(tasksKeys.detail(id), tasksKeys.lists())
   })
 }
 
 export function useCancelTask() {
-  const queryClient = useQueryClient()
-
+  const invalidate = useInvalidate()
   return useMutation({
     mutationFn: cancelTask,
-    onSuccess: (_data, id) => {
-      queryClient.invalidateQueries({ queryKey: tasksKeys.detail(id) })
-      queryClient.invalidateQueries({ queryKey: tasksKeys.lists() })
-    }
+    onSuccess: (_data, id) => invalidate(tasksKeys.detail(id), tasksKeys.lists())
   })
 }
 
 export function useDeleteTask() {
-  const queryClient = useQueryClient()
-
+  const invalidate = useInvalidate()
   return useMutation({
     mutationFn: deleteTask,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: tasksKeys.lists() })
-    }
+    onSuccess: () => invalidate(tasksKeys.lists())
   })
 }
 
 export function useSendTaskMessage() {
-  const queryClient = useQueryClient()
-
+  const invalidate = useInvalidate()
   return useMutation({
     mutationFn: ({ id, message }: { id: string; message: string }) => sendTaskMessage(id, message),
-    onSuccess: (_data, { id }) => {
-      queryClient.invalidateQueries({ queryKey: tasksKeys.detail(id) })
-    }
+    onSuccess: (_data, { id }) => invalidate(tasksKeys.detail(id))
   })
 }

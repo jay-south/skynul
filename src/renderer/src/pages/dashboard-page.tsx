@@ -6,8 +6,7 @@ import { useSchedules, useTasks } from '@/queries'
 export function DashboardPage(): React.JSX.Element {
   const navigate = useNavigate()
 
-  const { data: tasksResponse } = useTasks()
-  const tasks = tasksResponse?.tasks ?? []
+  const { data: tasks = [] } = useTasks()
 
   const { data: schedules = [] } = useSchedules()
 

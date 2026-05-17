@@ -1,15 +1,26 @@
 import { createMiddleware } from 'hono/factory'
 
+const AUTH_TOKEN = process.env.SKYNUL_AUTH_TOKEN
+
 /**
- * Auth middleware — placeholder for future JWT/token validation.
+ * Auth middleware — validates Bearer token for desktop security.
  *
- * Desktop mode: Electron spawns the server locally, no auth needed (or use a
- * shared secret passed via env var).
+ * When SKYNUL_AUTH_TOKEN is set (production/packaged), all requests
+ * must include `Authorization: Bearer <token>`.
  *
- * Web mode: Validate JWT from Supabase/custom auth.
+ * When unset (dev without Electron spawning), auth is skipped.
  */
 export const authMiddleware = createMiddleware(async (c, next) => {
-  // TODO: Implement auth based on deployment context
-  // For now, allow all requests (local dev / desktop)
+  if (!AUTH_TOKEN) {
+    await next()
+    return
+  }
+
+  const auth = c.req.header('authorization')
+  if (!auth || auth !== `Bearer ${AUTH_TOKEN}`) {
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
+
   await next()
+  return
 })

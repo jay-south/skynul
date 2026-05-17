@@ -1,4 +1,4 @@
-import type { Task, TaskCapabilityId } from '@skynul/shared'
+import type { Task } from '@skynul/shared'
 import { useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import {
@@ -16,6 +16,7 @@ import {
   useTask,
   useTasks
 } from '@/queries'
+import { detectCapabilities } from '@/lib/capabilities'
 
 export function TaskChatPage(): React.JSX.Element {
   const { taskId } = useParams()
@@ -25,8 +26,7 @@ export function TaskChatPage(): React.JSX.Element {
     (import.meta.env.VITE_MULTI_AGENT_PANEL as string | undefined) !== '0'
 
   const { data: task } = useTask(taskId)
-  const { data: tasksResponse } = useTasks()
-  const tasks = tasksResponse?.tasks ?? []
+  const { data: tasks = [] } = useTasks()
   const { data: policy } = usePolicy()
 
   const approveMutation = useApproveTask()
@@ -80,18 +80,6 @@ export function TaskChatPage(): React.JSX.Element {
     }
   }
 
-  const detectAutoCaps = (prompt: string): TaskCapabilityId[] => {
-    const lower = prompt.toLowerCase()
-    const detected = new Set<TaskCapabilityId>()
-
-    const browserWords = ['browser', 'webpage', 'website', 'scrape', 'navigate', 'url', 'search']
-    if (browserWords.some((w) => lower.includes(w))) detected.add('browser.cdp')
-
-    if (detected.size === 0) detected.add('browser.cdp')
-
-    return [...detected]
-  }
-
   if (!task) {
     return <div>Task not found</div>
   }
@@ -122,7 +110,7 @@ export function TaskChatPage(): React.JSX.Element {
 
       <InputBar
         lang={policy?.language ?? 'en'}
-        autoCaps={detectAutoCaps(composerPrompt)}
+        autoCaps={detectCapabilities(composerPrompt)}
         compact={true}
         onSubmit={handleInputSubmit}
         onStop={isRunning ? () => taskId && cancelMutation.mutate(taskId) : undefined}

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://unpkg.com/knip/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": [
+        "electron.vite.config.ts",
+        "src/main/index.ts",
+        "src/preload/index.ts",
+        "src/renderer/src/main.tsx"
+      ],
+      "project": [
+        "src/main/**/*.ts",
+        "src/preload/**/*.ts",
+        "src/renderer/src/**/*.{ts,tsx}"
+      ]
+    },
+    "packages/server": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/shared": {
+      "project": ["src/**/*.ts"]
+    }
+  },
+  "ignoreDependencies": [
+    "@types/better-sqlite3",
+    "@types/ws",
+    "drizzle-kit"
+  ],
+  "ignoreExportsUsedInFile": true
+}

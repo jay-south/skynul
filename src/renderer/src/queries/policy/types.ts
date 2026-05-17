@@ -1,12 +1,9 @@
 import type {
   CapabilityId,
   LanguageCode,
-  PolicyState,
   ProviderId,
   ThemeMode,
 } from "@skynul/shared";
-
-export type PolicyResponse = PolicyState;
 
 export type SetLanguageRequest = {
   language: LanguageCode;
@@ -31,8 +28,4 @@ export type SetAutoApproveRequest = {
 
 export type SetProviderRequest = {
   providerId: ProviderId;
-};
-
-export type SetOpenAIModelRequest = {
-  model: string;
 };

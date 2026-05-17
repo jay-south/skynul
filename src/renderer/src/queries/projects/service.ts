@@ -1,42 +1,24 @@
 import type { ProjectWithTasks } from '@skynul/shared'
-
-const API_BASE = 'http://localhost:3141/api'
-
-async function api<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers
-    }
-  })
-
-  if (!response.ok) {
-    const error = await response.text()
-    throw new Error(error || `HTTP ${response.status}`)
-  }
-
-  return response.json()
-}
+import { apiFetch } from '@/lib/api-fetch'
 
 export async function fetchProjects(): Promise<ProjectWithTasks[]> {
-  return api('/projects')
+  return apiFetch('/projects')
 }
 
 export async function createProject(name: string): Promise<ProjectWithTasks> {
-  return api('/projects', {
+  return apiFetch('/projects', {
     method: 'POST',
     body: JSON.stringify({ name })
   })
 }
 
 export async function addTaskToProject(projectId: string, taskId: string): Promise<void> {
-  return api(`/projects/${projectId}/tasks`, {
+  return apiFetch(`/projects/${projectId}/tasks`, {
     method: 'POST',
     body: JSON.stringify({ taskId })
   })
 }
 
 export async function deleteProject(id: string): Promise<void> {
-  return api(`/projects/${id}`, { method: 'DELETE' })
+  return apiFetch(`/projects/${id}`, { method: 'DELETE' })
 }

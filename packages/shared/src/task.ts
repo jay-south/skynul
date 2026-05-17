@@ -7,6 +7,8 @@ export type TaskCapabilityId =
   | 'office.professional'
   | 'app.scripting'
 
+export const TASK_CAPABILITY_IDS = ['browser.cdp', 'app.launch', 'polymarket.trading', 'office.professional', 'app.scripting'] as const satisfies readonly TaskCapabilityId[]
+
 export const ALL_TASK_CAPABILITIES: Array<{
   id: TaskCapabilityId
   title: string

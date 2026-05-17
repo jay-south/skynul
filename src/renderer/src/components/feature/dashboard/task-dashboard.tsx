@@ -1,5 +1,6 @@
-import type { RuntimeStats, Schedule, Task } from '@skynul/shared'
+import type { Schedule, Task } from '@skynul/shared'
 import { useEffect, useMemo, useState } from 'react'
+import { fetchRuntimeStats, type RuntimeStats } from '@/queries/runtime/service'
 import styles from './task-dashboard.module.css'
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -261,8 +262,7 @@ export function TaskDashboard(props: {
     if (!agentDetailsId && !scheduleDetailsId && activeTasks.length === 0) return
     let alive = true
     const tick = (): void => {
-      void window.skynul
-        .runtimeGetStats()
+      void fetchRuntimeStats()
         .then((s) => {
           if (alive) setRuntime(s)
         })

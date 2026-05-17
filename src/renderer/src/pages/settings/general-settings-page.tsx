@@ -1,58 +1,16 @@
 import type { LanguageCode, ThemeMode } from '@skynul/shared'
-import { useEffect, useState } from 'react'
-import { PathBox, Section, SectionField, SectionLabel } from '@/components/common'
+import { PathBox, Section, SectionLabel } from '@/components/common'
 import { UpdateSettings } from '@/components/feature/settings'
-import { Button } from '@/components/ui/Button'
+import { Button } from '@/components/ui/button'
 import { t } from '@/i18n'
 import { usePickWorkspace, usePolicy, useSetLanguage, useSetTheme } from '@/queries'
-import { SUPABASE_CONFIGURED, supabase } from '@/supabase'
 
 export function GeneralSettingsPage(): React.JSX.Element {
-  const [accountEmail, setAccountEmail] = useState('')
-  const [accountConnected, setAccountConnected] = useState(false)
-  const [accountLoading, setAccountLoading] = useState(SUPABASE_CONFIGURED)
-  const [accountBusy, setAccountBusy] = useState(false)
-
   const { data: policy } = usePolicy()
 
   const setLanguageMutation = useSetLanguage()
   const setThemeMutation = useSetTheme()
   const pickWorkspaceMutation = usePickWorkspace()
-
-  useEffect(() => {
-    if (!SUPABASE_CONFIGURED || !supabase) return
-
-    let alive = true
-    setAccountLoading(true)
-    void supabase.auth
-      .getUser()
-      .then(({ data, error }) => {
-        if (!alive) return
-        if (error || !data.user) {
-          setAccountConnected(false)
-          setAccountEmail('')
-          return
-        }
-        setAccountConnected(true)
-        setAccountEmail(data.user.email ?? '')
-      })
-      .finally(() => {
-        if (alive) setAccountLoading(false)
-      })
-
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!alive) return
-      const email = session?.user.email ?? ''
-      setAccountConnected(Boolean(session))
-      setAccountEmail(email)
-      setAccountLoading(false)
-    })
-
-    return () => {
-      alive = false
-      data.subscription.unsubscribe()
-    }
-  }, [])
 
   const lang: LanguageCode = policy?.language ?? 'en'
   const workspaceLabel = policy?.workspaceRoot ?? 'No workspace'
@@ -67,20 +25,6 @@ export function GeneralSettingsPage(): React.JSX.Element {
 
   const handlePickWorkspace = () => {
     pickWorkspaceMutation.mutate()
-  }
-
-  const signOut = async () => {
-    if (!SUPABASE_CONFIGURED || !supabase) return
-    setAccountBusy(true)
-    try {
-      await supabase.auth.signOut()
-    } finally {
-      setAccountBusy(false)
-    }
-  }
-
-  const openAuthModal = () => {
-    console.log('Open auth modal')
   }
 
   return (
@@ -124,32 +68,6 @@ export function GeneralSettingsPage(): React.JSX.Element {
         <SectionLabel>{t(lang, 'settings_workspace')}</SectionLabel>
         <PathBox title={workspaceLabel}>{workspaceLabel}</PathBox>
         <Button onClick={handlePickWorkspace}>{t(lang, 'settings_pick_workspace')}</Button>
-      </Section>
-
-      <Section>
-        <SectionLabel>{t(lang, 'settings_account')}</SectionLabel>
-        <SectionField>
-          <div>
-            {!SUPABASE_CONFIGURED
-              ? t(lang, 'account_supabase_not_configured')
-              : accountLoading
-                ? t(lang, 'auth_loading_account')
-                : accountConnected
-                  ? accountEmail
-                    ? t(lang, 'account_connected_as', { email: accountEmail })
-                    : t(lang, 'account_connected')
-                  : t(lang, 'account_not_connected')}
-          </div>
-          {accountConnected ? (
-            <Button onClick={() => void signOut()} disabled={accountBusy}>
-              {t(lang, 'account_sign_out')}
-            </Button>
-          ) : (
-            <Button onClick={openAuthModal} disabled={accountBusy || accountLoading}>
-              {t(lang, 'auth_login')}
-            </Button>
-          )}
-        </SectionField>
       </Section>
 
       <UpdateSettings />

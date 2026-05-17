@@ -1,11 +1,14 @@
-import type { ChannelId, ChannelSettings as ChannelSettingsType } from '@skynul/shared'
-import { useCallback, useEffect, useState } from 'react'
+import type { ChannelId } from '@skynul/shared'
+import { useState } from 'react'
 import discordIcon from '@/assets/discord.svg'
 import signalIcon from '@/assets/signal.svg'
 import slackIcon from '@/assets/slack.svg'
 import telegramIcon from '@/assets/telegram.svg'
 import whatsappIcon from '@/assets/whatsapp.svg'
 import { CapabilityToggle } from '@/components/feature/settings'
+import { useChannels, useChannelGlobal, useSetChannelEnabled, useSetChannelCredentials, useGenerateChannelPairing, useUnpairChannel, useSetChannelAutoApprove } from '@/queries/channels/hooks'
+import { channelsKeys } from '@/queries/channels/keys'
+import { useQueryClient } from '@tanstack/react-query'
 import styles from './channel-settings.module.css'
 
 const CHANNEL_INFO: Record<
@@ -75,37 +78,28 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export function ChannelSettings(): React.JSX.Element {
-  const [channels, setChannels] = useState<ChannelSettingsType[]>([])
+  const queryClient = useQueryClient()
+  const { data: channels = [], isLoading } = useChannels()
+  const { data: global } = useChannelGlobal()
+  const setEnabled = useSetChannelEnabled()
+  const setCredentials = useSetChannelCredentials()
+  const generatePairing = useGenerateChannelPairing()
+  const unpair = useUnpairChannel()
+  const setAutoApprove = useSetChannelAutoApprove()
+
   const [expandedId, setExpandedId] = useState<ChannelId | null>(null)
   const [credDraft, setCredDraft] = useState('')
   const [credDraft2, setCredDraft2] = useState('')
   const [busy, setBusy] = useState<ChannelId | null>(null)
   const [error, setError] = useState('')
-  const [autoApprove, setAutoApprove] = useState(true)
 
-  const loadChannels = useCallback(async () => {
-    try {
-      const [all, global] = await Promise.all([
-        window.skynul.channelGetAll(),
-        window.skynul.channelGetGlobal()
-      ])
-      setChannels(all)
-      setAutoApprove(global.autoApprove)
-    } catch {
-      // not available
-    }
-  }, [])
-
-  useEffect(() => {
-    void loadChannels()
-  }, [loadChannels])
+  const autoApprove = global?.autoApprove ?? true
 
   const handleToggle = async (channelId: ChannelId, currentEnabled: boolean): Promise<void> => {
     setBusy(channelId)
     setError('')
     try {
-      const updated = await window.skynul.channelSetEnabled(channelId, !currentEnabled)
-      setChannels((prev) => prev.map((c) => (c.id === channelId ? updated : c)))
+      await setEnabled.mutateAsync({ channelId, enabled: !currentEnabled })
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -123,8 +117,7 @@ export function ChannelSettings(): React.JSX.Element {
       if (info.credentialField2 && credDraft2.trim()) {
         creds[info.credentialField2] = credDraft2
       }
-      const updated = await window.skynul.channelSetCredentials(channelId, creds)
-      setChannels((prev) => prev.map((c) => (c.id === channelId ? updated : c)))
+      await setCredentials.mutateAsync({ channelId, creds })
       setCredDraft('')
       setCredDraft2('')
     } catch (e) {
@@ -138,8 +131,8 @@ export function ChannelSettings(): React.JSX.Element {
     setBusy(channelId)
     setError('')
     try {
-      const code = await window.skynul.channelGeneratePairing(channelId)
-      setChannels((prev) => prev.map((c) => (c.id === channelId ? { ...c, pairingCode: code } : c)))
+      await generatePairing.mutateAsync(channelId)
+      await queryClient.invalidateQueries({ queryKey: channelsKeys.lists() })
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -151,8 +144,7 @@ export function ChannelSettings(): React.JSX.Element {
     setBusy(channelId)
     setError('')
     try {
-      const updated = await window.skynul.channelUnpair(channelId)
-      setChannels((prev) => prev.map((c) => (c.id === channelId ? updated : c)))
+      await unpair.mutateAsync(channelId)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -162,12 +154,13 @@ export function ChannelSettings(): React.JSX.Element {
 
   const handleAutoApproveToggle = async (): Promise<void> => {
     try {
-      const updated = await window.skynul.channelSetAutoApprove(!autoApprove)
-      setAutoApprove(updated.autoApprove)
+      await setAutoApprove.mutateAsync(!autoApprove)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     }
   }
+
+  if (isLoading) return <div className={styles.settingsSection}>Loading channels...</div>
 
   return (
     <div className={styles.settingsSection}>
