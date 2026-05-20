@@ -1,0 +1,28 @@
+[package]
+name = "skynul-core"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "skynul-core"
+path = "src/bin/cli.rs"
+
+[[bin]]
+name = "skynul-server"
+path = "src/bin/server.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+diesel = { version = "2.2", features = ["sqlite", "r2d2", "chrono", "uuid", "serde_json", "returning_clauses_for_sqlite_3_35"] }
+diesel_migrations = "2.2"
+libsqlite3-sys = { version = "0.30", features = ["bundled"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "2"
+axum = "0.8"
+tokio = { version = "1", features = ["full"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"

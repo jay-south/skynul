@@ -8,11 +8,7 @@
         "src/preload/index.ts",
         "src/renderer/src/main.tsx"
       ],
-      "project": [
-        "src/main/**/*.ts",
-        "src/preload/**/*.ts",
-        "src/renderer/src/**/*.{ts,tsx}"
-      ]
+      "project": ["src/main/**/*.ts", "src/preload/**/*.ts", "src/renderer/src/**/*.{ts,tsx}"]
     },
     "packages/server": {
       "project": ["src/**/*.ts"]
@@ -21,10 +17,6 @@
       "project": ["src/**/*.ts"]
     }
   },
-  "ignoreDependencies": [
-    "@types/better-sqlite3",
-    "@types/ws",
-    "drizzle-kit"
-  ],
+  "ignoreDependencies": ["@types/better-sqlite3", "@types/ws", "drizzle-kit"],
   "ignoreExportsUsedInFile": true
 }

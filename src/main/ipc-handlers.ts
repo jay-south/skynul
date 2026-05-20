@@ -1,7 +1,7 @@
-import { clipboard, dialog, ipcMain, BrowserWindow } from 'electron'
-import { randomUUID } from 'crypto'
-import { mkdir, writeFile } from 'fs/promises'
-import { tmpdir } from 'os'
+import { randomUUID } from 'node:crypto'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { type BrowserWindow, clipboard, dialog, ipcMain } from 'electron'
 import { checkForUpdates, downloadUpdate, installUpdate } from './updater'
 
 /**

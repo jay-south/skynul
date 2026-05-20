@@ -1,4 +1,4 @@
-import { apiFetch } from '@/lib/api-fetch'
+import { api } from '@/lib/api'
 
 export type RuntimeStats = {
   app: {
@@ -11,5 +11,5 @@ export type RuntimeStats = {
 }
 
 export async function fetchRuntimeStats(): Promise<RuntimeStats> {
-  return apiFetch('/runtime/stats')
+  return api('/runtime/stats')
 }

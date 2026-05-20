@@ -1,41 +1,52 @@
-import { spawn, type ChildProcess } from 'child_process'
-import { resolve } from 'path'
+import { type ChildProcess, execSync, spawn } from 'node:child_process'
+import { resolve } from 'node:path'
 
 let serverProcess: ChildProcess | null = null
 
-/**
- * Spawn the Hono server process with the auth token.
- * In dev mode: uses tsx to run the TypeScript source.
- * In production: uses the compiled JS output.
- */
-export async function spawnServer(authToken: string): Promise<void> {
-  const isDev = process.env.NODE_ENV !== 'production'
+function killPort(port: number): void {
+  try {
+    execSync(`fuser -k ${port}/tcp 2>/dev/null`, { stdio: 'ignore' })
+  } catch {
+    /* port was free or fuser not available */
+  }
+}
 
-  const serverRoot = resolve(__dirname, isDev ? '../../packages/server' : '../packages/server')
-  const serverScript = isDev ? 'src/index.ts' : 'src/index.js'
+/**
+ * Spawn the Rust server binary.
+ * In dev mode: uses cargo run from the packages/core directory.
+ * In production: uses the pre-built binary.
+ */
+export async function spawnServer(_authToken: string): Promise<void> {
+  const port = parseInt(process.env.SKYNUL_PORT ?? '3141', 10)
+  killPort(port)
+
+  const isDev = process.env.NODE_ENV !== 'production'
 
   let cmd: string
   let args: string[]
+  let cwd: string
 
   if (isDev) {
-    // Dev: use tsx to run TypeScript directly
-    const tsxBin = require.resolve('tsx')
-    cmd = process.execPath
-    args = [tsxBin, resolve(serverRoot, serverScript)]
+    // Dev: use cargo run for hot reload during development
+    cmd = 'cargo'
+    args = ['run', '--bin', 'skynul-server', '--quiet']
+    cwd = resolve(__dirname, '../../packages/core')
   } else {
-    // Production: run compiled JS with Node
-    cmd = process.execPath
-    args = [resolve(serverRoot, serverScript)]
+    // Production: run the compiled binary directly
+    const binaryName = process.platform === 'win32' ? 'skynul-server.exe' : 'skynul-server'
+    cmd = resolve(__dirname, '../packages/core', binaryName)
+    args = []
+    cwd = resolve(__dirname, '../packages/core')
   }
 
   serverProcess = spawn(cmd, args, {
     env: {
       ...process.env,
-      SKYNUL_AUTH_TOKEN: authToken,
+      SKYNUL_PORT: String(port),
       NODE_ENV: isDev ? 'development' : 'production'
     },
     stdio: ['ignore', 'pipe', 'pipe'],
-    cwd: serverRoot
+    cwd
   })
 
   serverProcess.stdout?.on('data', (data) => {
@@ -55,12 +66,11 @@ export async function spawnServer(authToken: string): Promise<void> {
   })
 
   // Wait for server to be ready
-  await waitForServer()
+  await waitForServer(30, 500, port)
 }
 
 /** Poll the server health endpoint until it responds. */
-async function waitForServer(maxAttempts = 30, intervalMs = 500): Promise<void> {
-  const port = process.env.SKYNUL_PORT ?? '3141'
+async function waitForServer(maxAttempts = 30, intervalMs = 500, port = 3141): Promise<void> {
   const url = `http://localhost:${port}/ping`
 
   for (let i = 0; i < maxAttempts; i++) {

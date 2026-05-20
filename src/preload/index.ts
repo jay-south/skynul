@@ -1,8 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
-const authToken = process.argv
-  .find((arg) => arg.startsWith('--skynul-auth-token='))
-  ?.split('=')[1] ?? ''
+const authToken =
+  process.argv.find((arg) => arg.startsWith('--skynul-auth-token='))?.split('=')[1] ?? ''
 
 const skynul = {
   // ── Auth ──────────────────────────────────────────────────────────────

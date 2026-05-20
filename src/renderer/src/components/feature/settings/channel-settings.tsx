@@ -6,10 +6,15 @@ import slackIcon from '@/assets/slack.svg'
 import telegramIcon from '@/assets/telegram.svg'
 import whatsappIcon from '@/assets/whatsapp.svg'
 import { CapabilityToggle } from '@/components/feature/settings'
-import { useChannels, useChannelGlobal, useSetChannelEnabled, useSetChannelCredentials, useGenerateChannelPairing, useUnpairChannel, useSetChannelAutoApprove } from '@/queries/channels/hooks'
-import { channelsKeys } from '@/queries/channels/keys'
-import { useQueryClient } from '@tanstack/react-query'
-import styles from './channel-settings.module.css'
+import {
+  useChannelGlobal,
+  useChannels,
+  useGenerateChannelPairing,
+  useSetChannelAutoApprove,
+  useSetChannelCredentials,
+  useSetChannelEnabled,
+  useUnpairChannel
+} from '@/queries/channels/hooks'
 
 const CHANNEL_INFO: Record<
   ChannelId,
@@ -78,7 +83,6 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export function ChannelSettings(): React.JSX.Element {
-  const queryClient = useQueryClient()
   const { data: channels = [], isLoading } = useChannels()
   const { data: global } = useChannelGlobal()
   const setEnabled = useSetChannelEnabled()
@@ -114,9 +118,7 @@ export function ChannelSettings(): React.JSX.Element {
     try {
       const info = CHANNEL_INFO[channelId]
       const creds: Record<string, string> = { [info.credentialField]: credDraft }
-      if (info.credentialField2 && credDraft2.trim()) {
-        creds[info.credentialField2] = credDraft2
-      }
+      if (info.credentialField2 && credDraft2.trim()) creds[info.credentialField2] = credDraft2
       await setCredentials.mutateAsync({ channelId, creds })
       setCredDraft('')
       setCredDraft2('')
@@ -132,7 +134,6 @@ export function ChannelSettings(): React.JSX.Element {
     setError('')
     try {
       await generatePairing.mutateAsync(channelId)
-      await queryClient.invalidateQueries({ queryKey: channelsKeys.lists() })
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -152,20 +153,18 @@ export function ChannelSettings(): React.JSX.Element {
     }
   }
 
-  const handleAutoApproveToggle = async (): Promise<void> => {
-    try {
-      await setAutoApprove.mutateAsync(!autoApprove)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    }
-  }
-
-  if (isLoading) return <div className={styles.settingsSection}>Loading channels...</div>
+  if (isLoading) return <div className="flex flex-col gap-3">Loading channels...</div>
 
   return (
-    <div className={styles.settingsSection}>
-      <div className={styles.settingsLabel}>Messaging Channels</div>
-      {error && <div className={styles.composerError}>{error}</div>}
+    <div className="flex flex-col gap-3">
+      <div className="text-xs font-bold text-nb-muted uppercase tracking-[0.04em]">
+        Messaging Channels
+      </div>
+      {error && (
+        <div className="text-xs text-nb-danger px-2.5 py-2 rounded-lg bg-nb-danger/10 border border-nb-danger/30">
+          {error}
+        </div>
+      )}
 
       <CapabilityToggle
         title="Aprobar tareas automáticamente"
@@ -175,51 +174,63 @@ export function ChannelSettings(): React.JSX.Element {
             : 'Las tareas quedan pendientes hasta que las apruebes'
         }
         enabled={autoApprove}
-        onToggle={() => void handleAutoApproveToggle()}
+        onToggle={() =>
+          void setAutoApprove
+            .mutateAsync(!autoApprove)
+            .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+        }
       />
 
-      <div className={styles.channelGrid}>
+      <div className="flex flex-col gap-2">
         {channels.map((ch) => {
           const info = CHANNEL_INFO[ch.id]
           const isExpanded = expandedId === ch.id
           const isBusy = busy === ch.id
 
           return (
-            <div key={ch.id} className={styles.channelCard}>
+            <div
+              key={ch.id}
+              className="border border-nb-border rounded-xl overflow-hidden bg-nb-panel"
+            >
               <button
                 type="button"
-                className={styles.channelCardHeader}
                 onClick={() => setExpandedId(isExpanded ? null : ch.id)}
+                className="flex items-center gap-2.5 w-full px-3.5 py-3 bg-none border-none cursor-pointer text-nb-text text-xs font-semibold text-left hover:bg-nb-accent-2/8 transition-colors duration-100"
               >
-                <span className={styles.channelIcon} aria-hidden="true">
-                  <img className={styles.channelIconImg} src={info.iconSrc} alt="" />
+                <span className="w-[18px] h-[18px] inline-flex items-center justify-center shrink-0">
+                  <img
+                    className="w-[18px] h-[18px] block object-contain brightness-0 dark:brightness-0 dark:invert"
+                    src={info.iconSrc}
+                    alt=""
+                  />
                 </span>
-                <span className={styles.channelName}>{info.label}</span>
+                <span className="flex-1">{info.label}</span>
                 <span
-                  className={styles.channelStatusDot}
+                  className="w-2 h-2 rounded-full shrink-0"
                   style={{ backgroundColor: STATUS_COLORS[ch.status] ?? '#666' }}
                   title={ch.status}
                 />
-                {ch.paired && <span className={styles.settingsBadge}>Paired</span>}
+                {ch.paired && (
+                  <span className="inline-flex items-center text-[9px] font-bold uppercase tracking-[0.04em] text-white bg-nb-accent-2 px-2 py-[3px] rounded-full align-middle">
+                    Paired
+                  </span>
+                )}
               </button>
 
               {isExpanded && (
-                <div className={styles.channelCardBody}>
-                  <div className={styles.settingsFieldHint}>{info.desc}</div>
+                <div className="px-3.5 pb-3.5 flex flex-col gap-2.5">
+                  <div className="text-[11px] font-medium text-nb-muted">{info.desc}</div>
 
-                  {/* Credentials input */}
                   {info.credentialField && (
-                    <div
-                      className={styles.channelCredRow}
-                      style={{ flexDirection: 'column', gap: 6 }}
-                    >
+                    <div className="flex flex-col gap-1.5">
                       {ch.hasCredentials && !credDraft && (
-                        <div className={styles.channelSavedCred}>
-                          <span className={styles.credMask}>••••••••••••••••</span>
+                        <div className="flex items-center gap-2.5">
+                          <span className="font-mono text-nb-muted tracking-[2px]">
+                            ••••••••••••••••
+                          </span>
                           <button
                             type="button"
-                            className="btn"
-                            style={{ fontSize: '11px', padding: '3px 10px' }}
+                            className="text-[11px] px-2.5 py-[3px] bg-nb-panel-2 border border-nb-border rounded-lg cursor-pointer text-nb-text"
                             onClick={() => setCredDraft(' ')}
                           >
                             Change
@@ -230,7 +241,7 @@ export function ChannelSettings(): React.JSX.Element {
                         <>
                           <input
                             type="password"
-                            className={styles.apiKeyInput}
+                            className="w-full px-3 py-2.5 rounded-xl border border-nb-border bg-nb-panel-2 text-xs text-nb-text outline-none font-mono focus:border-nb-accent-2/50"
                             placeholder={info.credentialPlaceholder}
                             value={credDraft}
                             onChange={(e) => setCredDraft(e.target.value)}
@@ -239,7 +250,7 @@ export function ChannelSettings(): React.JSX.Element {
                           {info.credentialField2 && (
                             <input
                               type="password"
-                              className={styles.apiKeyInput}
+                              className="w-full px-3 py-2.5 rounded-xl border border-nb-border bg-nb-panel-2 text-xs text-nb-text outline-none font-mono focus:border-nb-accent-2/50"
                               placeholder={info.credentialPlaceholder2}
                               value={credDraft2}
                               onChange={(e) => setCredDraft2(e.target.value)}
@@ -248,7 +259,7 @@ export function ChannelSettings(): React.JSX.Element {
                           )}
                           <button
                             type="button"
-                            className="btn"
+                            className="px-2.5 py-[3px] bg-nb-panel-2 border border-nb-border rounded-lg cursor-pointer text-nb-text text-xs"
                             onClick={() => void handleSaveCredentials(ch.id)}
                             disabled={isBusy || !credDraft.trim()}
                           >
@@ -259,7 +270,6 @@ export function ChannelSettings(): React.JSX.Element {
                     </div>
                   )}
 
-                  {/* Enable toggle */}
                   <CapabilityToggle
                     title="Active"
                     description={ch.enabled ? `Status: ${ch.status}` : 'Channel is off'}
@@ -268,24 +278,35 @@ export function ChannelSettings(): React.JSX.Element {
                     disabled={isBusy}
                   />
 
-                  {/* Pairing flow */}
                   {ch.enabled && !ch.paired && (
-                    <div className={styles.channelPairing}>
+                    <div className="flex flex-col gap-2">
                       {ch.pairingCode ? (
-                        <div className={styles.settingsFieldHint}>
+                        <div className="text-[11px] font-medium text-nb-muted">
                           {ch.id === 'telegram' && (
                             <>
-                              Send <code>/pair {ch.pairingCode}</code> to your bot in Telegram
+                              Send{' '}
+                              <code className="bg-nb-code-bg border border-nb-code-border rounded px-1">
+                                /pair {ch.pairingCode}
+                              </code>{' '}
+                              to your bot in Telegram
                             </>
                           )}
                           {ch.id === 'discord' && (
                             <>
-                              Send <code>/pair {ch.pairingCode}</code> to your bot in Discord
+                              Send{' '}
+                              <code className="bg-nb-code-bg border border-nb-code-border rounded px-1">
+                                /pair {ch.pairingCode}
+                              </code>{' '}
+                              to your bot in Discord
                             </>
                           )}
                           {ch.id === 'slack' && (
                             <>
-                              Send <code>/pair {ch.pairingCode}</code> to the bot in Slack
+                              Send{' '}
+                              <code className="bg-nb-code-bg border border-nb-code-border rounded px-1">
+                                /pair {ch.pairingCode}
+                              </code>{' '}
+                              to the bot in Slack
                             </>
                           )}
                           {ch.id === 'whatsapp' && <>Scan QR code in WhatsApp</>}
@@ -294,7 +315,7 @@ export function ChannelSettings(): React.JSX.Element {
                       ) : (
                         <button
                           type="button"
-                          className="btn"
+                          className="px-2.5 py-[3px] bg-nb-panel-2 border border-nb-border rounded-lg cursor-pointer text-nb-text text-xs"
                           onClick={() => void handleGeneratePairing(ch.id)}
                           disabled={isBusy}
                         >
@@ -304,10 +325,9 @@ export function ChannelSettings(): React.JSX.Element {
                     </div>
                   )}
 
-                  {/* Paired info */}
                   {ch.enabled && ch.paired && (
-                    <div className={styles.channelPaired}>
-                      <div className={styles.settingsFieldHint}>
+                    <div className="flex flex-col gap-2">
+                      <div className="text-[11px] font-medium text-nb-muted">
                         {ch.id === 'telegram' && <>Paired to chat {String(ch.meta.pairedChatId)}</>}
                         {ch.id === 'discord' && (
                           <>Paired to channel {String(ch.meta.pairedChannelId)}</>
@@ -320,7 +340,7 @@ export function ChannelSettings(): React.JSX.Element {
                       </div>
                       <button
                         type="button"
-                        className="btn"
+                        className="px-2.5 py-[3px] bg-nb-panel-2 border border-nb-border rounded-lg cursor-pointer text-nb-text text-xs"
                         onClick={() => void handleUnpair(ch.id)}
                         disabled={isBusy}
                       >
@@ -329,7 +349,11 @@ export function ChannelSettings(): React.JSX.Element {
                     </div>
                   )}
 
-                  {ch.error && <div className={styles.composerError}>{ch.error}</div>}
+                  {ch.error && (
+                    <div className="text-xs text-nb-danger px-2.5 py-2 rounded-lg bg-nb-danger/10 border border-nb-danger/30">
+                      {ch.error}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

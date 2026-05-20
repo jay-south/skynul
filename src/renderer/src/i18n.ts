@@ -160,13 +160,10 @@ const MESSAGES = {
     tasks_remove_saved_prompt_aria: 'Remove saved prompt',
 
     task_status_pending: 'Pending',
-    task_status_approved: 'Approved',
     task_status_running: 'Running',
-    task_status_done: 'Done',
     task_status_completed: 'Completed',
     task_status_failed: 'Failed',
     task_status_cancelled: 'Cancelled',
-    task_status_pending_approval: 'Pending Approval',
 
     task_dropdown_save_prompt: 'Save prompt',
     task_dropdown_delete: 'Delete',
@@ -374,13 +371,10 @@ const MESSAGES = {
     tasks_remove_saved_prompt_aria: 'Eliminar prompt guardado',
 
     task_status_pending: 'Pendiente',
-    task_status_approved: 'Aprobada',
     task_status_running: 'Ejecutando',
-    task_status_done: 'Listo',
     task_status_completed: 'Completada',
     task_status_failed: 'Fallo',
     task_status_cancelled: 'Cancelada',
-    task_status_pending_approval: 'Pendiente de aprobacion',
 
     task_dropdown_save_prompt: 'Guardar prompt',
     task_dropdown_delete: 'Borrar',

@@ -18,28 +18,13 @@ export function TaskDrawer({ isOpen, onClose }: TaskDrawerProps): React.JSX.Elem
   const deleteTaskMutation = useDeleteTask()
   const cancelTaskMutation = useCancelTask()
 
-  // Get root tasks only (no parent) - limit to last 15 for performance
-  const rootTasks = useMemo(() => {
-    return tasks
-      .filter((t) => !t.parentTaskId)
-      .sort((a, b) => b.createdAt - a.createdAt)
-      .slice(0, 15)
+  // Get recent tasks - limit to last 15 for performance
+  const recentTasks = useMemo(() => {
+    return tasks.sort((a, b) => b.createdAt - a.createdAt).slice(0, 15)
   }, [tasks])
 
-  // Get active root task ID
-  const activeRootId = useMemo(() => {
-    if (!taskId) return null
-    const byId = new Map(tasks.map((t) => [t.id, t] as const))
-    let cur = byId.get(taskId)
-    let hops = 0
-    while (cur?.parentTaskId && hops < 50) {
-      const next = byId.get(cur.parentTaskId)
-      if (!next) break
-      cur = next
-      hops++
-    }
-    return cur?.id ?? taskId
-  }, [tasks, taskId])
+  // Get active task ID
+  const activeTaskId = taskId
 
   const handleTaskClick = (id: string) => {
     navigate(`/tasks/${id}`)
@@ -56,8 +41,10 @@ export function TaskDrawer({ isOpen, onClose }: TaskDrawerProps): React.JSX.Elem
   return (
     <>
       {/* Backdrop */}
-      <div
+      <button
+        type="button"
         className="taskDrawerBackdrop"
+        aria-label="Close drawer"
         onClick={onClose}
         style={{
           position: 'fixed',
@@ -65,7 +52,14 @@ export function TaskDrawer({ isOpen, onClose }: TaskDrawerProps): React.JSX.Elem
           background: 'rgba(0, 0, 0, 0.5)',
           backdropFilter: 'blur(4px)',
           zIndex: 999,
-          animation: 'fadeIn 0.15s ease-out'
+          animation: 'fadeIn 0.15s ease-out',
+          border: 'none',
+          padding: 0,
+          margin: 0,
+          cursor: 'default',
+          display: 'block',
+          width: '100%',
+          height: '100%'
         }}
       />
 
@@ -107,6 +101,7 @@ export function TaskDrawer({ isOpen, onClose }: TaskDrawerProps): React.JSX.Elem
             Recent Tasks
           </span>
           <button
+            type="button"
             onClick={onClose}
             style={{
               background: 'none',
@@ -127,7 +122,9 @@ export function TaskDrawer({ isOpen, onClose }: TaskDrawerProps): React.JSX.Elem
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
+              aria-hidden="true"
             >
+              <title>Close</title>
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </button>
@@ -136,6 +133,7 @@ export function TaskDrawer({ isOpen, onClose }: TaskDrawerProps): React.JSX.Elem
         {/* New Task Button */}
         <div style={{ padding: '12px 16px' }}>
           <button
+            type="button"
             onClick={handleNewTask}
             style={{
               width: '100%',
@@ -160,7 +158,9 @@ export function TaskDrawer({ isOpen, onClose }: TaskDrawerProps): React.JSX.Elem
               fill="none"
               stroke="currentColor"
               strokeWidth="2.5"
+              aria-hidden="true"
             >
+              <title>New task</title>
               <path d="M12 5v14M5 12h14" />
             </svg>
             New Task
@@ -169,7 +169,7 @@ export function TaskDrawer({ isOpen, onClose }: TaskDrawerProps): React.JSX.Elem
 
         {/* Task List */}
         <div style={{ flex: 1, overflow: 'auto', padding: '0 8px 8px' }}>
-          {rootTasks.length === 0 ? (
+          {recentTasks.length === 0 ? (
             <div
               style={{
                 padding: '24px 16px',
@@ -181,36 +181,57 @@ export function TaskDrawer({ isOpen, onClose }: TaskDrawerProps): React.JSX.Elem
               No tasks yet
             </div>
           ) : (
-            rootTasks.map((t) => (
+            recentTasks.map((t) => (
               <div
                 key={t.id}
-                onClick={() => handleTaskClick(t.id)}
                 style={{
-                  padding: '10px 12px',
                   marginBottom: '4px',
                   borderRadius: '8px',
-                  cursor: 'pointer',
-                  background: t.id === activeRootId ? 'var(--nb-accent-soft)' : 'transparent',
+                  background: t.id === activeTaskId ? 'var(--nb-accent-soft)' : 'transparent',
                   border:
-                    t.id === activeRootId ? '1px solid var(--nb-accent)' : '1px solid transparent',
-                  transition: 'all 0.15s ease'
+                    t.id === activeTaskId ? '1px solid var(--nb-accent)' : '1px solid transparent',
+                  transition: 'all 0.15s ease',
+                  overflow: 'hidden'
                 }}
               >
-                <div
+                <button
+                  type="button"
+                  onClick={() => handleTaskClick(t.id)}
                   style={{
-                    fontSize: '13px',
-                    fontWeight: 500,
-                    color: 'var(--text-primary)',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    marginBottom: '4px'
+                    width: '100%',
+                    textAlign: 'left',
+                    background: 'transparent',
+                    border: 'none',
+                    padding: '10px 12px',
+                    cursor: 'pointer',
+                    display: 'block',
+                    font: 'inherit',
+                    color: 'inherit'
                   }}
                 >
-                  {t.prompt?.slice(0, 40) || 'Untitled task'}
-                  {t.prompt && t.prompt.length > 40 ? '...' : ''}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div
+                    style={{
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      color: 'var(--text-primary)',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      marginBottom: '4px'
+                    }}
+                  >
+                    {t.prompt?.slice(0, 40) || 'Untitled task'}
+                    {t.prompt && t.prompt.length > 40 ? '...' : ''}
+                  </div>
+                </button>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '0 12px 10px'
+                  }}
+                >
                   <span
                     style={{
                       fontSize: '11px',
@@ -234,21 +255,20 @@ export function TaskDrawer({ isOpen, onClose }: TaskDrawerProps): React.JSX.Elem
                               : '#9ca3af'
                     }}
                   >
-                    {t.status === 'pending_approval'
+                    {t.status === 'pending'
                       ? 'Pending'
-                      : t.status === 'approved'
-                        ? 'Approved'
-                        : t.status === 'running'
-                          ? 'Running'
-                          : t.status === 'completed'
-                            ? 'Done'
-                            : t.status === 'failed'
-                              ? 'Failed'
-                              : t.status === 'cancelled'
-                                ? 'Cancelled'
-                                : t.status}
+                      : t.status === 'running'
+                        ? 'Running'
+                        : t.status === 'completed'
+                          ? 'Done'
+                          : t.status === 'failed'
+                            ? 'Failed'
+                            : t.status === 'cancelled'
+                              ? 'Cancelled'
+                              : t.status}
                   </span>
                   <button
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation()
                       if (t.status === 'running') {

@@ -1,82 +1,25 @@
-import type { Task } from '@skynul/shared'
-import { useMemo, useState } from 'react'
+import { DEFAULT_CAPABILITIES } from '@skynul/shared'
 import { useParams } from 'react-router-dom'
-import {
-  ChatFeed,
-  CollectiveChatFeed,
-  InputBar,
-  MultiAgentControlRoom
-} from '@/components/feature/chat'
-import {
-  useApproveTask,
-  useCancelTask,
-  usePolicy,
-  useSendTaskMessage,
-  useSetAutoApprove,
-  useTask,
-  useTasks
-} from '@/queries'
-import { detectCapabilities } from '@/lib/capabilities'
+import { ChatFeed, InputBar } from '@/components/feature/chat'
+import { useApproveTask, useCancelTask, usePolicy, useSetAutoApprove, useTask } from '@/queries'
 
 export function TaskChatPage(): React.JSX.Element {
   const { taskId } = useParams()
-  const [composerPrompt, setComposerPrompt] = useState('')
-
-  const multiAgentPanelEnabled =
-    (import.meta.env.VITE_MULTI_AGENT_PANEL as string | undefined) !== '0'
 
   const { data: task } = useTask(taskId)
-  const { data: tasks = [] } = useTasks()
   const { data: policy } = usePolicy()
 
   const approveMutation = useApproveTask()
   const cancelMutation = useCancelTask()
   const dontAskAgainMutation = useSetAutoApprove()
-  const sendMessageMutation = useSendTaskMessage()
 
-  const rootTask = useMemo(() => {
-    if (!task) return null
-    const byId = new Map(tasks.map((t) => [t.id, t] as const))
-    let cur: Task | undefined = task
-    let hops = 0
-    while (cur?.parentTaskId && hops < 50) {
-      const next = byId.get(cur.parentTaskId)
-      if (!next) break
-      cur = next
-      hops++
-    }
-    return cur ?? task
-  }, [task, tasks])
+  const isRunning = task?.status === 'running'
 
-  const hasMultiAgents = useMemo(() => {
-    if (!rootTask) return false
-    return tasks.some((t) => {
-      if (t.id === rootTask.id) return false
-      let cur: Task | undefined = t
-      let hops = 0
-      while (cur?.parentTaskId && hops < 50) {
-        if (cur.parentTaskId === rootTask.id) return true
-        cur = tasks.find((x) => x.id === cur?.parentTaskId)
-        hops++
-      }
-      return false
-    })
-  }, [rootTask, tasks])
+  const handleInputSubmit = (_text: string, _attachments?: string[]) => {
+    if (!task || !taskId) return
 
-  const isCollectiveMode = Boolean(multiAgentPanelEnabled && rootTask && hasMultiAgents)
-  const controlTask = isCollectiveMode ? rootTask : task
-  const isRunning = controlTask?.status === 'running'
-
-  const handleInputSubmit = (text: string, _attachments?: string[]) => {
-    if (!controlTask || !taskId) return
-
-    if (controlTask.status === 'running') {
-      sendMessageMutation.mutate(
-        { id: taskId, message: text },
-        {
-          onSuccess: () => setComposerPrompt('')
-        }
-      )
+    if (task.status === 'running') {
+      // send message to running task
     }
   }
 
@@ -86,35 +29,19 @@ export function TaskChatPage(): React.JSX.Element {
 
   return (
     <div>
-      {multiAgentPanelEnabled && rootTask && hasMultiAgents && (
-        <MultiAgentControlRoom
-          rootTask={rootTask}
-          tasks={tasks}
-          activeTaskId={task.id}
-          onSelectTask={(id) => {
-            window.location.hash = `#/tasks/${id}`
-          }}
-        />
-      )}
-
-      {isCollectiveMode && controlTask ? (
-        <CollectiveChatFeed rootTask={controlTask} tasks={tasks} />
-      ) : (
-        <ChatFeed
-          task={task}
-          onApprove={() => taskId && approveMutation.mutate(taskId)}
-          onCancel={() => taskId && cancelMutation.mutate(taskId)}
-          onDontAskAgain={() => dontAskAgainMutation.mutate(true)}
-        />
-      )}
+      <ChatFeed
+        task={task}
+        onApprove={() => taskId && approveMutation.mutate(taskId)}
+        onCancel={() => taskId && cancelMutation.mutate(taskId)}
+        onDontAskAgain={() => dontAskAgainMutation.mutate(true)}
+      />
 
       <InputBar
         lang={policy?.language ?? 'en'}
-        autoCaps={detectCapabilities(composerPrompt)}
+        autoCaps={DEFAULT_CAPABILITIES[task.mode] ?? []}
         compact={true}
         onSubmit={handleInputSubmit}
         onStop={isRunning ? () => taskId && cancelMutation.mutate(taskId) : undefined}
-        onTextChange={setComposerPrompt}
       />
     </div>
   )

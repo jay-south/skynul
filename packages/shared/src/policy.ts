@@ -22,9 +22,8 @@ export type PolicyState = {
   language: LanguageCode
   provider: {
     active: ProviderId
-    openaiModel: string
+    model: string | null
   }
-  taskMemoryEnabled: boolean
   taskAutoApprove: boolean
 }
 
@@ -40,10 +39,13 @@ export const DEFAULT_POLICY: PolicyState = {
   language: 'en',
   provider: {
     active: 'chatgpt',
-    openaiModel: 'gpt-4.1-mini'
+    model: null
   },
-  taskMemoryEnabled: true,
   taskAutoApprove: false
+}
+
+export type SetProviderModelRequest = {
+  model: string
 }
 
 export type SetLanguageRequest = {
@@ -57,10 +59,6 @@ export type SetCapabilityRequest = {
 
 export type SetThemeRequest = {
   themeMode: ThemeMode
-}
-
-export type SetOpenAIModelRequest = {
-  model: string
 }
 
 export type ChatMessage = { role: 'user' | 'assistant'; content: string }

@@ -21,7 +21,9 @@ declare global {
       updateCheck: () => Promise<void>
       updateDownload: () => Promise<void>
       updateInstall: () => Promise<void>
-      onUpdateAvailable: (cb: (info: { version: string; releaseDate?: string }) => void) => () => void
+      onUpdateAvailable: (
+        cb: (info: { version: string; releaseDate?: string }) => void
+      ) => () => void
       onUpdateDownloadProgress: (cb: (info: { percent: number }) => void) => () => void
       onUpdateDownloaded: (cb: () => void) => () => void
       onUpdateNotAvailable: (cb: () => void) => () => void

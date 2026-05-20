@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { tasksKeys } from './keys'
 import { useInvalidate } from '../invalidation'
+import { tasksKeys } from './keys'
 import {
   approveTask,
   cancelTask,
@@ -18,7 +18,11 @@ export function useTasks() {
 export function useTask(id: string | undefined) {
   return useQuery({
     queryKey: tasksKeys.detail(id || ''),
-    queryFn: () => fetchTask(id!),
+    queryFn: () => {
+      if (id === undefined || id === '')
+        throw new Error('useTask: id is required when the query runs')
+      return fetchTask(id)
+    },
     enabled: !!id
   })
 }

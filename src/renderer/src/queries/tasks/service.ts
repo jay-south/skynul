@@ -1,17 +1,17 @@
 import type { Task, TaskCreateRequest } from '@skynul/shared'
-import { apiFetch } from '@/lib/api-fetch'
+import { api } from '@/lib/api'
 
 export async function fetchTasks(): Promise<Task[]> {
-  const res = await apiFetch<{ tasks: Task[] }>('/tasks')
+  const res = await api<{ tasks: Task[] }>('/tasks')
   return res.tasks
 }
 
 export async function fetchTask(id: string): Promise<Task> {
-  return apiFetch(`/tasks/${id}`)
+  return api(`/tasks/${id}`)
 }
 
 export async function createTask(data: TaskCreateRequest): Promise<Task> {
-  const res = await apiFetch<{ task: Task }>('/tasks', {
+  const res = await api<{ task: Task }>('/tasks', {
     method: 'POST',
     body: JSON.stringify(data)
   })
@@ -19,21 +19,21 @@ export async function createTask(data: TaskCreateRequest): Promise<Task> {
 }
 
 export async function approveTask(id: string): Promise<Task> {
-  const res = await apiFetch<{ task: Task }>(`/tasks/${id}/approve`, { method: 'POST' })
+  const res = await api<{ task: Task }>(`/tasks/${id}/approve`, { method: 'POST' })
   return res.task
 }
 
 export async function cancelTask(id: string): Promise<Task> {
-  const res = await apiFetch<{ task: Task }>(`/tasks/${id}/cancel`, { method: 'POST' })
+  const res = await api<{ task: Task }>(`/tasks/${id}/cancel`, { method: 'POST' })
   return res.task
 }
 
 export async function deleteTask(id: string): Promise<void> {
-  await apiFetch(`/tasks/${id}`, { method: 'DELETE' })
+  await api(`/tasks/${id}`, { method: 'DELETE' })
 }
 
 export async function sendTaskMessage(id: string, message: string): Promise<void> {
-  await apiFetch(`/tasks/${id}/message`, {
+  await api(`/tasks/${id}/message`, {
     method: 'POST',
     body: JSON.stringify({ message })
   })

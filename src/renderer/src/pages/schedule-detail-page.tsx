@@ -10,7 +10,7 @@ import {
   SettingsPanel
 } from '@/components/common'
 import { CapabilityList, CapabilityToggle } from '@/components/feature/settings'
-import { useSchedules, useToggleSchedule, useDeleteSchedule } from '@/queries/schedules/hooks'
+import { useDeleteSchedule, useSchedules, useToggleSchedule } from '@/queries/schedules/hooks'
 import { useTasks } from '@/queries/tasks/hooks'
 
 export function ScheduleDetailPage(): React.JSX.Element {
@@ -206,14 +206,13 @@ export function ScheduleDetailPage(): React.JSX.Element {
           <SectionLabel>Run History</SectionLabel>
           <CapabilityList>
             {scheduleHistory.map((t) => (
-              <div key={t.id} onClick={() => navigate(`/tasks/${t.id}`)}>
-                <CapabilityToggle
-                  title={`${t.prompt.slice(0, 50)}...`}
-                  description={`${t.status} · ${t.steps.length} steps · ${formatAgo(t.updatedAt)}`}
-                  enabled={t.status === 'completed'}
-                  onToggle={() => navigate(`/tasks/${t.id}`)}
-                />
-              </div>
+              <CapabilityToggle
+                key={t.id}
+                title={`${t.prompt.slice(0, 50)}...`}
+                description={`${t.status} · ${t.steps.length} steps · ${formatAgo(t.updatedAt)}`}
+                enabled={t.status === 'completed'}
+                onToggle={() => navigate(`/tasks/${t.id}`)}
+              />
             ))}
           </CapabilityList>
         </Section>

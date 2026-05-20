@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Section, SectionField, SectionLabel } from '@/components/common'
-import styles from '@/components/common/settings.module.css'
 
 type UpdateState =
   | 'idle'
@@ -18,11 +17,7 @@ export function UpdateSettings(): React.JSX.Element {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.skynul) {
-      console.warn('[UpdateSettings] window.skynul not available - running outside Electron?')
-      return
-    }
-
+    if (typeof window === 'undefined' || !window.skynul) return
     const offAvailable = window.skynul.onUpdateAvailable((info) => {
       setVersion(info.version)
       setState('available')
@@ -32,9 +27,7 @@ export function UpdateSettings(): React.JSX.Element {
       setProgress(Math.round(info.percent))
       setState('downloading')
     })
-    const offDownloaded = window.skynul.onUpdateDownloaded(() => {
-      setState('ready')
-    })
+    const offDownloaded = window.skynul.onUpdateDownloaded(() => setState('ready'))
     const offNotAvailable = window.skynul.onUpdateNotAvailable(() => {
       setState('upToDate')
       setError('')
@@ -43,7 +36,6 @@ export function UpdateSettings(): React.JSX.Element {
       setState('error')
       setError(info.message)
     })
-
     return () => {
       offAvailable()
       offProgress()
@@ -109,26 +101,50 @@ export function UpdateSettings(): React.JSX.Element {
     <Section>
       <SectionLabel>Updates</SectionLabel>
       <SectionField>
-        <div className={styles.settingsFieldHint}>{title}</div>
+        <div className="text-[11px] font-medium text-nb-muted">{title}</div>
         {state === 'downloading' && (
-          <div className="updateProgressBar" aria-label="Download progress">
-            <div className="updateProgressFill" style={{ width: `${progress}%` }} />
+          <div
+            className="h-1.5 rounded-full bg-nb-border overflow-hidden"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progress}
+            aria-label="Download progress"
+          >
+            <div
+              className="h-full rounded-full bg-nb-accent-2 transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            />
           </div>
         )}
-
-        {error ? <div className="composerError">{error}</div> : null}
-
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button type="button" className="btn" onClick={checkNow}>
+        {error ? (
+          <div className="text-xs text-nb-danger px-2.5 py-2 rounded-lg bg-nb-danger/10 border border-nb-danger/30">
+            {error}
+          </div>
+        ) : null}
+        <div className="flex gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={checkNow}
+            className="text-xs font-medium px-2.5 py-1.5 rounded-md bg-nb-panel-2 border border-nb-border cursor-pointer text-nb-text hover:bg-nb-accent-2/10"
+          >
             Check now
           </button>
           {state === 'available' && (
-            <button type="button" className="btn" onClick={download}>
+            <button
+              type="button"
+              onClick={download}
+              className="text-xs font-medium px-2.5 py-1.5 rounded-md bg-nb-panel-2 border border-nb-border cursor-pointer text-nb-text hover:bg-nb-accent-2/10"
+            >
               Download
             </button>
           )}
           {state === 'ready' && (
-            <button type="button" className="btn" onClick={restart}>
+            <button
+              type="button"
+              onClick={restart}
+              className="text-xs font-medium px-2.5 py-1.5 rounded-md bg-nb-panel-2 border border-nb-border cursor-pointer text-nb-text hover:bg-nb-accent-2/10"
+            >
               Restart to update
             </button>
           )}

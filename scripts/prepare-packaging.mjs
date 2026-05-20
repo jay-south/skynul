@@ -69,7 +69,7 @@ delete stagePkg.packageManager
 delete stagePkg.pnpm
 delete stagePkg.scripts
 
-writeFileSync(stagePkgPath, JSON.stringify(stagePkg, null, 2) + '\n')
+writeFileSync(stagePkgPath, `${JSON.stringify(stagePkg, null, 2)}\n`)
 
 for (const fileName of ['pnpm-lock.yaml', '.npmrc']) {
   const filePath = path.join(stageDir, fileName)

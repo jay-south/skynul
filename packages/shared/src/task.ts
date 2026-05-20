@@ -7,7 +7,13 @@ export type TaskCapabilityId =
   | 'office.professional'
   | 'app.scripting'
 
-export const TASK_CAPABILITY_IDS = ['browser.cdp', 'app.launch', 'polymarket.trading', 'office.professional', 'app.scripting'] as const satisfies readonly TaskCapabilityId[]
+export const TASK_CAPABILITY_IDS = [
+  'browser.cdp',
+  'app.launch',
+  'polymarket.trading',
+  'office.professional',
+  'app.scripting'
+] as const satisfies readonly TaskCapabilityId[]
 
 export const ALL_TASK_CAPABILITIES: Array<{
   id: TaskCapabilityId
@@ -34,15 +40,9 @@ export const ALL_TASK_CAPABILITIES: Array<{
 ]
 
 // ── Task Status Flow ──────────────────────────────────────────────────────────
-// pending_approval → approved → running → completed | failed | cancelled
+// pending → running → completed | failed | cancelled
 
-export type TaskStatus =
-  | 'pending_approval'
-  | 'approved'
-  | 'running'
-  | 'completed'
-  | 'failed'
-  | 'cancelled'
+export type TaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
 
 // ── Task Actions (model output) ───────────────────────────────────────────────
 
@@ -87,18 +87,8 @@ export type TaskAction =
   | { type: 'file_edit'; path: string; old_string: string; new_string: string; cwd?: string }
   | { type: 'file_list'; pattern: string; cwd?: string }
   | { type: 'file_search'; pattern: string; path?: string; glob?: string; cwd?: string }
-  // Inter-task communication
-  | { type: 'task_list_peers' }
-  | { type: 'task_send'; prompt: string; agentName?: string; agentRole?: string }
-  | { type: 'task_read'; taskId: string }
-  | { type: 'task_message'; taskId: string; message: string }
   // App scripting actions (require app.scripting capability)
   | { type: 'app_script'; app: string; script: string }
-  // Long-term memory
-  | { type: 'remember_fact'; fact: string }
-  | { type: 'forget_fact'; factId: number }
-  // Sub-agent identity — first action in a sub-agent task
-  | { type: 'set_identity'; name: string; role?: string }
   | { type: 'generate_image'; prompt: string; size?: '1024x1024' | '1792x1024' | '1024x1792' }
 
 // ── Task Step (one turn of the agent loop) ────────────────────────────────────
@@ -122,16 +112,15 @@ export type TaskStep = {
 
 export type TaskSource = 'desktop' | 'telegram' | 'discord' | 'slack' | 'whatsapp' | 'signal'
 
-export type TaskMode = 'browser' | 'code'
+export type TaskMode = 'browser' | 'sandbox'
+
+export const DEFAULT_CAPABILITIES: Record<TaskMode, TaskCapabilityId[]> = {
+  browser: ['browser.cdp', 'app.launch'],
+  sandbox: ['app.launch', 'app.scripting']
+}
 
 export type Task = {
   id: string
-  /** If present, this task was spawned from another task (sub-agent). */
-  parentTaskId?: string
-  /** Optional display name for multi-agent UI. */
-  agentName?: string
-  /** Optional role label for multi-agent UI (e.g. "Copy", "Imagen", "Browser"). */
-  agentRole?: string
   prompt: string
   /** Optional local file paths attached by the user (absolute paths). */
   attachments?: string[]
@@ -166,9 +155,6 @@ export type TaskCreateRequest = {
   maxSteps?: number
   timeoutMs?: number
   source?: TaskSource
-  parentTaskId?: string
-  agentName?: string
-  agentRole?: string
 }
 
 export type TaskCreateResponse = {

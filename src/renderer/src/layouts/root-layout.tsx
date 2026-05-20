@@ -1,169 +1,55 @@
-import { useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
-import skynulLogo from '../assets/logo-skynul.svg'
-import styles from './root-layout.module.css'
+import { useEffect, useState } from 'react'
+import { Outlet } from 'react-router-dom'
+import { AppSidebar } from '@/components/app-sidebar'
+import { ErrorBoundary } from '@/components/error-boundary'
+import { TitleBar } from '@/components/title-bar'
+import { SidebarProvider } from '@/components/ui/sidebar'
+import { useTheme } from '@/hooks/use-theme'
+
+const BG_KEY = 'skynul-bg'
+
+function getCustomBg(): string | null {
+  try {
+    return localStorage.getItem(BG_KEY)
+  } catch {
+    return null
+  }
+}
 
 export function RootLayout(): React.JSX.Element {
-  const [isMaximized, setIsMaximized] = useState(false)
+  useTheme()
 
-  const handleMinimize = () => {
-    console.log('Minimize window')
-  }
+  const [bgUrl, setBgUrl] = useState(getCustomBg)
 
-  const handleMaximize = () => {
-    setIsMaximized(!isMaximized)
-    console.log('Maximize window')
-  }
-
-  const handleClose = () => {
-    console.log('Close window')
-  }
+  useEffect(() => {
+    const handler = () => setBgUrl(getCustomBg())
+    window.addEventListener('skynul-bg-changed', handler)
+    return () => window.removeEventListener('skynul-bg-changed', handler)
+  }, [])
 
   return (
-    <div className={`${styles.layout}${isMaximized ? ` ${styles.maximized}` : ''}`}>
-      {/* Title bar */}
-      <div className={styles.titleBar}>
-        <button
-          type="button"
-          className={styles.winBtn}
-          onClick={handleMinimize}
-          aria-label="Minimize"
-        >
-          <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
-            <rect x="4" y="11" width="16" height="2" rx="1" />
-          </svg>
-        </button>
-        <button
-          type="button"
-          className={styles.winBtn}
-          onClick={handleMaximize}
-          aria-label="Maximize"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            width="11"
-            height="11"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <rect x="4" y="4" width="16" height="16" rx="2" />
-          </svg>
-        </button>
-        <button
-          type="button"
-          className={`${styles.winBtn} ${styles.close}`}
-          onClick={handleClose}
-          aria-label="Close"
-        >
-          <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
-            <path d="M6.225 4.811a1 1 0 0 0-1.414 1.414L10.586 12l-5.775 5.775a1 1 0 1 0 1.414 1.414L12 13.414l5.775 5.775a1 1 0 0 0 1.414-1.414L13.414 12l5.775-5.775a1 1 0 0 0-1.414-1.414L12 10.586 6.225 4.811Z" />
-          </svg>
-        </button>
+    <SidebarProvider>
+      <AppSidebar />
+      <div className="relative flex flex-col flex-1 h-screen overflow-hidden">
+        {bgUrl && (
+          <div
+            className="pointer-events-none fixed inset-0"
+            style={{
+              backgroundImage: `url("${bgUrl}")`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundAttachment: 'fixed',
+              mixBlendMode: 'soft-light'
+            }}
+          />
+        )}
+        <TitleBar />
+        <main className="relative flex-1 overflow-hidden">
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
+        </main>
       </div>
-
-      {/* Sidebar Navigation */}
-      <aside className={styles.sidebar}>
-        <div className={styles.sidebarBrand}>
-          <img src={skynulLogo} alt="Skynul" className={styles.sidebarFooterLogo} />
-        </div>
-
-        <nav className={styles.sidebarNav}>
-          <NavLink
-            to="/tasks"
-            className={({ isActive }) =>
-              `${styles.sidebarNavItem}${isActive ? ` ${styles.active}` : ''}`
-            }
-          >
-            <svg
-              viewBox="0 0 24 24"
-              width="18"
-              height="18"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-              <path d="M4 1l.5 1.5L6 3l-1.5.5L4 5l-.5-1.5L2 3l1.5-.5L4 1z" />
-            </svg>
-            Tasks
-          </NavLink>
-
-          <NavLink
-            to="/dashboard"
-            className={({ isActive }) =>
-              `${styles.sidebarNavItem}${isActive ? ` ${styles.active}` : ''}`
-            }
-          >
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-              <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
-            </svg>
-            Dashboard
-          </NavLink>
-
-          <NavLink
-            to="/projects"
-            className={({ isActive }) =>
-              `${styles.sidebarNavItem}${isActive ? ` ${styles.active}` : ''}`
-            }
-          >
-            <svg
-              viewBox="0 0 24 24"
-              width="18"
-              height="18"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-            </svg>
-            Projects
-          </NavLink>
-
-          <NavLink
-            to="/schedules"
-            className={({ isActive }) =>
-              `${styles.sidebarNavItem}${isActive ? ` ${styles.active}` : ''}`
-            }
-          >
-            <svg
-              viewBox="0 0 24 24"
-              width="18"
-              height="18"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-            Scheduled
-          </NavLink>
-
-          <NavLink
-            to="/settings"
-            className={({ isActive }) =>
-              `${styles.sidebarNavItem}${isActive ? ` ${styles.active}` : ''}`
-            }
-          >
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-              <path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.2 7.2 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 1h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.22-1.13.52-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 7.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.41 1.05.73 1.63.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .44-.18.49-.42l.36-2.54c.58-.22 1.13-.52 1.63-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z" />
-            </svg>
-            Settings
-          </NavLink>
-        </nav>
-      </aside>
-
-      {/* Main content area */}
-      <section className={styles.main}>
-        <Outlet />
-      </section>
-    </div>
+    </SidebarProvider>
   )
 }

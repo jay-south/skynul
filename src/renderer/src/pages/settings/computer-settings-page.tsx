@@ -2,7 +2,7 @@ import type { CapabilityId } from '@skynul/shared'
 import { Section, SectionLabel } from '@/components/common'
 import { CapabilityList, CapabilityToggle } from '@/components/feature/settings'
 import { t } from '@/i18n'
-import { usePolicy, useSetAutoApprove, useSetCapability, useSetTaskMemory } from '@/queries'
+import { usePolicy, useSetAutoApprove, useSetCapability } from '@/queries'
 
 const CAPABILITIES: Array<{ id: CapabilityId; title: string; desc: string }> = [
   {
@@ -31,7 +31,6 @@ export function ComputerSettingsPage(): React.JSX.Element {
   const { data: policy } = usePolicy()
 
   const setCapabilityMutation = useSetCapability()
-  const setTaskMemoryMutation = useSetTaskMemory()
   const setAutoApproveMutation = useSetAutoApprove()
 
   const lang = policy?.language ?? 'en'
@@ -44,11 +43,6 @@ export function ComputerSettingsPage(): React.JSX.Element {
     })
   }
 
-  const handleToggleTaskMemory = () => {
-    if (!policy) return
-    setTaskMemoryMutation.mutate(!policy.taskMemoryEnabled)
-  }
-
   const handleToggleAutoApprove = () => {
     if (!policy) return
     setAutoApproveMutation.mutate(!policy.taskAutoApprove)
@@ -57,14 +51,7 @@ export function ComputerSettingsPage(): React.JSX.Element {
   return (
     <>
       <Section>
-        <SectionLabel>Task Memory</SectionLabel>
-        <CapabilityToggle
-          title="Learn from Tasks"
-          description="Remember past results to improve future tasks"
-          enabled={!!policy?.taskMemoryEnabled}
-          onToggle={handleToggleTaskMemory}
-          disabled={!policy}
-        />
+        <SectionLabel>Task Behavior</SectionLabel>
         <CapabilityToggle
           title="Auto-Approve Tasks"
           description="Skip capability confirmation and run immediately"

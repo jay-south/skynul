@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS projects (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    color TEXT NOT NULL DEFAULT '#6366f1',
+    created_at INTEGER NOT NULL,
+    task_ids TEXT NOT NULL DEFAULT '[]'
+);

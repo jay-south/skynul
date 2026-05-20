@@ -13,7 +13,7 @@ const isWslEnv =
 
 if (isWslEnv && !process.env.TZ) {
   try {
-    const tz = require('child_process')
+    const tz = require('node:child_process')
       .execSync('powershell.exe -NoProfile -Command "[TimeZoneInfo]::Local.Id"', {
         timeout: 3000,
         stdio: ['ignore', 'pipe', 'ignore']
@@ -36,16 +36,16 @@ if (isWslEnv && !process.env.TZ) {
   }
 }
 
+import { randomBytes } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { app, BrowserWindow, nativeTheme, protocol, screen, session, shell } from 'electron'
-import { randomBytes } from 'crypto'
-import { readFile } from 'fs/promises'
-import { join } from 'path'
 import icon from '../../resources/icon.png?asset'
 import { registerIpcHandlers } from './ipc-handlers'
-import { initAutoUpdater } from './updater'
 import { spawnServer, stopServer } from './server'
 import { createTray, destroyTray } from './tray'
+import { initAutoUpdater } from './updater'
 
 // Protocolo custom para servir archivos locales al renderer (file:// está bloqueado en dev)
 protocol.registerSchemesAsPrivileged([
@@ -71,7 +71,7 @@ function isWslHost(): boolean {
   if (process.platform !== 'linux') return false
   if (process.env.WSL_INTEROP || process.env.WSL_DISTRO_NAME) return true
   try {
-    const version = require('fs').readFileSync('/proc/version', 'utf8') as string
+    const version = require('node:fs').readFileSync('/proc/version', 'utf8') as string
     return version.toLowerCase().includes('microsoft')
   } catch {
     return false
@@ -139,11 +139,13 @@ function createWindow(authToken: string): BrowserWindow {
 
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+  if (is.dev && process.env.ELECTRON_RENDERER_URL) {
+    mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  if (is.dev) mainWindow.webContents.openDevTools()
 
   return mainWindow
 }

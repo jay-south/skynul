@@ -1,29 +1,23 @@
 import { useEffect, useState } from 'react'
-import { Outlet, useLocation, useParams } from 'react-router-dom'
+import { Outlet, useParams } from 'react-router-dom'
 import { TaskDrawer } from '@/components/feature/task'
-import styles from './tasks-layout.module.css'
 
 export function TasksLayout(): React.JSX.Element {
-  const location = useLocation()
   const { taskId } = useParams()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
 
   useEffect(() => {
-    if (taskId) {
-      setIsDrawerOpen(true)
-    } else {
-      setIsDrawerOpen(false)
-    }
-  }, [taskId, location.pathname])
+    setIsDrawerOpen(!!taskId)
+  }, [taskId])
 
   return (
-    <div className={styles.tasksLayout}>
-      <div className={styles.tasksMainContent}>
+    <div className="flex h-full">
+      <div className="flex-1 relative">
         {!isDrawerOpen && (
           <button
             type="button"
-            className={styles.tasksDrawerButton}
             onClick={() => setIsDrawerOpen(true)}
+            className="absolute top-4 left-4 z-50 flex items-center gap-2 px-4 py-2.5 bg-nb-panel border border-nb-border rounded-xl text-nb-text text-sm font-medium cursor-pointer shadow-[0_2px_8px_rgba(0,0,0,0.1)] transition-all duration-200 hover:bg-nb-panel-2 hover:-translate-y-0.5"
           >
             <svg
               width="16"
@@ -39,10 +33,8 @@ export function TasksLayout(): React.JSX.Element {
             Tasks
           </button>
         )}
-
         <Outlet />
       </div>
-
       <TaskDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
     </div>
   )

@@ -1,30 +1,40 @@
-import { createHashRouter, Navigate } from 'react-router-dom'
+import { createHashRouter, Navigate, useLocation } from 'react-router-dom'
 import { PageLayout } from '@/layouts/page-layout'
 import { RootLayout } from '@/layouts/root-layout'
 import { SettingsLayout } from '@/layouts/settings-layout'
 import { TasksLayout } from '@/layouts/tasks-layout'
 import { DashboardPage } from '@/pages/dashboard-page'
 import { NewSchedulePage } from '@/pages/new-schedule-page'
+import { ProfilePage } from '@/pages/profile-page'
 import { ProjectsPage } from '@/pages/projects-page'
 import { ScheduleDetailPage } from '@/pages/schedule-detail-page'
 import { ScheduledPage } from '@/pages/scheduled-page'
-import { ChannelsSettingsPage } from '@/pages/settings/channels-settings-page'
-import { ComputerSettingsPage } from '@/pages/settings/computer-settings-page'
-import { DeveloperSettingsPage } from '@/pages/settings/developer-settings-page'
-import { GeneralSettingsPage } from '@/pages/settings/general-settings-page'
-import { ProvidersSettingsPage } from '@/pages/settings/providers-settings-page'
-import { SkillsSettingsPage } from '@/pages/settings/skills-settings-page'
+import { AgentPage } from '@/pages/settings/agent-page'
+import { DeveloperPage } from '@/pages/settings/developer-page'
+import { GeneralPage } from '@/pages/settings/general-page'
+import { IntegrationsPage } from '@/pages/settings/integrations-page'
 import { TaskChatPage } from '@/pages/task-chat-page'
 import { TasksIndexPage } from '@/pages/tasks-index-page'
+import { WelcomePage } from '@/pages/welcome-page'
+
+function AppShell(): React.JSX.Element {
+  const location = useLocation()
+  if (location.pathname === '/') return <Navigate to="/welcome" replace />
+  return <RootLayout />
+}
 
 export const router = createHashRouter([
   {
+    path: '/welcome',
+    element: <WelcomePage />
+  },
+  {
     path: '/',
-    element: <RootLayout />,
+    element: <AppShell />,
     children: [
       {
         index: true,
-        element: <Navigate to="/tasks" replace />
+        element: <Navigate to="/dashboard" replace />
       },
       {
         path: 'tasks',
@@ -42,30 +52,18 @@ export const router = createHashRouter([
       },
       {
         path: 'dashboard',
-        element: (
-          <PageLayout title="Dashboard">
-            <DashboardPage />
-          </PageLayout>
-        )
+        element: <DashboardPage />
       },
       {
         path: 'projects',
-        element: (
-          <PageLayout title="Projects">
-            <ProjectsPage />
-          </PageLayout>
-        )
+        element: <ProjectsPage />
       },
       {
         path: 'schedules',
         children: [
           {
             index: true,
-            element: (
-              <PageLayout title="Scheduled">
-                <ScheduledPage />
-              </PageLayout>
-            )
+            element: <ScheduledPage />
           },
           {
             path: 'new',
@@ -86,6 +84,10 @@ export const router = createHashRouter([
         ]
       },
       {
+        path: 'profile',
+        element: <ProfilePage />
+      },
+      {
         path: 'settings',
         element: <SettingsLayout />,
         children: [
@@ -95,27 +97,19 @@ export const router = createHashRouter([
           },
           {
             path: 'general',
-            element: <GeneralSettingsPage />
+            element: <GeneralPage />
           },
           {
-            path: 'providers',
-            element: <ProvidersSettingsPage />
+            path: 'agent',
+            element: <AgentPage />
           },
           {
-            path: 'computer',
-            element: <ComputerSettingsPage />
-          },
-          {
-            path: 'channels',
-            element: <ChannelsSettingsPage />
-          },
-          {
-            path: 'skills',
-            element: <SkillsSettingsPage />
+            path: 'integrations',
+            element: <IntegrationsPage />
           },
           {
             path: 'developer',
-            element: <DeveloperSettingsPage />
+            element: <DeveloperPage />
           }
         ]
       }

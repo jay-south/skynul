@@ -1,120 +1,108 @@
-import type { Task, TaskCapabilityId, TaskStep } from '@skynul/shared'
-import { ALL_TASK_CAPABILITIES } from '@skynul/shared'
-import { useEffect, useRef, useState } from 'react'
-import styles from './chat.module.css'
+import type { Task, TaskStep } from '@skynul/shared'
+import { useState } from 'react'
 
-/** Convert URLs in text to clickable <a> tags, preserving the rest as text */
-function renderLinked(text: string): (string | React.ReactElement)[] {
-  const parts: (string | React.ReactElement)[] = []
-  const re = /(https?:\/\/[^\s<]+)/g
-  let last = 0
-  let m: RegExpExecArray | null
-  while ((m = re.exec(text)) !== null) {
-    if (m.index > last) parts.push(text.slice(last, m.index))
-    const url = m[1]
-    parts.push(
-      <a
-        key={m.index}
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        style={{ color: '#58a6ff', wordBreak: 'break-all' }}
-      >
-        {url}
-      </a>
-    )
-    last = re.lastIndex
-  }
-  if (last < text.length) parts.push(text.slice(last))
-  return parts
+interface ChatFeedProps {
+  task: Task
+  onApprove?: () => void
+  onCancel?: () => void
+  onDontAskAgain?: () => void
 }
 
-/** User-friendly label for the action. Returns null for technical actions that should be hidden. */
-function formatAction(step: TaskStep): string | null {
-  const a = step.action as Record<string, unknown>
-  const type = a.type as string
-  switch (type) {
-    case 'navigate': {
-      const url = (a.url as string) ?? ''
-      try {
-        return `Opening ${new URL(url).hostname}`
-      } catch {
-        return `Opening page…`
-      }
-    }
-    case 'launch':
-      return `Opening ${a.app}`
-    case 'done':
-      return String(a.summary)
-    case 'fail':
-      return String(a.reason)
-    // Technical actions — hide, the thought already explains what's happening
-    case 'evaluate':
-    case 'click':
-    case 'double_click':
-    case 'type':
-    case 'key':
-    case 'pressKey':
-    case 'scroll':
-    case 'wait':
-    case 'web_scrape':
-    case 'shell':
-    case 'user_message':
-      return null
-    default:
-      return null
-  }
+function formatTime(ts: number): string {
+  return new Date(ts).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 
-function CapsApproval(props: {
-  caps: TaskCapabilityId[]
-  status: string
-  onApprove: () => void
-  onCancel: () => void
-  onDontAskAgain: () => void
-}): React.JSX.Element {
-  const isPending = props.status === 'pending_approval'
+export function ChatFeed({
+  task,
+  onApprove,
+  onCancel,
+  onDontAskAgain
+}: ChatFeedProps): React.JSX.Element {
+  const [expandedResult, setExpandedResult] = useState<number | null>(null)
+  const steps = task.steps ?? []
+
   return (
-    <div className={`${styles.feedBubble} ${styles.feedBubbleBot}`}>
-      <div className={styles.feedBubbleContent}>
-        <span className={styles.feedCapsLabel}>{isPending ? 'Capabilities:' : 'Approved:'}</span>
-        {props.caps.map((capId) => {
-          const cap = ALL_TASK_CAPABILITIES.find((c) => c.id === capId)
-          return (
-            <span
-              key={capId}
-              className={`${styles.feedCapChip}${isPending ? '' : ` ${styles.confirmed}`}`}
-            >
-              {cap?.title ?? capId}
-            </span>
-          )
-        })}
-        {isPending && (
-          <div className={styles.feedCapsActions}>
-            <button
-              type="button"
-              className={`btn ${styles.feedBtnAllow}`}
-              onClick={props.onApprove}
-            >
-              Allow & Run
-            </button>
-            <button
-              type="button"
-              className={`btn ${styles.feedBtnCancel}`}
-              onClick={props.onCancel}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className={styles.feedDontAsk}
-              onClick={() => {
-                props.onDontAskAgain()
-                props.onApprove()
-              }}
-            >
-              Don't ask again
-            </button>
+    <div className="flex flex-col h-full overflow-hidden">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 pb-4 max-w-[720px] w-full mx-auto flex flex-col gap-3">
+        {task.prompt && (
+          <div className="self-end max-w-[90%] rounded-xl px-3 py-2 text-sm leading-[1.5] break-words bg-nb-accent-2/70 text-white">
+            {task.prompt}
+          </div>
+        )}
+
+        {steps.length === 0 && task.status === 'pending' && (
+          <div className="self-center my-8 flex flex-col items-center gap-2">
+            <div className="flex gap-2 mt-2">
+              {onApprove && (
+                <button
+                  type="button"
+                  onClick={onApprove}
+                  className="bg-nb-accent-2 text-white font-semibold px-5 py-2 rounded-lg border-none cursor-pointer text-sm hover:opacity-90"
+                >
+                  Allow
+                </button>
+              )}
+              {onCancel && (
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="bg-transparent border border-nb-border text-nb-muted px-5 py-2 rounded-lg cursor-pointer text-sm hover:text-nb-text"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+            {onDontAskAgain && (
+              <button
+                type="button"
+                onClick={onDontAskAgain}
+                className="bg-none border-none text-nb-muted text-[11px] cursor-pointer p-0 hover:text-nb-text hover:underline"
+              >
+                Don't ask again
+              </button>
+            )}
+          </div>
+        )}
+
+        {steps.map((step) => (
+          <StepBubble
+            key={step.index}
+            step={step}
+            expandedResult={expandedResult}
+            onToggleResult={() =>
+              setExpandedResult(expandedResult === step.index ? null : step.index)
+            }
+          />
+        ))}
+
+        {task.status === 'running' && (
+          <div className="px-4 py-3 min-h-0 self-start">
+            <div className="inline-flex gap-1 items-center">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className="w-1.5 h-1.5 rounded-full bg-nb-muted animate-bounce"
+                  style={{ animationDelay: `${i * 0.2}s` }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {task.status && !['pending', 'running'].includes(task.status) && (
+          <div
+            className={`text-xs py-1.5 self-start ${task.status === 'completed' ? 'text-nb-accent-2' : task.status === 'failed' ? 'text-nb-danger' : 'text-nb-muted'}`}
+          >
+            {task.status === 'completed'
+              ? (task.summary ?? 'Task completed')
+              : task.status === 'failed'
+                ? (task.error ?? 'Task failed')
+                : (task.error ?? `Task ${task.status}`)}
           </div>
         )}
       </div>
@@ -122,167 +110,55 @@ function CapsApproval(props: {
   )
 }
 
-const RESULT_TRUNCATE = 120
-
-function ResultBlock(props: { text: string }): React.JSX.Element {
-  const [expanded, setExpanded] = useState(false)
-  const isLong = props.text.length > RESULT_TRUNCATE
-  const display = !isLong || expanded ? props.text : props.text.slice(0, RESULT_TRUNCATE) + '…'
+function StepBubble({
+  step,
+  expandedResult,
+  onToggleResult
+}: {
+  step: TaskStep
+  expandedResult: number | null
+  onToggleResult: () => void
+}): React.JSX.Element {
+  const isError = !!step.error
+  const raw = step.action as Record<string, unknown>
+  const type = raw.type as string
 
   return (
     <div
-      className={`${styles.feedStepResult}${isLong ? ` ${styles.clickable}` : ''}`}
-      onClick={isLong ? () => setExpanded(!expanded) : undefined}
+      className={`flex flex-col ${type === 'user_message' ? 'self-end' : 'self-start'} ${isError ? 'text-nb-danger' : ''}`}
     >
-      {display}
-      {isLong && <span className={styles.feedResultToggle}>{expanded ? ' ▲' : ' ▼'}</span>}
-    </div>
-  )
-}
-
-function StepLine(props: { step: TaskStep }): React.JSX.Element {
-  const { step } = props
-  const hasError = !!step.error
-  const time = new Date(step.timestamp).toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-
-  return (
-    <div className={`${styles.feedStep}${hasError ? ` ${styles.feedStepError}` : ''}`}>
-      <span className={styles.feedStepTime}>{time}</span>
-      {step.thought && <div className={styles.feedStepThought}>{step.thought}</div>}
-      {formatAction(step) && <div className={styles.feedStepAction}>{formatAction(step)}</div>}
-      {step.result && <ResultBlock text={step.result} />}
-      {step.error && <div className={styles.feedStepErr}>{step.error}</div>}
-    </div>
-  )
-}
-
-export function ChatFeed(props: {
-  task: Task
-  onApprove: () => void
-  onCancel: () => void
-  onDontAskAgain: () => void
-}): React.JSX.Element {
-  const { task } = props
-  const scrollRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const el = scrollRef.current
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
-  }, [task.steps.length, task.status])
-
-  const isTerminal =
-    task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled'
-
-  return (
-    <div className={styles.chatFeed} ref={scrollRef}>
-      {/* User prompt */}
-      <div className={`${styles.feedBubble} ${styles.feedBubbleUser}`}>{task.prompt}</div>
-
-      {/* Caps */}
-      <CapsApproval
-        caps={task.capabilities}
-        status={task.status}
-        onApprove={props.onApprove}
-        onCancel={props.onCancel}
-        onDontAskAgain={props.onDontAskAgain}
-      />
-
-      {/* Thinking */}
-      {task.status === 'running' && task.steps.length === 0 && (
-        <div className={`${styles.feedBubble} ${styles.feedBubbleBot} ${styles.feedThinking}`}>
-          {task.summary || 'Thinking...'}
+      <div
+        className={`rounded-2xl px-3.5 py-2.5 max-w-[720px] ${type === 'user_message' ? 'bg-nb-accent-2/8 border-nb-accent-2/22 self-end' : 'border border-nb-border bg-nb-panel-2 self-start'}`}
+      >
+        {step.thought && (
+          <div className="text-xs text-nb-muted italic mb-1">
+            {step.thought.length > 300 ? `${step.thought.slice(0, 300)}...` : step.thought}
+          </div>
+        )}
+        <div className="text-xs font-mono text-nb-muted leading-[1.4] break-words">
+          {JSON.stringify(step.action)}
         </div>
-      )}
-
-      {/* Steps — user messages as user bubbles, agent steps grouped in bot blocks */}
-      {task.steps.length > 0 &&
-        (() => {
-          const elements: React.JSX.Element[] = []
-          let agentBatch: TaskStep[] = []
-          let lastDateStr = ''
-
-          const flushBatch = (key: string): void => {
-            if (agentBatch.length > 0) {
-              elements.push(
-                <div
-                  key={key}
-                  className={`${styles.feedBubble} ${styles.feedBubbleBot} ${styles.feedStepsBlock}`}
-                >
-                  {agentBatch.map((s) => (
-                    <StepLine key={s.index} step={s} />
-                  ))}
-                </div>
-              )
-              agentBatch = []
-            }
-          }
-
-          const maybeAddDateSep = (ts: number | undefined, key: string): void => {
-            if (!ts) return
-            const dateStr = new Date(ts).toLocaleDateString(undefined, {
-              year: 'numeric',
-              month: 'short',
-              day: 'numeric'
-            })
-            if (dateStr !== lastDateStr) {
-              flushBatch(`bot-before-date-${key}`)
-              elements.push(
-                <div key={`date-sep-${key}`} className={styles.feedDateSep}>
-                  <span>{dateStr}</span>
-                </div>
-              )
-              lastDateStr = dateStr
-            }
-          }
-
-          for (const step of task.steps) {
-            const a = step.action as Record<string, unknown>
-            maybeAddDateSep(step.timestamp, String(step.index))
-            if (a.type === 'user_message') {
-              flushBatch(`bot-before-${step.index}`)
-              elements.push(
-                <div
-                  key={`user-${step.index}`}
-                  className={`${styles.feedBubble} ${styles.feedBubbleUser}`}
-                >
-                  {String(a.text)}
-                </div>
-              )
-            } else {
-              agentBatch.push(step)
-            }
-          }
-          flushBatch('bot-final')
-          return elements
-        })()}
-
-      {/* Typing indicator while model is thinking between steps */}
-      {task.status === 'running' && task.steps.length > 0 && (
-        <div
-          className={`${styles.feedBubble} ${styles.feedBubbleBot} ${styles.feedThinking} ${styles.feedTyping}`}
-        >
-          <span className={styles.typingDots}>
-            <span />
-            <span />
-            <span />
-          </span>
-        </div>
-      )}
-
-      {/* Terminal */}
-      {isTerminal && (
-        <div
-          className={`${styles.feedStatus} ${styles[task.status]}`}
-          style={{ whiteSpace: 'pre-wrap' }}
-        >
-          {task.status === 'completed' && renderLinked(task.summary || 'Tarea completada')}
-          {task.status === 'failed' && renderLinked(task.error || 'Tarea fallida')}
-          {task.status === 'cancelled' && 'Tarea cancelada'}
-        </div>
-      )}
+        {step.result && (
+          <div className="mt-1 text-[11px] text-nb-muted leading-[1.4] whitespace-pre-wrap break-words">
+            <span>
+              {step.result.length > 200 && expandedResult !== step.index
+                ? `${step.result.slice(0, 200)}...`
+                : step.result}
+            </span>
+            {step.result.length > 200 && (
+              <button
+                type="button"
+                onClick={onToggleResult}
+                className="text-[9px] opacity-50 bg-none border-none cursor-pointer text-nb-muted ml-1"
+              >
+                {expandedResult === step.index ? 'less' : 'more'}
+              </button>
+            )}
+          </div>
+        )}
+        {step.error && <div className="text-xs text-nb-danger mt-0.5">{step.error}</div>}
+      </div>
+      <div className="text-[11px] text-nb-muted mt-0.5 mx-1">{formatTime(step.timestamp)}</div>
     </div>
   )
 }

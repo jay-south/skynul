@@ -1,5 +1,5 @@
 import type { Schedule } from '@skynul/shared'
-import { apiFetch } from '@/lib/api-fetch'
+import { api } from '@/lib/api'
 
 type ScheduleCreateRequest = {
   prompt: string
@@ -9,12 +9,12 @@ type ScheduleCreateRequest = {
 }
 
 export async function fetchSchedules(): Promise<Schedule[]> {
-  const res = await apiFetch<{ schedules: Schedule[] }>('/schedules')
+  const res = await api<{ schedules: Schedule[] }>('/schedules')
   return res.schedules
 }
 
 export async function createSchedule(data: ScheduleCreateRequest): Promise<Schedule[]> {
-  const res = await apiFetch<{ schedules: Schedule[] }>('/schedules', {
+  const res = await api<{ schedules: Schedule[] }>('/schedules', {
     method: 'POST',
     body: JSON.stringify(data)
   })
@@ -22,14 +22,14 @@ export async function createSchedule(data: ScheduleCreateRequest): Promise<Sched
 }
 
 export async function toggleSchedule(id: string): Promise<Schedule[]> {
-  const res = await apiFetch<{ schedules: Schedule[] }>(`/schedules/${id}/toggle`, {
+  const res = await api<{ schedules: Schedule[] }>(`/schedules/${id}/toggle`, {
     method: 'PUT'
   })
   return res.schedules
 }
 
 export async function deleteSchedule(id: string): Promise<Schedule[]> {
-  const res = await apiFetch<{ schedules: Schedule[] }>(`/schedules/${id}`, {
+  const res = await api<{ schedules: Schedule[] }>(`/schedules/${id}`, {
     method: 'DELETE'
   })
   return res.schedules
