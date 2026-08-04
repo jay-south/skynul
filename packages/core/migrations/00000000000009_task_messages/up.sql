@@ -1,0 +1,1 @@
+ALTER TABLE tasks ADD COLUMN messages TEXT NOT NULL DEFAULT '[]';

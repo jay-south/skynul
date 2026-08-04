@@ -1,49 +1,32 @@
-import type { ChannelGlobalSettings, ChannelId, ChannelSettings } from '@skynul/shared'
-import { api } from '@/lib/api'
+import type { ChannelId, ChannelSettings } from './types'
+import { apiV1 } from '@/lib/api'
 
 export async function fetchChannels(): Promise<ChannelSettings[]> {
-  const res = await api<{ channels: ChannelSettings[] }>('/channels')
-  return res.channels
+  const res = await apiV1<{ channels: ChannelSettings[] }>('/channels')
+  return res.channels as ChannelSettings[]
 }
 
-export async function fetchChannelGlobal(): Promise<ChannelGlobalSettings> {
-  return api('/channels/global')
+export async function fetchChannel(channelId: ChannelId): Promise<ChannelSettings> {
+  return apiV1(`/channels/${channelId}`) as Promise<ChannelSettings>
 }
 
-export async function setChannelEnabled(
+export async function patchChannel(
   channelId: ChannelId,
-  enabled: boolean
+  data: { enabled?: boolean; credentials?: Record<string, string> }
 ): Promise<ChannelSettings> {
-  return api(`/channels/${channelId}/enabled`, {
-    method: 'PUT',
-    body: JSON.stringify({ enabled })
-  })
-}
-
-export async function setChannelCredentials(
-  channelId: ChannelId,
-  creds: Record<string, string>
-): Promise<void> {
-  await api(`/channels/${channelId}/credentials`, {
-    method: 'PUT',
-    body: JSON.stringify(creds)
-  })
+  return apiV1(`/channels/${channelId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data)
+  }) as Promise<ChannelSettings>
 }
 
 export async function generateChannelPairing(channelId: ChannelId): Promise<string> {
-  const res = await api<{ code: string }>(`/channels/${channelId}/pairing`, {
+  const res = await apiV1<{ code: string }>(`/channels/${channelId}/pairing`, {
     method: 'POST'
   })
   return res.code
 }
 
-export async function unpairChannel(channelId: ChannelId): Promise<void> {
-  await api(`/channels/${channelId}/pairing`, { method: 'DELETE' })
-}
-
-export async function setChannelAutoApprove(enabled: boolean): Promise<ChannelGlobalSettings> {
-  return api('/channels/auto-approve', {
-    method: 'PUT',
-    body: JSON.stringify({ enabled })
-  })
+export async function unpairChannel(channelId: ChannelId): Promise<ChannelSettings> {
+  return apiV1(`/channels/${channelId}/pairing`, { method: 'DELETE' }) as Promise<ChannelSettings>
 }

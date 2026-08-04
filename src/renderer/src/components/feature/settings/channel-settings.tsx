@@ -1,16 +1,20 @@
-import type { ChannelId } from '@skynul/shared'
+import type { ChannelId } from '@shared'
+import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import discordIcon from '@/assets/discord.svg'
 import signalIcon from '@/assets/signal.svg'
 import slackIcon from '@/assets/slack.svg'
 import telegramIcon from '@/assets/telegram.svg'
 import whatsappIcon from '@/assets/whatsapp.svg'
-import { CapabilityToggle } from '@/components/feature/settings'
+import { SettingsInset, SettingsRow } from '@/components/feature/settings/settings-primitives'
+import { ThemeIcon } from '@/components/theme-icon'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
+import { cn } from '@/lib/utils'
 import {
-  useChannelGlobal,
   useChannels,
   useGenerateChannelPairing,
-  useSetChannelAutoApprove,
   useSetChannelCredentials,
   useSetChannelEnabled,
   useUnpairChannel
@@ -23,10 +27,8 @@ const CHANNEL_INFO: Record<
     iconSrc: string
     desc: string
     credentialField: string
-    credentialLabel: string
     credentialPlaceholder: string
     credentialField2?: string
-    credentialLabel2?: string
     credentialPlaceholder2?: string
   }
 > = {
@@ -35,7 +37,6 @@ const CHANNEL_INFO: Record<
     iconSrc: telegramIcon,
     desc: 'Bot token from @BotFather',
     credentialField: 'token',
-    credentialLabel: 'Bot Token',
     credentialPlaceholder: '123456:ABC-DEF1234...'
   },
   whatsapp: {
@@ -43,7 +44,6 @@ const CHANNEL_INFO: Record<
     iconSrc: whatsappIcon,
     desc: 'QR-based auth via whatsapp-web.js',
     credentialField: '',
-    credentialLabel: '',
     credentialPlaceholder: ''
   },
   discord: {
@@ -51,7 +51,6 @@ const CHANNEL_INFO: Record<
     iconSrc: discordIcon,
     desc: 'Bot token from Discord Developer Portal',
     credentialField: 'token',
-    credentialLabel: 'Bot Token',
     credentialPlaceholder: 'MTA2NjY...'
   },
   signal: {
@@ -59,37 +58,32 @@ const CHANNEL_INFO: Record<
     iconSrc: signalIcon,
     desc: 'signal-cli REST API',
     credentialField: 'apiUrl',
-    credentialLabel: 'API URL',
     credentialPlaceholder: 'http://localhost:8080'
   },
   slack: {
     label: 'Slack',
     iconSrc: slackIcon,
-    desc: 'Socket Mode — Bot Token + App Token',
+    desc: 'Socket Mode — Bot + App tokens',
     credentialField: 'botToken',
-    credentialLabel: 'Bot Token',
     credentialPlaceholder: 'xoxb-...',
     credentialField2: 'appToken',
-    credentialLabel2: 'App Token',
     credentialPlaceholder2: 'xapp-...'
   }
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  connected: '#4caf50',
-  connecting: '#ff9800',
-  disconnected: '#666',
-  error: '#f44336'
+const STATUS_COLOR: Record<string, string> = {
+  connected: 'bg-emerald-500',
+  connecting: 'bg-amber-500',
+  disconnected: 'bg-nb-muted/50',
+  error: 'bg-nb-danger'
 }
 
 export function ChannelSettings(): React.JSX.Element {
   const { data: channels = [], isLoading } = useChannels()
-  const { data: global } = useChannelGlobal()
   const setEnabled = useSetChannelEnabled()
   const setCredentials = useSetChannelCredentials()
   const generatePairing = useGenerateChannelPairing()
   const unpair = useUnpairChannel()
-  const setAutoApprove = useSetChannelAutoApprove()
 
   const [expandedId, setExpandedId] = useState<ChannelId | null>(null)
   const [credDraft, setCredDraft] = useState('')
@@ -97,13 +91,11 @@ export function ChannelSettings(): React.JSX.Element {
   const [busy, setBusy] = useState<ChannelId | null>(null)
   const [error, setError] = useState('')
 
-  const autoApprove = global?.autoApprove ?? true
-
-  const handleToggle = async (channelId: ChannelId, currentEnabled: boolean): Promise<void> => {
+  const handleToggle = async (channelId: ChannelId, enabled: boolean): Promise<void> => {
     setBusy(channelId)
     setError('')
     try {
-      await setEnabled.mutateAsync({ channelId, enabled: !currentEnabled })
+      await setEnabled.mutateAsync({ channelId, enabled })
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -117,8 +109,8 @@ export function ChannelSettings(): React.JSX.Element {
     setError('')
     try {
       const info = CHANNEL_INFO[channelId]
-      const creds: Record<string, string> = { [info.credentialField]: credDraft }
-      if (info.credentialField2 && credDraft2.trim()) creds[info.credentialField2] = credDraft2
+      const creds: Record<string, string> = { [info.credentialField]: credDraft.trim() }
+      if (info.credentialField2 && credDraft2.trim()) creds[info.credentialField2] = credDraft2.trim()
       await setCredentials.mutateAsync({ channelId, creds })
       setCredDraft('')
       setCredDraft2('')
@@ -129,237 +121,178 @@ export function ChannelSettings(): React.JSX.Element {
     }
   }
 
-  const handleGeneratePairing = async (channelId: ChannelId): Promise<void> => {
-    setBusy(channelId)
-    setError('')
-    try {
-      await generatePairing.mutateAsync(channelId)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setBusy(null)
-    }
+  if (isLoading) {
+    return <div className="px-4 py-6 text-sm text-nb-muted">Loading channels…</div>
   }
-
-  const handleUnpair = async (channelId: ChannelId): Promise<void> => {
-    setBusy(channelId)
-    setError('')
-    try {
-      await unpair.mutateAsync(channelId)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setBusy(null)
-    }
-  }
-
-  if (isLoading) return <div className="flex flex-col gap-3">Loading channels...</div>
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="text-xs font-bold text-nb-muted uppercase tracking-[0.04em]">
-        Messaging Channels
-      </div>
+    <>
       {error && (
-        <div className="text-xs text-nb-danger px-2.5 py-2 rounded-lg bg-nb-danger/10 border border-nb-danger/30">
+        <div className="mx-4 mt-3 text-xs text-nb-danger px-3 py-2 rounded-lg bg-nb-danger/10 border border-nb-danger/30">
           {error}
         </div>
       )}
 
-      <CapabilityToggle
-        title="Aprobar tareas automáticamente"
-        description={
-          autoApprove
-            ? 'Las tareas de canales se ejecutan sin confirmación'
-            : 'Las tareas quedan pendientes hasta que las apruebes'
-        }
-        enabled={autoApprove}
-        onToggle={() =>
-          void setAutoApprove
-            .mutateAsync(!autoApprove)
-            .catch((e) => setError(e instanceof Error ? e.message : String(e)))
-        }
-      />
+      {channels.map((ch) => {
+        const info = CHANNEL_INFO[ch.id]
+        const isExpanded = expandedId === ch.id
+        const isBusy = busy === ch.id
 
-      <div className="flex flex-col gap-2">
-        {channels.map((ch) => {
-          const info = CHANNEL_INFO[ch.id]
-          const isExpanded = expandedId === ch.id
-          const isBusy = busy === ch.id
-
-          return (
-            <div
-              key={ch.id}
-              className="border border-nb-border rounded-xl overflow-hidden bg-nb-panel"
+        return (
+          <div key={ch.id}>
+            <SettingsRow
+              title={
+                <span className="inline-flex items-center gap-2">
+                  <ThemeIcon src={info.iconSrc} alt={info.label} className="size-4" />
+                  {info.label}
+                </span>
+              }
+              description={
+                <span className="inline-flex items-center gap-1.5">
+                  <span
+                    className={cn('size-1.5 rounded-full', STATUS_COLOR[ch.status] ?? 'bg-nb-muted')}
+                  />
+                  {ch.paired ? 'Paired' : ch.status}
+                </span>
+              }
             >
               <button
                 type="button"
                 onClick={() => setExpandedId(isExpanded ? null : ch.id)}
-                className="flex items-center gap-2.5 w-full px-3.5 py-3 bg-none border-none cursor-pointer text-nb-text text-xs font-semibold text-left hover:bg-nb-accent-2/8 transition-colors duration-100"
+                className="p-1 rounded-md border-none bg-transparent text-nb-muted hover:text-nb-text cursor-pointer"
+                aria-expanded={isExpanded}
+                aria-label={`Configure ${info.label}`}
               >
-                <span className="w-[18px] h-[18px] inline-flex items-center justify-center shrink-0">
-                  <img
-                    className="w-[18px] h-[18px] block object-contain brightness-0 dark:brightness-0 dark:invert"
-                    src={info.iconSrc}
-                    alt=""
-                  />
-                </span>
-                <span className="flex-1">{info.label}</span>
-                <span
-                  className="w-2 h-2 rounded-full shrink-0"
-                  style={{ backgroundColor: STATUS_COLORS[ch.status] ?? '#666' }}
-                  title={ch.status}
+                <ChevronDown
+                  className={cn('size-4 transition-transform', isExpanded && 'rotate-180')}
                 />
-                {ch.paired && (
-                  <span className="inline-flex items-center text-[9px] font-bold uppercase tracking-[0.04em] text-white bg-nb-accent-2 px-2 py-[3px] rounded-full align-middle">
-                    Paired
-                  </span>
-                )}
               </button>
+              <Switch
+                checked={ch.enabled}
+                disabled={isBusy}
+                onCheckedChange={(checked) => void handleToggle(ch.id, checked)}
+                aria-label={`Enable ${info.label}`}
+              />
+            </SettingsRow>
 
-              {isExpanded && (
-                <div className="px-3.5 pb-3.5 flex flex-col gap-2.5">
-                  <div className="text-[11px] font-medium text-nb-muted">{info.desc}</div>
+            {isExpanded && (
+              <SettingsInset>
+                <p className="text-xs text-nb-muted mb-3">{info.desc}</p>
 
-                  {info.credentialField && (
-                    <div className="flex flex-col gap-1.5">
-                      {ch.hasCredentials && !credDraft && (
-                        <div className="flex items-center gap-2.5">
-                          <span className="font-mono text-nb-muted tracking-[2px]">
-                            ••••••••••••••••
-                          </span>
-                          <button
-                            type="button"
-                            className="text-[11px] px-2.5 py-[3px] bg-nb-panel-2 border border-nb-border rounded-lg cursor-pointer text-nb-text"
-                            onClick={() => setCredDraft(' ')}
-                          >
-                            Change
-                          </button>
-                        </div>
-                      )}
-                      {(!ch.hasCredentials || credDraft) && (
-                        <>
-                          <input
+                {info.credentialField && (
+                  <div className="flex flex-col gap-2 mb-3">
+                    {ch.hasCredentials && !credDraft ? (
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs text-nb-muted tracking-widest">••••••••</span>
+                        <Button variant="outline" size="xs" onClick={() => setCredDraft(' ')}>
+                          Change
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <Input
+                          type="password"
+                          className="font-mono text-xs h-9"
+                          placeholder={info.credentialPlaceholder}
+                          value={credDraft}
+                          onChange={(e) => setCredDraft(e.target.value)}
+                        />
+                        {info.credentialField2 && (
+                          <Input
                             type="password"
-                            className="w-full px-3 py-2.5 rounded-xl border border-nb-border bg-nb-panel-2 text-xs text-nb-text outline-none font-mono focus:border-nb-accent-2/50"
-                            placeholder={info.credentialPlaceholder}
-                            value={credDraft}
-                            onChange={(e) => setCredDraft(e.target.value)}
-                            aria-label={info.credentialLabel}
+                            className="font-mono text-xs h-9"
+                            placeholder={info.credentialPlaceholder2}
+                            value={credDraft2}
+                            onChange={(e) => setCredDraft2(e.target.value)}
                           />
-                          {info.credentialField2 && (
-                            <input
-                              type="password"
-                              className="w-full px-3 py-2.5 rounded-xl border border-nb-border bg-nb-panel-2 text-xs text-nb-text outline-none font-mono focus:border-nb-accent-2/50"
-                              placeholder={info.credentialPlaceholder2}
-                              value={credDraft2}
-                              onChange={(e) => setCredDraft2(e.target.value)}
-                              aria-label={info.credentialLabel2}
-                            />
-                          )}
-                          <button
-                            type="button"
-                            className="px-2.5 py-[3px] bg-nb-panel-2 border border-nb-border rounded-lg cursor-pointer text-nb-text text-xs"
-                            onClick={() => void handleSaveCredentials(ch.id)}
-                            disabled={isBusy || !credDraft.trim()}
-                          >
-                            {isBusy ? '...' : 'Save'}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  )}
-
-                  <CapabilityToggle
-                    title="Active"
-                    description={ch.enabled ? `Status: ${ch.status}` : 'Channel is off'}
-                    enabled={ch.enabled}
-                    onToggle={() => void handleToggle(ch.id, ch.enabled)}
-                    disabled={isBusy}
-                  />
-
-                  {ch.enabled && !ch.paired && (
-                    <div className="flex flex-col gap-2">
-                      {ch.pairingCode ? (
-                        <div className="text-[11px] font-medium text-nb-muted">
-                          {ch.id === 'telegram' && (
-                            <>
-                              Send{' '}
-                              <code className="bg-nb-code-bg border border-nb-code-border rounded px-1">
-                                /pair {ch.pairingCode}
-                              </code>{' '}
-                              to your bot in Telegram
-                            </>
-                          )}
-                          {ch.id === 'discord' && (
-                            <>
-                              Send{' '}
-                              <code className="bg-nb-code-bg border border-nb-code-border rounded px-1">
-                                /pair {ch.pairingCode}
-                              </code>{' '}
-                              to your bot in Discord
-                            </>
-                          )}
-                          {ch.id === 'slack' && (
-                            <>
-                              Send{' '}
-                              <code className="bg-nb-code-bg border border-nb-code-border rounded px-1">
-                                /pair {ch.pairingCode}
-                              </code>{' '}
-                              to the bot in Slack
-                            </>
-                          )}
-                          {ch.id === 'whatsapp' && <>Scan QR code in WhatsApp</>}
-                          {ch.id === 'signal' && <>Link device via Signal</>}
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          className="px-2.5 py-[3px] bg-nb-panel-2 border border-nb-border rounded-lg cursor-pointer text-nb-text text-xs"
-                          onClick={() => void handleGeneratePairing(ch.id)}
-                          disabled={isBusy}
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={isBusy || !credDraft.trim()}
+                          onClick={() => void handleSaveCredentials(ch.id)}
                         >
-                          {isBusy ? '...' : 'Generate Pairing Code'}
-                        </button>
-                      )}
-                    </div>
-                  )}
+                          Save credentials
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                )}
 
-                  {ch.enabled && ch.paired && (
-                    <div className="flex flex-col gap-2">
-                      <div className="text-[11px] font-medium text-nb-muted">
-                        {ch.id === 'telegram' && <>Paired to chat {String(ch.meta.pairedChatId)}</>}
+                {ch.enabled && !ch.paired && (
+                  <div className="flex flex-col gap-2 mb-2">
+                    {ch.pairingCode ? (
+                      <p className="text-xs text-nb-muted">
+                        {ch.id === 'telegram' && (
+                          <>
+                            Send{' '}
+                            <code className="rounded bg-nb-code-bg border border-nb-code-border px-1 py-0.5 font-mono text-[11px]">
+                              /pair {ch.pairingCode}
+                            </code>{' '}
+                            to your bot
+                          </>
+                        )}
                         {ch.id === 'discord' && (
-                          <>Paired to channel {String(ch.meta.pairedChannelId)}</>
+                          <>
+                            Send{' '}
+                            <code className="rounded bg-nb-code-bg border border-nb-code-border px-1 py-0.5 font-mono text-[11px]">
+                              /pair {ch.pairingCode}
+                            </code>{' '}
+                            in Discord
+                          </>
                         )}
                         {ch.id === 'slack' && (
-                          <>Paired to channel {String(ch.meta.pairedChannelId)}</>
+                          <>
+                            Send{' '}
+                            <code className="rounded bg-nb-code-bg border border-nb-code-border px-1 py-0.5 font-mono text-[11px]">
+                              /pair {ch.pairingCode}
+                            </code>{' '}
+                            in Slack
+                          </>
                         )}
-                        {ch.id === 'whatsapp' && <>Paired to {String(ch.meta.phoneNumber)}</>}
-                        {ch.id === 'signal' && <>Paired to {String(ch.meta.phoneNumber)}</>}
-                      </div>
-                      <button
-                        type="button"
-                        className="px-2.5 py-[3px] bg-nb-panel-2 border border-nb-border rounded-lg cursor-pointer text-nb-text text-xs"
-                        onClick={() => void handleUnpair(ch.id)}
+                        {(ch.id === 'whatsapp' || ch.id === 'signal') && <>Complete pairing in the client</>}
+                      </p>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
                         disabled={isBusy}
+                        onClick={() => void generatePairing.mutateAsync(ch.id)}
                       >
-                        Unpair
-                      </button>
-                    </div>
-                  )}
+                        Generate pairing code
+                      </Button>
+                    )}
+                  </div>
+                )}
 
-                  {ch.error && (
-                    <div className="text-xs text-nb-danger px-2.5 py-2 rounded-lg bg-nb-danger/10 border border-nb-danger/30">
-                      {ch.error}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-    </div>
+                {ch.enabled && ch.paired && (
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-nb-muted">
+                      {ch.id === 'telegram' && <>Chat {String(ch.meta.pairedChatId)}</>}
+                      {ch.id === 'discord' && <>Channel {String(ch.meta.pairedChannelId)}</>}
+                      {ch.id === 'slack' && <>Channel {String(ch.meta.pairedChannelId)}</>}
+                      {ch.id === 'whatsapp' && <>{String(ch.meta.phoneNumber)}</>}
+                      {ch.id === 'signal' && <>{String(ch.meta.phoneNumber)}</>}
+                    </span>
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      disabled={isBusy}
+                      onClick={() => void unpair.mutateAsync(ch.id)}
+                    >
+                      Unpair
+                    </Button>
+                  </div>
+                )}
+
+                {ch.error && (
+                  <p className="text-xs text-nb-danger mt-2">{ch.error}</p>
+                )}
+              </SettingsInset>
+            )}
+          </div>
+        )
+      })}
+    </>
   )
 }

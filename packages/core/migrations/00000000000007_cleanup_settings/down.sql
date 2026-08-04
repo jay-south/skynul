@@ -1,0 +1,3 @@
+ALTER TABLE policy ADD COLUMN workspace_root TEXT;
+ALTER TABLE policy ADD COLUMN task_auto_approve INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE channels ADD COLUMN auto_approve INTEGER NOT NULL DEFAULT 0;

@@ -1,20 +1,13 @@
-import type { Schedule } from '@skynul/shared'
-import { api } from '@/lib/api'
-
-type ScheduleCreateRequest = {
-  prompt: string
-  frequency: string
-  cronExpr: string
-  enabled?: boolean
-}
+import type { Schedule, ScheduleCreateRequest } from './types'
+import { apiV1 } from '@/lib/api'
 
 export async function fetchSchedules(): Promise<Schedule[]> {
-  const res = await api<{ schedules: Schedule[] }>('/schedules')
+  const res = await apiV1<{ schedules: Schedule[] }>('/schedules')
   return res.schedules
 }
 
 export async function createSchedule(data: ScheduleCreateRequest): Promise<Schedule[]> {
-  const res = await api<{ schedules: Schedule[] }>('/schedules', {
+  const res = await apiV1<{ schedules: Schedule[] }>('/schedules', {
     method: 'POST',
     body: JSON.stringify(data)
   })
@@ -22,14 +15,14 @@ export async function createSchedule(data: ScheduleCreateRequest): Promise<Sched
 }
 
 export async function toggleSchedule(id: string): Promise<Schedule[]> {
-  const res = await api<{ schedules: Schedule[] }>(`/schedules/${id}/toggle`, {
+  const res = await apiV1<{ schedules: Schedule[] }>(`/schedules/${id}/toggle`, {
     method: 'PUT'
   })
   return res.schedules
 }
 
 export async function deleteSchedule(id: string): Promise<Schedule[]> {
-  const res = await api<{ schedules: Schedule[] }>(`/schedules/${id}`, {
+  const res = await apiV1<{ schedules: Schedule[] }>(`/schedules/${id}`, {
     method: 'DELETE'
   })
   return res.schedules

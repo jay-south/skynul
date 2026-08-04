@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useInvalidate } from '../invalidation'
 import { projectsKeys } from './keys'
-import { addTaskToProject, createProject, deleteProject, fetchProjects } from './service'
+import { addTaskToProject, createProject, deleteProject, fetchProjects, updateProject } from './service'
 
 export function useProjects() {
   return useQuery({ queryKey: projectsKeys.lists(), queryFn: fetchProjects })
@@ -20,6 +20,21 @@ export function useAddTaskToProject() {
   return useMutation({
     mutationFn: ({ projectId, taskId }: { projectId: string; taskId: string }) =>
       addTaskToProject(projectId, taskId),
+    onSuccess: () => invalidate(projectsKeys.lists())
+  })
+}
+
+export function useUpdateProject() {
+  const invalidate = useInvalidate()
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...data
+    }: {
+      id: string
+      name?: string
+      color?: string
+    }) => updateProject(id, data),
     onSuccess: () => invalidate(projectsKeys.lists())
   })
 }

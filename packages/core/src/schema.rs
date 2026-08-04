@@ -15,19 +15,22 @@ diesel::table! {
         error -> Nullable<Text>,
         summary -> Nullable<Text>,
         source -> Nullable<Text>,
+        source_chat_id -> Nullable<BigInt>,
+        mode_reasoning -> Nullable<Text>,
+        mode_source -> Text,
+        messages -> Text,
     }
 }
 
 diesel::table! {
     policy (id) {
         id -> Integer,
-        workspace_root -> Nullable<Text>,
         capabilities -> Text,
         theme_mode -> Text,
         language -> Text,
         provider_active -> Text,
         provider_model -> Nullable<Text>,
-        task_auto_approve -> Bool,
+        agent_prompt_append -> Text,
     }
 }
 
@@ -66,7 +69,14 @@ diesel::table! {
         error -> Nullable<Text>,
         has_credentials -> Bool,
         meta -> Text,
-        auto_approve -> Bool,
+    }
+}
+
+diesel::table! {
+    provider_credentials (provider_id) {
+        provider_id -> Text,
+        api_key -> Text,
+        updated_at -> BigInt,
     }
 }
 
@@ -76,4 +86,5 @@ diesel::allow_tables_to_appear_in_same_query!(
     schedules,
     projects,
     channels,
+    provider_credentials,
 );

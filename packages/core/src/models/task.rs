@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::schema::tasks;
 
 #[derive(Debug, Clone, Queryable, Identifiable, Selectable, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[diesel(table_name = tasks, check_for_backend(diesel::sqlite::Sqlite))]
 pub struct Task {
     pub id: String,
@@ -21,6 +22,10 @@ pub struct Task {
     pub error: Option<String>,
     pub summary: Option<String>,
     pub source: Option<String>,
+    pub source_chat_id: Option<i64>,
+    pub mode_reasoning: Option<String>,
+    pub mode_source: String,
+    pub messages: String,
 }
 
 #[derive(Debug, Clone, Insertable, Serialize, Deserialize)]
@@ -41,4 +46,8 @@ pub struct NewTask {
     pub error: Option<String>,
     pub summary: Option<String>,
     pub source: Option<String>,
+    pub source_chat_id: Option<i64>,
+    pub mode_reasoning: Option<String>,
+    pub mode_source: String,
+    pub messages: String,
 }

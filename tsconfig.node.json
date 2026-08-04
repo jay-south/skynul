@@ -5,14 +5,15 @@
     "vite.config.*",
     "src/main/**/*",
     "src/preload/**/*",
-    "packages/server/src/**/*",
-    "packages/shared/src/**/*"
+    "src/shared/**/*"
   ],
   "compilerOptions": {
     "composite": true,
     "types": ["electron-vite/node"],
     "baseUrl": ".",
     "paths": {
+      "@shared": ["src/shared/index.ts"],
+      "@shared/*": ["src/shared/*"],
       "@/*": ["./src/renderer/src/*"]
     },
     "moduleResolution": "bundler"

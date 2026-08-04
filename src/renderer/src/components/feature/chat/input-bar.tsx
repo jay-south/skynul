@@ -1,12 +1,11 @@
-import type { LanguageCode, TaskCapabilityId } from '@skynul/shared'
-import { ALL_TASK_CAPABILITIES } from '@skynul/shared'
+import type { LanguageCode } from '@shared'
 import { useRef, useState } from 'react'
 import { speechLocale } from '@/i18n'
 
 export function InputBar(props: {
   lang: LanguageCode
-  autoCaps: TaskCapabilityId[]
   compact: boolean
+  disabled?: boolean
   onSubmit: (text: string, attachments?: string[]) => void
   onTextChange?: (text: string) => void
   onStop?: () => void
@@ -18,6 +17,7 @@ export function InputBar(props: {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const submit = (): void => {
+    if (props.disabled) return
     const trimmed = text.trim()
     if (!trimmed) return
     props.onSubmit(trimmed, attachments.length ? attachments : undefined)
@@ -112,14 +112,6 @@ export function InputBar(props: {
     el.style.height = `${Math.min(el.scrollHeight, 220)}px`
   }
 
-  const capsHint =
-    !props.compact && text.trim() && props.autoCaps.length > 0
-      ? props.autoCaps
-          .map((c) => ALL_TASK_CAPABILITIES.find((a) => a.id === c)?.title)
-          .filter(Boolean)
-          .join(', ')
-      : null
-
   const btn =
     'w-7 h-7 rounded-full border-none flex items-center justify-center shrink-0 transition-colors duration-100'
   const micButton = (
@@ -209,7 +201,7 @@ export function InputBar(props: {
     <button
       type="button"
       onClick={submit}
-      disabled={!text.trim()}
+      disabled={!text.trim() || props.disabled}
       title={props.compact ? 'Send message' : 'Create task'}
       className="w-8 h-8 rounded-full border-none bg-nb-accent-2 text-white cursor-pointer flex items-center justify-center transition-opacity duration-100 disabled:opacity-30 disabled:cursor-default hover:enabled:opacity-85"
     >
@@ -267,7 +259,6 @@ export function InputBar(props: {
 
   return (
     <div className="px-6 pb-4 max-w-[720px] w-full mx-auto">
-      {capsHint && <div className="text-[11px] text-nb-muted mb-1.5 pl-[2px]">{capsHint}</div>}
       <div className="flex items-end gap-2 bg-nb-panel border border-nb-border rounded-[14px] p-2 px-3">
         {inner(false)}
       </div>

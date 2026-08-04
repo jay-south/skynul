@@ -1,4 +1,5 @@
 import { type ChildProcess, execSync, spawn } from 'node:child_process'
+import os from 'node:os'
 import { resolve } from 'node:path'
 
 let serverProcess: ChildProcess | null = null
@@ -43,6 +44,7 @@ export async function spawnServer(_authToken: string): Promise<void> {
     env: {
       ...process.env,
       SKYNUL_PORT: String(port),
+      SKYNUL_HOME: process.env.SKYNUL_HOME ?? os.homedir(),
       NODE_ENV: isDev ? 'development' : 'production'
     },
     stdio: ['ignore', 'pipe', 'pipe'],

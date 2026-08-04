@@ -22,24 +22,69 @@ pub enum AppError {
 }
 
 #[derive(Serialize)]
+struct ErrorDetail {
+    code: String,
+    message: String,
+}
+
+#[derive(Serialize)]
 struct ErrorBody {
-    error: String,
+    error: ErrorDetail,
+}
+
+impl AppError {
+    fn code(&self) -> &'static str {
+        match self {
+            AppError::NotFound(_) => "not_found",
+            AppError::BadRequest(_) => "bad_request",
+            AppError::Internal(_) => "internal_error",
+            AppError::Database(_) => "database_error",
+            AppError::Io(_) => "io_error",
+        }
+    }
+
+    fn client_message(&self) -> String {
+        match self {
+            AppError::NotFound(msg) => msg.clone(),
+            AppError::BadRequest(msg) => msg.clone(),
+            AppError::Internal(msg) => msg.clone(),
+            AppError::Database(_) => "internal server error".to_string(),
+            AppError::Io(err) => err.to_string(),
+        }
+    }
 }
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        let (status, message) = match &self {
-            AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg.clone()),
-            AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg.clone()),
-            AppError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg.clone()),
-            AppError::Database(_) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "internal server error".to_string(),
-            ),
-            AppError::Io(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+        let status = match &self {
+            AppError::NotFound(msg) => {
+                tracing::warn!("not found: {msg}");
+                StatusCode::NOT_FOUND
+            }
+            AppError::BadRequest(msg) => {
+                tracing::warn!("bad request: {msg}");
+                StatusCode::BAD_REQUEST
+            }
+            AppError::Internal(msg) => {
+                tracing::error!("internal error: {msg}");
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+            AppError::Database(err) => {
+                tracing::error!("database error: {err}");
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+            AppError::Io(err) => {
+                tracing::error!("io error: {err}");
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
         };
 
-        let body = ErrorBody { error: message };
+        let body = ErrorBody {
+            error: ErrorDetail {
+                code: self.code().to_string(),
+                message: self.client_message(),
+            },
+        };
         (status, axum::Json(body)).into_response()
     }
 }

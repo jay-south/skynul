@@ -21,45 +21,58 @@ You explicitly enable capabilities (network, filesystem, etc.) and the app enfor
 
 ## Architecture
 
-Skynul uses a **separated architecture** with a clear frontend/backend split:
+Skynul uses Electron for the UI and a single Rust backend process:
 
 ```
-┌─────────────────┐      HTTP/WebSocket      ┌─────────────────┐
-│   Electron SPA  │  ←──────────────────→   │  Skynul Server  │
-│  ┌───────────┐  │                         │  (API REST)     │
-│  │  React    │  │                         │                 │
-│  │  Router   │  │                         │  ┌───────────┐  │
-│  │  React    │  │                         │  │  Tasks    │  │
-│  │  Query    │  │                         │  │  Policy   │  │
-│  └───────────┘  │                         │  │  etc.     │  │
-└─────────────────┘                         │  └───────────┘  │
-                                            └─────────────────┘
+┌─────────────────┐    HTTP + WS (/api/v1)    ┌─────────────────────────┐
+│   Electron SPA  │  ←────────────────────→  │  skynul-server (Rust)   │
+│  React + Query  │                          │  Axum API, agent loop,  │
+└─────────────────┘                          │  channels, SQLite       │
+                                             └─────────────────────────┘
 ```
 
-**Frontend** (`src/renderer/`): React SPA with React Router 7 and React Query
-**Backend** (`packages/server/`): Hono.js HTTP API with WebSocket support
-**Shared** (`packages/shared/`): TypeScript types shared between frontend and backend
+**Frontend** (`src/renderer/`): React SPA with React Router and React Query  
+**Backend** (`packages/core/`): Rust server (`skynul-server`) — conversational chat or tool-calling agent harness  
+**Shared types** (`src/shared/`): API contract for the frontend
+
+### Shared types (`src/shared/`)
+
+```
+src/shared/
+├── generated.ts   # Generated from Rust via typeshare (pnpm gen:types)
+├── api.ts         # API types, unions, constants (imports generated.ts)
+└── index.ts       # Re-exports
+```
+
+Regenerate TypeScript types after changing Rust API types in `packages/core/src/api/types.rs`:
+
+```bash
+pnpm gen:types
+```
+
+### API (`/api/v1/`)
+
+| Area | Endpoints |
+|------|-----------|
+| Tasks | `GET/POST /tasks`, `GET /tasks/:id`, `POST /tasks/:id/cancel`, `WS /tasks/:id/stream` |
+| Projects | `GET/POST /projects`, `PATCH/DELETE /projects/:id`, `POST /projects/:id/tasks` |
+| Schedules | `GET/POST /schedules`, `PUT /schedules/:id/toggle`, `DELETE /schedules/:id` |
+| Settings | General, model, permissions |
+| Providers | `GET /providers`, credentials CRUD |
+| Channels | List, pair, configure |
 
 ### Frontend Structure
 
 ```
 src/renderer/src/
-├── queries/           # React Query modules (tasks, policy, etc.)
-│   ├── tasks/         # Task queries: hooks.ts, service.ts, keys.ts, types.ts
-│   ├── policy/        # Policy queries
+├── queries/           # React Query modules (tasks, projects, schedules, etc.)
+│   ├── tasks/         # hooks.ts, service.ts, keys.ts, types.ts
 │   └── ...
 ├── pages/             # Route pages
 ├── layouts/           # Route layouts
 ├── components/        # React components
 └── main.tsx          # Entry point with QueryProvider
 ```
-
-Each query module follows the pattern:
-
-- `types.ts` - TypeScript interfaces
-- `keys.ts` - React Query keys
-- `service.ts` - HTTP API functions
-- `hooks.ts` - React Query hooks (useQuery, useMutation)
 
 ## Install
 
@@ -74,17 +87,18 @@ pnpm install
 
 ## Development
 
-You need to run **both** the server and the Electron app:
-
 ```bash
-# Terminal 1: Start the backend server
-pnpm server:dev
-
-# Terminal 2: Start the Electron app
 pnpm dev
 ```
 
-The server runs on `http://localhost:3141` and the Electron app connects to it via HTTP.
+Starts the Rust backend and Electron app together. The server listens on `http://localhost:3141` (override with `SKYNUL_PORT`).
+
+To run them separately:
+
+```bash
+pnpm dev:backend   # Rust API only
+pnpm dev:desktop   # Electron only (requires SKYNUL_EXTERNAL_SERVER=1)
+```
 
 ## Build
 
@@ -113,18 +127,11 @@ Key variables:
 
 Skynul has two separate concepts:
 
-- **App policy capabilities** (enforced): `net.http`, `fs.read`, `fs.write` are checked before network calls or workspace file access.
-- **Task capabilities** (task-scoped): flags like `polymarket.trading` or `office.professional` shape how a task runs.
+- **App policy capabilities** (enforced): `cmd.run`, `fs.read`, `fs.write`, `net.http` gate tool execution and network access.
 
 Details: `docs/permissions.md`
 
 If you are reporting a vulnerability, follow: `SECURITY.md`
-
-## Browser Automation (Playwright + CDP)
-
-Skynul connects to a locally launched Chromium-based browser over CDP.
-
-Details: `docs/browser-cdp.md`
 
 ## Providers
 

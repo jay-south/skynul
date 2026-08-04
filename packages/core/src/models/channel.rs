@@ -14,7 +14,6 @@ pub struct Channel {
     pub error: Option<String>,
     pub has_credentials: bool,
     pub meta: String,
-    pub auto_approve: bool,
 }
 
 #[derive(Debug, Clone, Insertable, Serialize, Deserialize)]
@@ -28,5 +27,4 @@ pub struct NewChannel {
     pub error: Option<String>,
     pub has_credentials: bool,
     pub meta: String,
-    pub auto_approve: bool,
 }

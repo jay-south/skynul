@@ -200,7 +200,9 @@ app.whenReady().then(async () => {
   initAutoUpdater(win)
   createTray(win)
 
-  await spawnServer(authToken)
+  if (!process.env.SKYNUL_EXTERNAL_SERVER) {
+    await spawnServer(authToken)
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow(authToken)
@@ -210,7 +212,9 @@ app.whenReady().then(async () => {
 app.on('before-quit', () => {
   isQuitting = true
   destroyTray()
-  stopServer()
+  if (!process.env.SKYNUL_EXTERNAL_SERVER) {
+    stopServer()
+  }
 })
 
 app.on('window-all-closed', () => {

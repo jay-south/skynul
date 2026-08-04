@@ -1,15 +1,6 @@
-import { api } from '@/lib/api'
-
-export type RuntimeStats = {
-  app: {
-    cpuPercent: number
-    memoryMB: number
-  }
-  system: {
-    freeMemMB: number
-  }
-}
+import type { RuntimeStats } from './types'
+import { apiV1 } from '@/lib/api'
 
 export async function fetchRuntimeStats(): Promise<RuntimeStats> {
-  return api('/runtime/stats')
+  return apiV1('/runtime/stats')
 }

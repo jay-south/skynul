@@ -1,4 +1,4 @@
-import type { LanguageCode } from '@skynul/shared'
+import type { LanguageCode } from '@shared'
 
 const MESSAGES = {
   en: {
@@ -48,8 +48,6 @@ const MESSAGES = {
     auth_loading: 'Loading...',
     auth_loading_account: 'Loading account...',
 
-    workspace_none: 'No workspace',
-
     composer_placeholder: 'Ask anything. Files and images work too.',
     composer_placeholder_empty: 'Ask anything. Files and images work too.',
     chat_welcome: 'Hey there! Nice to see you.',
@@ -57,11 +55,18 @@ const MESSAGES = {
     composer_note: 'Enter to send · Shift+Enter new line.',
     composer_attach_label: 'Attach file',
 
+    task_advanced_open: 'Advanced options',
+    task_advanced_title: 'Advanced',
+    task_advanced_hint: 'Override automatic mode detection. Most tasks work best on Auto.',
+    task_advanced_mode: 'Mode',
+    task_advanced_mode_auto: 'Auto',
+    task_advanced_requires: 'Requires',
+    task_advanced_open_settings: 'Open Settings to enable',
+    task_advanced_done: 'Done',
+    task_mode_manual: 'manual',
+
     settings_title: 'Settings',
     settings_open_title: 'Settings',
-    settings_workspace: 'Workspace',
-    settings_pick_workspace: 'Pick workspace',
-    settings_workspace_hint: 'Folder the assistant can read and work in. Pick one to get started.',
     settings_capabilities: 'Capabilities',
     settings_theme: 'Theme',
     settings_language: 'Language',
@@ -69,9 +74,9 @@ const MESSAGES = {
     settings_chatgpt_pro: 'ChatGPT Pro',
 
     cap_fs_read_title: 'Read Files',
-    cap_fs_read_desc: 'Allow reading text files inside the workspace.',
+    cap_fs_read_desc: 'Allow reading files on this computer.',
     cap_fs_write_title: 'Write Files',
-    cap_fs_write_desc: 'Allow writing text files inside the workspace.',
+    cap_fs_write_desc: 'Allow writing files on this computer.',
     cap_cmd_run_title: 'Run Commands',
     cap_cmd_run_desc: 'Allow running approved commands (not wired yet).',
     cap_net_http_title: 'Network Access',
@@ -80,6 +85,8 @@ const MESSAGES = {
     theme_system: 'System',
     theme_light: 'Light',
     theme_dark: 'Dark',
+    theme_midnight: 'Midnight',
+    theme_forest: 'Forest',
 
     account_status: 'Status',
     account_connected_as: 'Connected as {email}.',
@@ -132,6 +139,10 @@ const MESSAGES = {
     settings_gemini_key: 'Gemini API Key',
     gemini_key_configured: 'API key configured',
     gemini_key_get_from: 'Get your API key from ai.google.dev',
+
+    settings_nvidia_key: 'NVIDIA API Key',
+    nvidia_key_configured: 'API key configured',
+    nvidia_key_get_from: 'Get your nvapi- key from build.nvidia.com/settings/api-keys',
 
     ollama_local_models: 'Local models',
     ollama_detecting: 'Detecting...',
@@ -257,8 +268,6 @@ const MESSAGES = {
     auth_loading: 'Cargando...',
     auth_loading_account: 'Cargando cuenta...',
 
-    workspace_none: 'Sin workspace',
-
     composer_placeholder: 'Preguntá lo que quieras. Archivos e imágenes también.',
     composer_placeholder_empty: 'Preguntá lo que quieras. Archivos e imágenes también.',
     chat_welcome: '¡Hola! Qué bueno verte.',
@@ -266,12 +275,19 @@ const MESSAGES = {
     composer_note: 'Enter para enviar · Shift+Enter nueva linea.',
     composer_attach_label: 'Adjuntar archivo',
 
+    task_advanced_open: 'Opciones avanzadas',
+    task_advanced_title: 'Avanzado',
+    task_advanced_hint:
+      'Forzá la deteccion de modo. La mayoria de las tareas funcionan mejor en Auto.',
+    task_advanced_mode: 'Modo',
+    task_advanced_mode_auto: 'Auto',
+    task_advanced_requires: 'Requiere',
+    task_advanced_open_settings: 'Abrir Settings para habilitar',
+    task_advanced_done: 'Listo',
+    task_mode_manual: 'manual',
+
     settings_title: 'Configuracion',
     settings_open_title: 'Configuracion',
-    settings_workspace: 'Workspace',
-    settings_pick_workspace: 'Elegir workspace',
-    settings_workspace_hint:
-      'Carpeta en la que el asistente puede leer y trabajar. Elegí una para empezar.',
     settings_capabilities: 'Capabilities',
     settings_theme: 'Tema',
     settings_language: 'Idioma',
@@ -279,9 +295,9 @@ const MESSAGES = {
     settings_chatgpt_pro: 'ChatGPT Pro',
 
     cap_fs_read_title: 'Leer archivos',
-    cap_fs_read_desc: 'Permite leer archivos de texto dentro del workspace.',
+    cap_fs_read_desc: 'Permite leer archivos en esta computadora.',
     cap_fs_write_title: 'Escribir archivos',
-    cap_fs_write_desc: 'Permite escribir archivos de texto dentro del workspace.',
+    cap_fs_write_desc: 'Permite escribir archivos en esta computadora.',
     cap_cmd_run_title: 'Ejecutar comandos',
     cap_cmd_run_desc: 'Permite ejecutar comandos aprobados (todavia no esta cableado).',
     cap_net_http_title: 'Acceso a red',
@@ -290,6 +306,8 @@ const MESSAGES = {
     theme_system: 'Sistema',
     theme_light: 'Claro',
     theme_dark: 'Oscuro',
+    theme_midnight: 'Medianoche',
+    theme_forest: 'Bosque',
 
     account_status: 'Estado',
     account_connected_as: 'Conectado como {email}.',
@@ -342,6 +360,10 @@ const MESSAGES = {
     settings_gemini_key: 'Clave API de Gemini',
     gemini_key_configured: 'Clave API configurada',
     gemini_key_get_from: 'Obtén tu clave en ai.google.dev',
+
+    settings_nvidia_key: 'Clave API de NVIDIA',
+    nvidia_key_configured: 'Clave API configurada',
+    nvidia_key_get_from: 'Obtén tu clave nvapi- en build.nvidia.com/settings/api-keys',
 
     ollama_local_models: 'Modelos locales',
     ollama_detecting: 'Detectando...',

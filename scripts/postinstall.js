@@ -1,1 +1,1 @@
-console.log('[postinstall] All dependencies installed. Use pnpm server:dev to start the server.')
+console.log('[postinstall] Dependencies installed. Run `pnpm dev` to start the app.')

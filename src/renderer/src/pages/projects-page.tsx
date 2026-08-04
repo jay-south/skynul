@@ -10,25 +10,56 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator
 } from '@/components/ui/breadcrumb'
-import { useAddTaskToProject, useCreateProject, useDeleteProject, useProjects } from '../queries'
+import { useAddTaskToProject, useCreateProject, useDeleteProject, useProjects, useUpdateProject } from '../queries'
+
+const PROJECT_COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f97316', '#22c55e', '#06b6d4', '#eab308']
 
 export function ProjectsPage(): React.JSX.Element {
   const [showCreateProject, setShowCreateProject] = useState(false)
   const [createProjectName, setCreateProjectName] = useState('')
+  const [createProjectColor, setCreateProjectColor] = useState(PROJECT_COLORS[0])
   const [pendingProjectTaskId, setPendingProjectTaskId] = useState<string | null>(null)
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
+  const [editProjectName, setEditProjectName] = useState('')
+  const [editProjectColor, setEditProjectColor] = useState(PROJECT_COLORS[0])
 
   const { data: projects = [] } = useProjects()
   const createProjectMutation = useCreateProject()
+  const updateProjectMutation = useUpdateProject()
   const deleteProjectMutation = useDeleteProject()
   const addTaskMutation = useAddTaskToProject()
 
   const handleCreateProject = async (name: string, taskId?: string | null) => {
-    const newProject = await createProjectMutation.mutateAsync(name)
+    const newProject = await createProjectMutation.mutateAsync({
+      name,
+      color: createProjectColor
+    })
     if (taskId && newProject)
       await addTaskMutation.mutateAsync({ projectId: newProject.id, taskId })
     setShowCreateProject(false)
     setCreateProjectName('')
+    setCreateProjectColor(PROJECT_COLORS[0])
     setPendingProjectTaskId(null)
+  }
+
+  const openEditProject = (projectId: string) => {
+    const project = projects.find((p) => p.id === projectId)
+    if (!project) return
+    setEditingProjectId(projectId)
+    setEditProjectName(project.name)
+    setEditProjectColor(project.color)
+  }
+
+  const handleUpdateProject = async () => {
+    if (!editingProjectId || !editProjectName.trim()) return
+    await updateProjectMutation.mutateAsync({
+      id: editingProjectId,
+      name: editProjectName.trim(),
+      color: editProjectColor
+    })
+    setEditingProjectId(null)
+    setEditProjectName('')
+    setEditProjectColor(PROJECT_COLORS[0])
   }
 
   const handleDeleteProject = (projectId: string) => deleteProjectMutation.mutate(projectId)
@@ -158,12 +189,23 @@ export function ProjectsPage(): React.JSX.Element {
                       className="size-2.5 rounded-full shrink-0"
                       style={{ background: proj.color }}
                     />
-                    <div className="flex-1 min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => openEditProject(proj.id)}
+                      className="flex-1 min-w-0 text-left bg-transparent border-none p-0 cursor-pointer"
+                    >
                       <div className="text-sm font-medium text-nb-text">{proj.name}</div>
                       <div className="text-xs text-nb-muted">
-                        {proj.taskIds.length} task{proj.taskIds.length !== 1 ? 's' : ''}
+                        {proj.taskCount} task{proj.taskCount !== 1 ? 's' : ''}
                       </div>
-                    </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openEditProject(proj.id)}
+                      className="appearance-none bg-transparent border-none text-nb-muted text-xs cursor-pointer px-2 py-1 rounded-md hover:text-nb-text hover:bg-nb-panel transition-colors"
+                    >
+                      Edit
+                    </button>
                     <button
                       type="button"
                       onClick={() => handleDeleteProject(proj.id)}
@@ -213,6 +255,21 @@ export function ProjectsPage(): React.JSX.Element {
                       void handleCreateProject(createProjectName.trim(), pendingProjectTaskId)
                   }}
                 />
+                <div className="flex flex-wrap gap-2">
+                  {PROJECT_COLORS.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      aria-label={`Color ${color}`}
+                      onClick={() => setCreateProjectColor(color)}
+                      className="size-6 rounded-full border-2 cursor-pointer transition-transform hover:scale-110"
+                      style={{
+                        background: color,
+                        borderColor: createProjectColor === color ? 'white' : 'transparent'
+                      }}
+                    />
+                  ))}
+                </div>
                 <div className="flex justify-end gap-2 mt-1">
                   <button
                     type="button"
@@ -234,6 +291,78 @@ export function ProjectsPage(): React.JSX.Element {
                     className="appearance-none bg-nb-accent-2 border-none rounded-lg text-white px-4 py-2 cursor-pointer font-inherit text-xs font-medium disabled:opacity-40 disabled:cursor-default"
                   >
                     Create
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {editingProjectId && (
+          <>
+            {/* biome-ignore lint/a11y/noStaticElementInteractions: Modal overlay dismisses when clicking outside the dialog. */}
+            <div
+              className="fixed inset-0 z-[300] bg-black/50 flex items-center justify-center"
+              onClick={(e) => {
+                if (e.target !== e.currentTarget) return
+                setEditingProjectId(null)
+                setEditProjectName('')
+                setEditProjectColor(PROJECT_COLORS[0])
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setEditingProjectId(null)
+                  setEditProjectName('')
+                  setEditProjectColor(PROJECT_COLORS[0])
+                }
+              }}
+              role="presentation"
+            >
+              <div className="bg-nb-bg border border-nb-border rounded-[14px] p-6 w-[340px] flex flex-col gap-3 shadow-nb">
+                <div className="text-base font-semibold text-nb-text">Edit Project</div>
+                <input
+                  className="appearance-none bg-nb-code-bg border border-nb-border rounded-lg px-3 py-2.5 text-nb-text text-sm font-inherit outline-none focus:border-nb-accent-2"
+                  placeholder="Project name…"
+                  value={editProjectName}
+                  onChange={(e) => setEditProjectName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && editProjectName.trim()) void handleUpdateProject()
+                  }}
+                />
+                <div className="flex flex-wrap gap-2">
+                  {PROJECT_COLORS.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      aria-label={`Color ${color}`}
+                      onClick={() => setEditProjectColor(color)}
+                      className="size-6 rounded-full border-2 cursor-pointer transition-transform hover:scale-110"
+                      style={{
+                        background: color,
+                        borderColor: editProjectColor === color ? 'white' : 'transparent'
+                      }}
+                    />
+                  ))}
+                </div>
+                <div className="flex justify-end gap-2 mt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingProjectId(null)
+                      setEditProjectName('')
+                      setEditProjectColor(PROJECT_COLORS[0])
+                    }}
+                    className="appearance-none bg-transparent border border-nb-border rounded-lg text-nb-muted px-4 py-2 cursor-pointer font-inherit text-xs"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!editProjectName.trim() || updateProjectMutation.isPending}
+                    onClick={() => void handleUpdateProject()}
+                    className="appearance-none bg-nb-accent-2 border-none rounded-lg text-white px-4 py-2 cursor-pointer font-inherit text-xs font-medium disabled:opacity-40 disabled:cursor-default"
+                  >
+                    Save
                   </button>
                 </div>
               </div>

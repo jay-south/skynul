@@ -1,40 +1,66 @@
-import type { Task, TaskCreateRequest } from '@skynul/shared'
-import { api } from '@/lib/api'
+import type {
+  TaskCancelResponse,
+  TaskCreateRequest,
+  TaskCreatedResponse,
+  TaskListResponse,
+  TaskResponse
+} from '@shared'
+import { apiV1 } from '@/lib/api'
 
-export async function fetchTasks(): Promise<Task[]> {
-  const res = await api<{ tasks: Task[] }>('/tasks')
-  return res.tasks
+export type TaskListParams = {
+  limit?: number
+  offset?: number
+  projectId?: string
 }
 
-export async function fetchTask(id: string): Promise<Task> {
-  return api(`/tasks/${id}`)
+export async function fetchTasks(params?: TaskListParams): Promise<TaskResponse[]> {
+  const search = new URLSearchParams()
+  search.set('limit', String(params?.limit ?? 100))
+  if (params?.offset !== undefined) search.set('offset', String(params.offset))
+  if (params?.projectId) search.set('projectId', params.projectId)
+  const qs = search.toString()
+  const res = await apiV1<TaskListResponse>(`/tasks${qs ? `?${qs}` : ''}`)
+  return (res.items ?? []) as TaskResponse[]
 }
 
-export async function createTask(data: TaskCreateRequest): Promise<Task> {
-  const res = await api<{ task: Task }>('/tasks', {
+export async function fetchTask(id: string): Promise<TaskResponse> {
+  return apiV1<TaskResponse>(`/tasks/${id}`) as Promise<TaskResponse>
+}
+
+export async function createTask(data: TaskCreateRequest): Promise<TaskCreatedResponse> {
+  return apiV1<TaskCreatedResponse>('/tasks', {
     method: 'POST',
     body: JSON.stringify(data)
-  })
-  return res.task
+  }) as Promise<TaskCreatedResponse>
 }
 
-export async function approveTask(id: string): Promise<Task> {
-  const res = await api<{ task: Task }>(`/tasks/${id}/approve`, { method: 'POST' })
-  return res.task
+export async function continueTask(
+  id: string,
+  data: import('@shared').TaskContinueRequest
+): Promise<TaskCreatedResponse> {
+  return apiV1<TaskCreatedResponse>(`/tasks/${id}/messages`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }) as Promise<TaskCreatedResponse>
 }
 
-export async function cancelTask(id: string): Promise<Task> {
-  const res = await api<{ task: Task }>(`/tasks/${id}/cancel`, { method: 'POST' })
-  return res.task
+export async function cancelTask(id: string): Promise<TaskCancelResponse> {
+  return apiV1<TaskCancelResponse>(`/tasks/${id}/cancel`, {
+    method: 'POST'
+  }) as Promise<TaskCancelResponse>
 }
 
 export async function deleteTask(id: string): Promise<void> {
-  await api(`/tasks/${id}`, { method: 'DELETE' })
+  await apiV1(`/tasks/${id}`, { method: 'DELETE' })
 }
 
-export async function sendTaskMessage(id: string, message: string): Promise<void> {
-  await api(`/tasks/${id}/message`, {
+export async function approveToolCall(
+  taskId: string,
+  requestId: string,
+  approved: boolean
+): Promise<void> {
+  await apiV1(`/tasks/${taskId}/tool-approval`, {
     method: 'POST',
-    body: JSON.stringify({ message })
+    body: JSON.stringify({ requestId, approved })
   })
 }

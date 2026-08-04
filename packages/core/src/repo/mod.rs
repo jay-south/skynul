@@ -1,4 +1,5 @@
 pub mod channel;
+pub mod credentials;
 pub mod policy;
 pub mod project;
 pub mod schedule;

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Section, SectionField, SectionLabel } from '@/components/common'
+import { SettingsInset, SettingsRow } from '@/components/feature/settings/settings-primitives'
+import { Button } from '@/components/ui/button'
 
 type UpdateState =
   | 'idle'
@@ -47,7 +48,7 @@ export function UpdateSettings(): React.JSX.Element {
 
   const checkNow = (): void => {
     if (typeof window === 'undefined' || !window.skynul) {
-      setError('Update check not available - running outside Electron')
+      setError('Update check not available — running outside Electron')
       return
     }
     setState('checking')
@@ -59,10 +60,7 @@ export function UpdateSettings(): React.JSX.Element {
   }
 
   const download = (): void => {
-    if (typeof window === 'undefined' || !window.skynul) {
-      setError('Update download not available - running outside Electron')
-      return
-    }
+    if (typeof window === 'undefined' || !window.skynul) return
     setState('downloading')
     setError('')
     window.skynul.updateDownload().catch((e) => {
@@ -72,84 +70,66 @@ export function UpdateSettings(): React.JSX.Element {
   }
 
   const restart = (): void => {
-    if (typeof window === 'undefined' || !window.skynul) {
-      setError('Update install not available - running outside Electron')
-      return
-    }
+    if (typeof window === 'undefined' || !window.skynul) return
     window.skynul.updateInstall().catch((e) => {
       setState('error')
       setError(e instanceof Error ? e.message : String(e))
     })
   }
 
-  const title =
+  const statusLabel =
     state === 'ready'
-      ? `Update ready — v${version}`
+      ? `Ready — v${version}`
       : state === 'downloading'
-        ? `Downloading${progress > 0 ? ` ${progress}%` : '...'}`
+        ? `Downloading${progress > 0 ? ` ${progress}%` : '…'}`
         : state === 'available'
-          ? `Update available — v${version}`
+          ? `Available — v${version}`
           : state === 'checking'
-            ? 'Checking for updates...'
+            ? 'Checking…'
             : state === 'upToDate'
-              ? 'You are up to date'
+              ? 'Up to date'
               : state === 'error'
-                ? 'Update check failed'
-                : 'Updates'
+                ? 'Check failed'
+                : 'Not checked yet'
 
   return (
-    <Section>
-      <SectionLabel>Updates</SectionLabel>
-      <SectionField>
-        <div className="text-[11px] font-medium text-nb-muted">{title}</div>
-        {state === 'downloading' && (
-          <div
-            className="h-1.5 rounded-full bg-nb-border overflow-hidden"
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={progress}
-            aria-label="Download progress"
-          >
+    <>
+      <SettingsRow title="Skynul desktop" description={statusLabel}>
+        <Button variant="outline" size="sm" onClick={checkNow}>
+          Check
+        </Button>
+      </SettingsRow>
+      {(state === 'available' || state === 'ready' || state === 'downloading' || error) && (
+        <SettingsInset>
+          {state === 'downloading' && (
             <div
-              className="h-full rounded-full bg-nb-accent-2 transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        )}
-        {error ? (
-          <div className="text-xs text-nb-danger px-2.5 py-2 rounded-lg bg-nb-danger/10 border border-nb-danger/30">
-            {error}
-          </div>
-        ) : null}
-        <div className="flex gap-2 flex-wrap">
-          <button
-            type="button"
-            onClick={checkNow}
-            className="text-xs font-medium px-2.5 py-1.5 rounded-md bg-nb-panel-2 border border-nb-border cursor-pointer text-nb-text hover:bg-nb-accent-2/10"
-          >
-            Check now
-          </button>
-          {state === 'available' && (
-            <button
-              type="button"
-              onClick={download}
-              className="text-xs font-medium px-2.5 py-1.5 rounded-md bg-nb-panel-2 border border-nb-border cursor-pointer text-nb-text hover:bg-nb-accent-2/10"
+              className="h-1 rounded-full bg-nb-border overflow-hidden mb-2"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progress}
             >
-              Download
-            </button>
+              <div
+                className="h-full rounded-full bg-nb-accent-2 transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
           )}
-          {state === 'ready' && (
-            <button
-              type="button"
-              onClick={restart}
-              className="text-xs font-medium px-2.5 py-1.5 rounded-md bg-nb-panel-2 border border-nb-border cursor-pointer text-nb-text hover:bg-nb-accent-2/10"
-            >
-              Restart to update
-            </button>
-          )}
-        </div>
-      </SectionField>
-    </Section>
+          {error && <p className="text-xs text-nb-danger mb-2">{error}</p>}
+          <div className="flex gap-2">
+            {state === 'available' && (
+              <Button size="sm" className="bg-nb-accent-2 text-white" onClick={download}>
+                Download
+              </Button>
+            )}
+            {state === 'ready' && (
+              <Button size="sm" className="bg-nb-accent-2 text-white" onClick={restart}>
+                Restart to update
+              </Button>
+            )}
+          </div>
+        </SettingsInset>
+      )}
+    </>
   )
 }

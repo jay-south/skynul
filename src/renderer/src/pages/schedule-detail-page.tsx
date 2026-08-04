@@ -12,6 +12,7 @@ import {
 import { CapabilityList, CapabilityToggle } from '@/components/feature/settings'
 import { useDeleteSchedule, useSchedules, useToggleSchedule } from '@/queries/schedules/hooks'
 import { useTasks } from '@/queries/tasks/hooks'
+import { taskCreatedAtMs } from '@/queries/tasks/utils'
 
 export function ScheduleDetailPage(): React.JSX.Element {
   const { scheduleId } = useParams()
@@ -38,7 +39,7 @@ export function ScheduleDetailPage(): React.JSX.Element {
     if (!schedule) return []
     return tasks
       .filter((t) => t.prompt === schedule.prompt)
-      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .sort((a, b) => taskCreatedAtMs(b) - taskCreatedAtMs(a))
       .slice(0, 20)
   }, [schedule, tasks])
 
@@ -74,9 +75,7 @@ export function ScheduleDetailPage(): React.JSX.Element {
 
   const completedRuns = scheduleHistory.filter((t) => t.status === 'completed').length
   const failedRuns = scheduleHistory.filter((t) => t.status === 'failed').length
-  const totalTokens = scheduleHistory.reduce((sum, t) => {
-    return sum + (t.usage ? t.usage.inputTokens + t.usage.outputTokens : 0)
-  }, 0)
+  const totalTokens = 0
 
   return (
     <SettingsPanel>
@@ -209,7 +208,7 @@ export function ScheduleDetailPage(): React.JSX.Element {
               <CapabilityToggle
                 key={t.id}
                 title={`${t.prompt.slice(0, 50)}...`}
-                description={`${t.status} · ${t.steps.length} steps · ${formatAgo(t.updatedAt)}`}
+                description={`${t.status} · ${formatAgo(taskCreatedAtMs(t))}`}
                 enabled={t.status === 'completed'}
                 onToggle={() => navigate(`/tasks/${t.id}`)}
               />

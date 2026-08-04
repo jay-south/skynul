@@ -9,10 +9,10 @@ import { ProfilePage } from '@/pages/profile-page'
 import { ProjectsPage } from '@/pages/projects-page'
 import { ScheduleDetailPage } from '@/pages/schedule-detail-page'
 import { ScheduledPage } from '@/pages/scheduled-page'
-import { AgentPage } from '@/pages/settings/agent-page'
-import { DeveloperPage } from '@/pages/settings/developer-page'
+import { ChannelsPage } from '@/pages/settings/channels-page'
 import { GeneralPage } from '@/pages/settings/general-page'
-import { IntegrationsPage } from '@/pages/settings/integrations-page'
+import { ModelPage } from '@/pages/settings/model-page'
+import { PermissionsPage } from '@/pages/settings/permissions-page'
 import { TaskChatPage } from '@/pages/task-chat-page'
 import { TasksIndexPage } from '@/pages/tasks-index-page'
 import { WelcomePage } from '@/pages/welcome-page'
@@ -100,16 +100,16 @@ export const router = createHashRouter([
             element: <GeneralPage />
           },
           {
-            path: 'agent',
-            element: <AgentPage />
+            path: 'permissions',
+            element: <PermissionsPage />
           },
           {
-            path: 'integrations',
-            element: <IntegrationsPage />
+            path: 'model',
+            element: <ModelPage />
           },
           {
-            path: 'developer',
-            element: <DeveloperPage />
+            path: 'channels',
+            element: <ChannelsPage />
           }
         ]
       }

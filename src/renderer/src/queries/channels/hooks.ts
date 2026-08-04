@@ -2,33 +2,22 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useInvalidate } from '../invalidation'
 import { channelsKeys } from './keys'
 import {
-  fetchChannelGlobal,
   fetchChannels,
   generateChannelPairing,
-  setChannelAutoApprove,
-  setChannelCredentials,
-  setChannelEnabled,
+  patchChannel,
   unpairChannel
 } from './service'
+import type { ChannelId } from './types'
 
 export function useChannels() {
   return useQuery({ queryKey: channelsKeys.lists(), queryFn: fetchChannels })
 }
 
-export function useChannelGlobal() {
-  return useQuery({ queryKey: channelsKeys.global(), queryFn: fetchChannelGlobal })
-}
-
 export function useSetChannelEnabled() {
   const invalidate = useInvalidate()
   return useMutation({
-    mutationFn: ({
-      channelId,
-      enabled
-    }: {
-      channelId: import('@skynul/shared').ChannelId
-      enabled: boolean
-    }) => setChannelEnabled(channelId, enabled),
+    mutationFn: ({ channelId, enabled }: { channelId: ChannelId; enabled: boolean }) =>
+      patchChannel(channelId, { enabled }),
     onSuccess: () => invalidate(channelsKeys.lists())
   })
 }
@@ -36,13 +25,8 @@ export function useSetChannelEnabled() {
 export function useSetChannelCredentials() {
   const invalidate = useInvalidate()
   return useMutation({
-    mutationFn: ({
-      channelId,
-      creds
-    }: {
-      channelId: import('@skynul/shared').ChannelId
-      creds: Record<string, string>
-    }) => setChannelCredentials(channelId, creds),
+    mutationFn: ({ channelId, creds }: { channelId: ChannelId; creds: Record<string, string> }) =>
+      patchChannel(channelId, { credentials: creds }),
     onSuccess: () => invalidate(channelsKeys.lists())
   })
 }
@@ -60,13 +44,5 @@ export function useUnpairChannel() {
   return useMutation({
     mutationFn: unpairChannel,
     onSuccess: () => invalidate(channelsKeys.lists())
-  })
-}
-
-export function useSetChannelAutoApprove() {
-  const invalidate = useInvalidate()
-  return useMutation({
-    mutationFn: setChannelAutoApprove,
-    onSuccess: () => invalidate(channelsKeys.global())
   })
 }

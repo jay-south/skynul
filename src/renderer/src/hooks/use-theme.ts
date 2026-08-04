@@ -1,5 +1,6 @@
+import type { ThemeMode } from '@shared'
 import { useEffect } from 'react'
-import { usePolicy } from '@/queries'
+import { useGeneralSettings } from '@/queries'
 
 const THEME_KEY = 'skynul-theme'
 
@@ -15,25 +16,29 @@ function loadSaved(): string | null {
   }
 }
 
-// Apply immediately on module load to prevent flash
+function resolveSystemTheme(): 'light' | 'dark' {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
+function applyThemeMode(mode: ThemeMode): void {
+  applyTheme(mode === 'system' ? resolveSystemTheme() : mode)
+}
+
 const saved = loadSaved()
 if (saved) applyTheme(saved)
 else applyTheme('dark')
 
 export function useTheme(): void {
-  const { data: policy } = usePolicy()
+  const { data: settings } = useGeneralSettings()
 
   useEffect(() => {
     if (loadSaved()) return
-    const mode = policy?.themeMode ?? 'dark'
-    if (mode !== 'system') {
-      applyTheme(mode)
-      return
-    }
+    applyThemeMode(settings?.themeMode ?? 'dark')
+    if (settings?.themeMode !== 'system') return
+
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
-    applyTheme(mq.matches ? 'dark' : 'light')
-    const handler = (e: MediaQueryListEvent): void => applyTheme(e.matches ? 'dark' : 'light')
+    const handler = (): void => applyThemeMode('system')
     mq.addEventListener('change', handler)
     return () => mq.removeEventListener('change', handler)
-  }, [policy?.themeMode])
+  }, [settings?.themeMode])
 }

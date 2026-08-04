@@ -1,15 +1,18 @@
-import type { Task } from '@skynul/shared'
-import { useEffect, useMemo, useState } from 'react'
+import type { TaskResponse } from '@shared'
+import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { ContentCard } from '@/components/content-card'
 import { useRuntimeStats } from '@/queries/runtime/hooks'
 import { useSchedules } from '@/queries/schedules/hooks'
 import { useTasks } from '@/queries/tasks/hooks'
+import { isTaskLive, taskCreatedAtMs } from '@/queries/tasks/utils'
 
 const STATUS_COLOR: Record<string, string> = {
   running: 'var(--nb-accent-2)',
   completed: 'var(--nb-accent-2)',
   failed: 'var(--nb-danger)',
   pending: 'var(--nb-warning, #f0a030)',
+  planning: 'var(--nb-accent-2)',
   cancelled: 'var(--nb-muted)'
 }
 
@@ -18,8 +21,8 @@ const STATUS_LABEL: Record<string, string> = {
   completed: 'Done',
   failed: 'Failed',
   pending: 'Pending',
-  cancelled: 'Cancelled',
-  approved: 'Starting'
+  planning: 'Planning',
+  cancelled: 'Cancelled'
 }
 
 function StatCard(props: { label: string; value: string | number; sub?: string }) {
@@ -50,7 +53,7 @@ export function TaskDashboard(): React.JSX.Element {
         />
       )
       cards.push(
-        <StatCard key="ram" label="RAM" value={`${runtime.app.memoryMB} MB`} sub="heap used" />
+        <StatCard key="ram" label="RAM" value={`${runtime.app.memoryMb} MB`} sub="heap used" />
       )
     }
     if (runtime.system) {
@@ -58,7 +61,7 @@ export function TaskDashboard(): React.JSX.Element {
         <StatCard
           key="free"
           label="Free RAM"
-          value={`${runtime.system.freeMemMB} MB`}
+          value={`${runtime.system.freeMemMb} MB`}
           sub="system"
         />
       )
@@ -78,42 +81,8 @@ export function TaskDashboard(): React.JSX.Element {
 }
 
 function ActiveAgentsSection(): React.JSX.Element {
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [agentDetailsId, setAgentDetailsId] = useState<string | null>(null)
-  const [scheduleDetailsId, setScheduleDetailsId] = useState<string | null>(null)
-
-  useEffect(() => {
-    const wsUrl = `ws://localhost:${import.meta.env.VITE_SKYNUL_PORT ?? '3141'}/ws`
-    let ws: WebSocket | null = new WebSocket(wsUrl)
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data) as { type: string; payload: { task: Task } }
-        if (msg.type === 'task:update' && msg.payload?.task) {
-          setTasks((prev) => {
-            const idx = prev.findIndex((t) => t.id === msg.payload.task.id)
-            if (idx >= 0) {
-              const next = [...prev]
-              next[idx] = msg.payload.task
-              return next
-            }
-            return [...prev, msg.payload.task]
-          })
-        }
-      } catch {
-        /* ignore */
-      }
-    }
-    ws.onclose = () => {
-      ws = null
-    }
-    return () => {
-      ws?.close()
-    }
-  }, [])
-
-  const activeTasks = tasks.filter((t) => t.status === 'running' || t.status === 'pending')
-  const selectedAgent = agentDetailsId ? (tasks.find((t) => t.id === agentDetailsId) ?? null) : null
-  const selectedSubAgents: Task[] = []
+  const { data: tasks = [] } = useTasks()
+  const activeTasks = tasks.filter((t) => isTaskLive(t.status))
 
   return (
     <ContentCard title="Active Agents">
@@ -125,149 +94,38 @@ function ActiveAgentsSection(): React.JSX.Element {
       ) : (
         <div className="flex flex-col gap-2.5">
           {activeTasks.slice(0, 3).map((task) => (
-            <AgentCard
-              key={task.id}
-              task={task}
-              tasks={tasks}
-              onSelect={(id) => setAgentDetailsId(id)}
-              onScheduleSelect={(id) => setScheduleDetailsId(id)}
-              isActive={agentDetailsId === task.id}
-            />
+            <AgentCard key={task.id} task={task} />
           ))}
         </div>
-      )}
-
-      {selectedAgent && (
-        <AgentDetailPanel
-          task={selectedAgent}
-          subAgents={selectedSubAgents}
-          tasks={tasks}
-          onClose={() => setAgentDetailsId(null)}
-          onScheduleSelect={(id) => setScheduleDetailsId(id)}
-        />
-      )}
-      {scheduleDetailsId && (
-        <ScheduleDetailPanel
-          scheduleId={scheduleDetailsId}
-          onClose={() => setScheduleDetailsId(null)}
-        />
       )}
     </ContentCard>
   )
 }
 
-function AgentCard(props: {
-  task: Task
-  tasks: Task[]
-  onSelect: (id: string) => void
-  onScheduleSelect: (id: string) => void
-  isActive: boolean
-}): React.JSX.Element {
+function AgentCard(props: { task: TaskResponse }): React.JSX.Element {
   return (
-    <div
-      className={`border border-nb-border rounded-xl bg-nb-panel-2 p-3 flex flex-col gap-2.5 ${props.isActive ? 'ring-2 ring-nb-accent-2/20' : ''}`}
+    <Link
+      to={`/tasks/${props.task.id}`}
+      className="border border-nb-border rounded-xl bg-nb-panel-2 p-3 flex flex-col gap-2 no-underline hover:no-underline hover:border-nb-accent-2/30 transition-colors"
     >
-      <div className="flex-1">
-        <div className="text-xs font-medium text-nb-text leading-relaxed line-clamp-2">
-          {props.task.prompt}
-        </div>
-        <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-nb-muted items-center">
-          <span className="flex items-center gap-1">
-            <span
-              className="size-1.5 rounded-full shrink-0"
-              style={{ backgroundColor: STATUS_COLOR[props.task.status] ?? 'var(--nb-muted)' }}
-            />
-            {STATUS_LABEL[props.task.status] ?? props.task.status}
-          </span>
-          <span>
-            {props.task.steps.length} {props.task.steps.length === 1 ? 'step' : 'steps'}
-          </span>
-        </div>
+      <div className="text-xs font-medium text-nb-text leading-relaxed line-clamp-2">
+        {props.task.prompt}
       </div>
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-1">
-          {props.task.capabilities.slice(0, 2).map((c) => (
-            <span
-              key={c}
-              className="text-[10px] px-2 py-0.5 rounded-full border border-nb-border bg-nb-panel text-nb-muted"
-            >
-              {c}
-            </span>
-          ))}
-          {props.task.capabilities.length > 2 && (
-            <span className="text-[10px] px-2 py-0.5 rounded-full border border-nb-border bg-nb-panel text-nb-muted">
-              +{props.task.capabilities.length - 2}
-            </span>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={() => props.onSelect(props.task.id)}
-          className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-nb-panel border border-nb-border cursor-pointer text-nb-text hover:bg-nb-accent-2/10 transition-colors shrink-0"
-        >
-          Details
-        </button>
+      <div className="flex items-center gap-1 text-[11px] text-nb-muted">
+        <span
+          className="size-1.5 rounded-full shrink-0"
+          style={{ backgroundColor: STATUS_COLOR[props.task.status] ?? 'var(--nb-muted)' }}
+        />
+        {STATUS_LABEL[props.task.status] ?? props.task.status}
       </div>
-    </div>
-  )
-}
-
-function AgentDetailPanel(props: {
-  task: Task
-  subAgents: Task[]
-  tasks: Task[]
-  onClose: () => void
-  onScheduleSelect: (id: string) => void
-}): React.JSX.Element {
-  return (
-    <div className="mt-3 border border-nb-border rounded-xl bg-nb-panel-2 p-4 flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold text-nb-text m-0">Agent Details</h3>
-        <button
-          type="button"
-          onClick={props.onClose}
-          className="text-[11px] text-nb-muted px-2 py-1 rounded-md bg-nb-panel border border-nb-border cursor-pointer hover:text-nb-text transition-colors"
-        >
-          Close
-        </button>
-      </div>
-      <div className="text-xs text-nb-muted leading-relaxed">Prompt: {props.task.prompt}</div>
-      <div className="text-[11px] text-nb-muted">
-        Status:{' '}
-        <span className="font-medium text-nb-text">
-          {STATUS_LABEL[props.task.status] ?? props.task.status}
-        </span>
-      </div>
-      {props.task.error && (
-        <div className="text-[11px] text-nb-danger bg-nb-danger/10 border border-nb-danger/20 rounded-lg px-3 py-2">
-          Error: {props.task.error}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function ScheduleDetailPanel(props: {
-  scheduleId: string
-  onClose: () => void
-}): React.JSX.Element {
-  return (
-    <div className="mt-3 border border-nb-border rounded-xl bg-nb-panel-2 p-4 flex items-center justify-between">
-      <span className="text-xs text-nb-muted">Schedule: {props.scheduleId}</span>
-      <button
-        type="button"
-        onClick={props.onClose}
-        className="text-[11px] text-nb-muted px-2 py-1 rounded-md bg-nb-panel border border-nb-border cursor-pointer hover:text-nb-text transition-colors"
-      >
-        Close
-      </button>
-    </div>
+    </Link>
   )
 }
 
 function RecentTasksSection(): React.JSX.Element {
   const { data: tasks = [] } = useTasks()
-  const recent = tasks.slice(0, 5)
+  const recent = [...tasks].sort((a, b) => taskCreatedAtMs(b) - taskCreatedAtMs(a)).slice(0, 5)
+
   return (
     <ContentCard title="Recent Tasks">
       {recent.length === 0 ? (
@@ -278,10 +136,10 @@ function RecentTasksSection(): React.JSX.Element {
       ) : (
         <div className="flex flex-col gap-px">
           {recent.map((t) => (
-            <button
+            <Link
               key={t.id}
-              type="button"
-              className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-none border-none text-nb-text cursor-pointer text-left w-full font-inherit transition-colors duration-100 hover:bg-nb-panel"
+              to={`/tasks/${t.id}`}
+              className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-nb-text no-underline hover:no-underline transition-colors duration-100 hover:bg-nb-panel"
             >
               <span
                 className="size-1.5 rounded-full shrink-0"
@@ -290,10 +148,10 @@ function RecentTasksSection(): React.JSX.Element {
               <div className="min-w-0 flex-1">
                 <div className="text-xs truncate">{t.prompt}</div>
                 <div className="text-[11px] text-nb-muted mt-px">
-                  {STATUS_LABEL[t.status] ?? t.status} · {t.steps.length} steps
+                  {STATUS_LABEL[t.status] ?? t.status}
                 </div>
               </div>
-            </button>
+            </Link>
           ))}
         </div>
       )}
